@@ -1,0 +1,16 @@
+---
+# Development environment override
+services:
+  php:
+    image: ${IMAGES_PREFIX:-}app-php-dev
+    build:
+      context: .
+      target: frankenphp_dev
+    volumes:
+      - ./:/app
+      - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
+      # Keep var/ off the bind-mount for faster I/O on Mac/Windows; comment to inspect from the host.
+      - /app/var
+    environment:
+      APP_ENV: "${APP_ENV:-dev}"
+    tty: true

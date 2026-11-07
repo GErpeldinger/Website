@@ -11,7 +11,7 @@ ROOT := .dockerignore .editorconfig .env .env.dev .gitattributes .github .gitign
 	config frankenphp public src symfony.lock tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan ecs fmt prod-test
+.PHONY: help up down check layout php phpstan rector ecs fmt prod-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -44,24 +44,29 @@ layout:
 		exit 1; \
 	fi
 
-# PHPStan reads the dev container, and each `run` starts with an empty var/.
+# PHPStan and Rector read the dev container, and each `run` starts with an empty var/.
 WARM := bin/console cache:warmup -q
 
 PHPSTAN := vendor/bin/phpstan analyse -c $(TOOLS)/phpstan.neon --no-progress
+RECTOR := vendor/bin/rector process --config $(TOOLS)/rector.php --no-progress-bar
 ECS := vendor/bin/ecs check --config $(TOOLS)/ecs.php --no-progress-bar
 
-# One container and one warmup for the PHP checks; the targets below run them alone.
+# One container and one warmup for the three PHP checks; the targets below run them alone.
 php: vendor
-	$(PHP) sh -c '$(WARM) && $(PHPSTAN) && $(ECS)'
+	$(PHP) sh -c '$(WARM) && $(PHPSTAN) && $(RECTOR) --dry-run && $(ECS)'
 
 phpstan: vendor
 	$(PHP) sh -c '$(WARM) && $(PHPSTAN)'
 
+rector: vendor
+	$(PHP) sh -c '$(WARM) && $(RECTOR) --dry-run'
+
 ecs: vendor
 	$(PHP) $(ECS)
 
+# Rector first: ECS then formats what Rector rewrote.
 fmt: vendor ## Apply the automatic fixes
-	$(PHP) $(ECS) --fix
+	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix'
 
 # Its own project, one per checkout (dev's root-owned caddy volumes break the non-root image,
 # and two worktrees must not share a stack), on its own ports so it runs next to the dev stack.

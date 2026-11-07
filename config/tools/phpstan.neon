@@ -8,6 +8,19 @@ parameters:
     level: max
     paths:
         - ../../src
+        - ../../tests
+    excludePaths:
+        # Written by the PHPUnit recipe, like the rest of the Symfony skeleton
+        - ../../tests/bootstrap.php
+    ignoreErrors:
+        # Pest runs test closures and reports what they throw.
+        -
+            identifier: shipmonk.checkedExceptionInCallable
+            path: ../../tests/*
+        # arch()->preset() is Pest's documented API, reached through magic methods PHPStan can't see.
+        -
+            identifiers: [method.notFound, method.nonObject]
+            path: ../../tests/ArchTest.php
     symfony:
         containerXmlPath: ../../var/cache/dev/App_KernelDevDebugContainer.xml
     disallowedFunctionCalls:

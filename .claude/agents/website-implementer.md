@@ -31,9 +31,9 @@ While working
 - Never connect to the VPS, push images or change DNS: deployment belongs
   to the orchestrator. If the item needs one of these, write it under
   "to run" in your report.
-- Every new test must be able to fail. Break the line it guards, run the
-  test, check that it goes red, then revert the break before committing. A
-  test that stays green is vacuous: fix its stubs or its assertion.
+- Test first: write the failing test, run it and see it fail for the right
+  reason, then write the code. Mutation testing in `make check` then proves
+  the tests catch changes to that code.
 - Install nothing on the Mac (brew, npm, pip...). If a tool would help,
   say so in the report.
 - Never edit `.claude/` (CLAUDE.md included). Put the change in your

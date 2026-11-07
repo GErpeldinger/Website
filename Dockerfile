@@ -62,9 +62,10 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 ENV APP_ENV=dev
 ENV FRANKENPHP_WORKER_CONFIG=watch
 
-# dev dependencies
+# dev dependencies; pcov gives Pest the coverage its mutation testing and impact analysis need
 RUN <<-EOF
 	mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
+	install-php-extensions pcov
 	git config --system --add safe.directory /app
 EOF
 

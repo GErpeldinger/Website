@@ -17,6 +17,7 @@
         "symfony/yaml": "8.1.*"
     },
     "require-dev": {
+        "pestphp/pest": "^5.3",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.3",
         "phpstan/phpstan-deprecation-rules": "^2.0",
@@ -33,7 +34,8 @@
         "allow-plugins": {
             "symfony/flex": true,
             "symfony/runtime": true,
-            "phpstan/extension-installer": true
+            "phpstan/extension-installer": true,
+            "pestphp/pest-plugin": true
         },
         "bump-after-update": true,
         "sort-packages": true

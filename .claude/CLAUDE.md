@@ -19,7 +19,8 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 `make` lists the targets. Every tool runs in Docker, so nothing is installed on the Mac:
 
 - `make up` and `make down`: the dev stack on https://localhost.
-- `make check`: PHPStan, Rector (dry run), ECS and Prettier, exactly as CI runs them.
+- `make check`: PHPStan, Rector (dry run), ECS, the Pest tests, mutation testing of the PHP classes changed since `origin/main`, and Prettier. CI runs the same, plus `make mutate-all` on every class.
+- `make test` and `make mutate`: the tests alone, and mutation testing alone. Locally, test impact analysis only runs the tests a change affects.
 - `make fmt`: applies the Rector, ECS and Prettier fixes.
 - `make hooks`: run once per clone. Commits then run `make check`, and their messages are checked.
 - `make prod-test`: builds and probes the production image on https://localhost:8443, next to the dev stack.
@@ -29,7 +30,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 `make check` (via the pre-commit hook and CI) enforces the code conventions. The tool configs live in `config/tools/`: read them rather than restating them here. Editors don't find them on their own: point PhpStorm's PHPStan, Rector and ECS settings at them once. Two non-obvious points:
 
 - `exit()`, `die()`, `dump()` and `dd()` are banned in `src/`: exit and die kill the FrankenPHP worker. The tools leave the Symfony skeleton (`public/index.php`, `config/preload.php`, the generated bundle and reference lists) as its recipes write it.
-- `tests/.gitkeep` must stay: the dead-code detector fails if the autoload-dev path is missing.
+- Code is written test-first, with Pest. Every class in `src/` has its test at the mirrored path in `tests/`, and every mutation of its code must be caught: a surviving mutation means a missing test.
 
 ## Conventions
 

@@ -48,3 +48,5 @@ jobs:
           test "$status" -lt 500
       - name: Run the checks
         run: make check
+      - name: Run mutation testing on every class
+        run: make mutate-all

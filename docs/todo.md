@@ -17,7 +17,6 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Install Twig, with `twig-cs-fixer`, TwigStan and `lint:twig` in `make check`.
 - Install AssetMapper and Stimulus.
 - Enforce FR/EN parity with a check that fails on a missing translation.
-- Add `tests/` to the PHPStan paths and to `config/tools/paths.php` (Rector and ECS) once tests exist.
 
 ## Game layer
 

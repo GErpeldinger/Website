@@ -8,10 +8,12 @@ return [
     'paths' => [
         __DIR__ . '/../../config',
         __DIR__ . '/../../src',
+        __DIR__ . '/../../tests',
     ],
     'skip' => [
         __DIR__ . '/../../config/bundles.php',
         __DIR__ . '/../../config/preload.php',
         __DIR__ . '/../../config/reference.php',
+        __DIR__ . '/../../tests/bootstrap.php',
     ],
 ];

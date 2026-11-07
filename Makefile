@@ -10,7 +10,7 @@ WORKTREES := .claude/worktrees
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
+	config docs frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
 
 .DEFAULT_GOAL := help
 .PHONY: help up down check layout php phpstan rector ecs prettier fmt hooks clean-tree fold prod-test

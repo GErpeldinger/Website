@@ -71,6 +71,8 @@ ECS := vendor/bin/ecs check --config $(TOOLS)/ecs.php --no-progress-bar
 # Pest only knows it runs on CI from --ci, which turns test impact analysis off there. In an
 # agent worktree, .git is a file pointing outside the container, so impact analysis is off too.
 PEST := vendor/bin/pest --configuration $(TOOLS)/phpunit.xml --parallel $(if $(CI),--ci) $(if $(wildcard .git/HEAD),,--no-tia)
+# Constraints stay at the installed versions, so an update can never go backwards.
+BUMPED := composer bump --dry-run
 
 # Every mutation must be caught: a surviving one is a missing test. A class with nothing to
 # mutate (an enum, an interface) passes.
@@ -87,7 +89,7 @@ CHANGED_CLASSES = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
 # One container, one warmup and one test run for the PHP checks: the run also mutation-tests
 # the changed classes. The targets below run each step alone.
 php: vendor
-	$(PHP) sh -c '$(WARM) && $(PHPSTAN) && $(RECTOR) --dry-run && $(ECS) \
+	$(PHP) sh -c '$(BUMPED) && $(WARM) && $(PHPSTAN) && $(RECTOR) --dry-run && $(ECS) \
 		&& $(PEST) $(if $(CHANGED_CLASSES),$(MUTATE) --class="$(CHANGED_CLASSES)")'
 
 phpstan: vendor

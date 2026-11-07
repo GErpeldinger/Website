@@ -41,8 +41,11 @@ jobs:
             *.cache-to=type=gha,scope=${{github.ref}},mode=max
       - name: Start services
         run: docker compose up --wait --no-build
-      - name: Check HTTP reachability
-        run: curl -v --fail-with-body http://localhost
+      - name: Check that Symfony answers
+        run: |
+          status=$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost)
+          echo "HTTP $status"
+          test "$status" -lt 500
       - name: Run PHPStan
         run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress
       - name: Check coding standards

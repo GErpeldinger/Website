@@ -68,9 +68,8 @@ WARM := bin/console cache:warmup -q
 PHPSTAN := vendor/bin/phpstan analyse -c $(TOOLS)/phpstan.neon --no-progress
 RECTOR := vendor/bin/rector process --config $(TOOLS)/rector.php --no-progress-bar
 ECS := vendor/bin/ecs check --config $(TOOLS)/ecs.php --no-progress-bar
-# Pest only knows it runs on CI from --ci, which turns test impact analysis off there. In an
-# agent worktree, .git is a file pointing outside the container, so impact analysis is off too.
-PEST := vendor/bin/pest --configuration $(TOOLS)/phpunit.xml --parallel $(if $(CI),--ci) $(if $(wildcard .git/HEAD),,--no-tia)
+# Pest only knows it runs on CI from --ci, which turns test impact analysis off there.
+PEST := vendor/bin/pest --configuration $(TOOLS)/phpunit.xml --parallel $(if $(CI),--ci)
 # Constraints stay at the installed versions, so an update can never go backwards.
 BUMPED := composer bump --dry-run
 

@@ -17,6 +17,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Install Twig, with `twig-cs-fixer`, TwigStan and `lint:twig` in `make check`.
 - Install AssetMapper and Stimulus.
 - Enforce FR/EN parity with a check that fails on a missing translation.
+- On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 
 ## Game layer
 

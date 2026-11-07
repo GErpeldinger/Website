@@ -20,7 +20,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 
 - `make up` and `make down`: the dev stack on https://localhost.
 - `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Pest tests, mutation testing of the PHP classes changed since `origin/main`, and Prettier. CI runs the same, plus `make mutate-all` on every class.
-- `make test` and `make mutate`: the tests alone, and mutation testing alone. Locally, test impact analysis only runs the tests a change affects.
+- `make test` and `make mutate`: the tests alone, and mutation testing alone. Locally, test impact analysis only runs the tests a change affects, except in agent worktrees, where git can't run inside the container.
 - `make fmt`: applies the Rector, ECS and Prettier fixes.
 - `make hooks`: run once per clone. Commits then run `make check`, and their messages are checked.
 - `make prod-test`: builds and probes the production image on https://localhost:8443, next to the dev stack.

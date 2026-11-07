@@ -7,7 +7,7 @@ NODE := $(TOOLS_RUN) node
 TOOLS := config/tools
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
-ROOT := .dockerignore .editorconfig .env .env.dev .gitattributes .githooks .github .gitignore \
+ROOT := .claude .dockerignore .editorconfig .env .env.dev .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
 	config frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
 

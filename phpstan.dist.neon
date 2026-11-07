@@ -1,0 +1,6 @@
+parameters:
+    level: max
+    paths:
+        - src
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml

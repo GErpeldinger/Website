@@ -43,3 +43,5 @@ jobs:
         run: docker compose up --wait --no-build
       - name: Check HTTP reachability
         run: curl -v --fail-with-body http://localhost
+      - name: Run PHPStan
+        run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress

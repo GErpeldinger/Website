@@ -13,5 +13,6 @@
 /.claude/settings.local.json
 /.claude/worktrees/
 
-# Dev tooling (Prettier and later the JS checks)
+# Dev tooling (Prettier and later the JS checks), and the Makefile's stamps
 /node_modules/
+/.make/

@@ -32,7 +32,8 @@ $(WORKTREES):
 # `run` never rebuilds an existing image, so the tool images are rebuilt here, and only when
 # what they are built from changes: an unconditional `--build` doubled the time of `make check`.
 TOOL_SERVICES := php node
-IMAGES := var/tool-images.stamp
+# Not under var/: on Linux the dev container creates var/ owned by root, and the host can't write it.
+IMAGES := .make/tool-images.stamp
 $(IMAGES): Dockerfile compose.yaml compose.override.yaml $(shell find frankenphp -type f)
 	docker compose -p website-tools build $(TOOL_SERVICES)
 	@mkdir -p $(@D) && touch $@

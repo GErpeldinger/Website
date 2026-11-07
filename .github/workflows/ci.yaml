@@ -45,3 +45,5 @@ jobs:
         run: curl -v --fail-with-body http://localhost
       - name: Run PHPStan
         run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress
+      - name: Check coding standards
+        run: docker compose exec -T php vendor/bin/ecs check --no-progress-bar

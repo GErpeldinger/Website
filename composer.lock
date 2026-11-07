@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "79bc5bdd94df99fe8d07ce286a7b37e0",
+    "content-hash": "de2d8a278ea4be717641a252d511b1f4",
     "packages": [
         {
             "name": "psr/cache",
@@ -2864,6 +2864,55 @@
             },
             "time": "2026-10-25T14:57:26+00:00",
             "published-time": "2026-10-26T09:30:48+00:00"
+        },
+        {
+            "name": "symplify/easy-coding-standard",
+            "version": "13.3.15",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ecsphp/ecs.git",
+                "reference": "4a975bfa3cee8b4ddb3b1fae9934e8ffde155271"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ecsphp/ecs/zipball/4a975bfa3cee8b4ddb3b1fae9934e8ffde155271",
+                "reference": "4a975bfa3cee8b4ddb3b1fae9934e8ffde155271",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "conflict": {
+                "friendsofphp/php-cs-fixer": "<3.95.20",
+                "phpcsstandards/php_codesniffer": "<4.0.4",
+                "symplify/coding-standard": "<13.0"
+            },
+            "bin": [
+                "bin/ecs"
+            ],
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Use Coding Standard with 0-knowledge of PHP-CS-Fixer and PHP_CodeSniffer",
+            "keywords": [
+                "Code style",
+                "automation",
+                "fixer",
+                "static analysis"
+            ],
+            "support": {
+                "issues": "https://github.com/ecsphp/ecs/issues",
+                "source": "https://github.com/ecsphp/ecs/tree/13.3.15"
+            },
+            "time": "2026-11-07T20:02:40+00:00",
+            "published-time": "2026-11-07T20:03:48+00:00"
         }
     ],
     "aliases": [],

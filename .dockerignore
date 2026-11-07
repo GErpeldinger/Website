@@ -35,3 +35,4 @@ config/secrets/prod/prod.decrypt.private.php
 .env.local.php
 .env.test
 phpstan.dist.neon
+ecs.php

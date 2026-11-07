@@ -5,6 +5,7 @@ TOOLS_RUN := docker compose -p website-tools run --rm --no-deps -T
 PHP := $(TOOLS_RUN) php
 NODE := $(TOOLS_RUN) node
 TOOLS := config/tools
+WORKTREES := .claude/worktrees
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .gitattributes .githooks .github .gitignore \
@@ -17,11 +18,16 @@ ROOT := .claude .dockerignore .editorconfig .env .env.dev .gitattributes .githoo
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
 
-up: ## Start the dev stack on https://localhost
+up: | $(WORKTREES) ## Start the dev stack on https://localhost
 	docker compose up --wait
 
 down: ## Stop the dev stack
 	docker compose down
+
+# The php container masks this folder with a volume. Created here first, or Docker creates it
+# owned by root on Linux, and agents can no longer make worktrees in it.
+$(WORKTREES):
+	mkdir -p $@
 
 # `run` never rebuilds an existing image, so the tool images are rebuilt here, and only when
 # what they are built from changes: an unconditional `--build` doubled the time of `make check`.
@@ -32,7 +38,7 @@ $(IMAGES): Dockerfile compose.yaml compose.override.yaml $(shell find frankenphp
 	@mkdir -p $(@D) && touch $@
 
 # The touch runs in the container: on Linux the directory belongs to the container's root.
-vendor: composer.json composer.lock $(IMAGES)
+vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES)
 	$(PHP) sh -c 'composer install --no-interaction --no-progress && touch vendor'
 
 node_modules: package.json pnpm-lock.yaml $(IMAGES)

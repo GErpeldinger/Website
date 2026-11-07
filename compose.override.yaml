@@ -11,6 +11,8 @@ services:
       - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
       # Keep var/ off the bind-mount for faster I/O on Mac/Windows; comment to inspect from the host.
       - /app/var
+      # Agent worktrees stay out of the container, or each write in them restarts the watching worker.
+      - /app/.claude/worktrees
     environment:
       APP_ENV: '${APP_ENV:-dev}'
     tty: true

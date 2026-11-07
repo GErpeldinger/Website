@@ -8,3 +8,6 @@
 /var/
 /vendor/
 ###< symfony/framework-bundle ###
+
+# Dev tooling (Prettier and later the JS checks)
+/node_modules/

@@ -5,16 +5,20 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
     cooldown:
       default-days: 7
+    ignore:
+      # Node 25 and later no longer ship Corepack, which runs pnpm: a major bump is a manual change.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: composer
     directory: /
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
     cooldown:
       default-days: 7
 
@@ -23,6 +27,15 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: "chore"
+      prefix: 'chore'
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'chore'
     cooldown:
       default-days: 7

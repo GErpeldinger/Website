@@ -12,5 +12,24 @@ services:
       # Keep var/ off the bind-mount for faster I/O on Mac/Windows; comment to inspect from the host.
       - /app/var
     environment:
-      APP_ENV: "${APP_ENV:-dev}"
+      APP_ENV: '${APP_ENV:-dev}'
     tty: true
+
+  # Dev and CI tooling only (Prettier, later tsc and the JS tests): never in production.
+  node:
+    image: ${IMAGES_PREFIX:-}app-node
+    build:
+      context: .
+      target: node_tools
+    profiles: [tools]
+    working_dir: /app
+    environment:
+      pnpm_config_store_dir: /root/.cache/pnpm-store
+      pnpm_config_update_notifier: 'false'
+    volumes:
+      - ./:/app
+      # Corepack's pnpm download and pnpm's store survive between runs.
+      - node_cache:/root/.cache
+
+volumes:
+  node_cache:

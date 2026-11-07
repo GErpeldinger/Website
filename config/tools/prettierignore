@@ -1,0 +1,2 @@
+# pnpm writes it. Ignored paths come from .gitignore; composer.lock and symfony.lock have no Prettier parser.
+pnpm-lock.yaml

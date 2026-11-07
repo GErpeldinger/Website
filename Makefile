@@ -3,15 +3,16 @@
 # every checkout, or each agent worktree would leave its own volumes and network behind.
 TOOLS_RUN := docker compose -p website-tools run --rm --no-deps -T
 PHP := $(TOOLS_RUN) php
+NODE := $(TOOLS_RUN) node
 TOOLS := config/tools
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .dockerignore .editorconfig .env .env.dev .gitattributes .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config frankenphp public src symfony.lock tests
+	config frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs fmt prod-test
+.PHONY: help up down check layout php phpstan rector ecs prettier fmt prod-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -24,7 +25,7 @@ down: ## Stop the dev stack
 
 # `run` never rebuilds an existing image, so the tool images are rebuilt here, and only when
 # what they are built from changes: an unconditional `--build` doubled the time of `make check`.
-TOOL_SERVICES := php
+TOOL_SERVICES := php node
 IMAGES := var/tool-images.stamp
 $(IMAGES): Dockerfile compose.yaml compose.override.yaml $(shell find frankenphp -type f)
 	docker compose -p website-tools build $(TOOL_SERVICES)
@@ -34,7 +35,10 @@ $(IMAGES): Dockerfile compose.yaml compose.override.yaml $(shell find frankenphp
 vendor: composer.json composer.lock $(IMAGES)
 	$(PHP) sh -c 'composer install --no-interaction --no-progress && touch vendor'
 
-check: layout php ## Run every check CI runs
+node_modules: package.json pnpm-lock.yaml $(IMAGES)
+	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
+
+check: layout php prettier ## Run every check CI runs
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -64,9 +68,16 @@ rector: vendor
 ecs: vendor
 	$(PHP) $(ECS)
 
+# package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
+PRETTIER := node_modules/.bin/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore
+
+prettier: node_modules
+	$(NODE) $(PRETTIER) --check .
+
 # Rector first: ECS then formats what Rector rewrote.
-fmt: vendor ## Apply the automatic fixes
+fmt: vendor node_modules ## Apply the automatic fixes
 	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix'
+	$(NODE) $(PRETTIER) --write .
 
 # Its own project, one per checkout (dev's root-owned caddy volumes break the non-root image,
 # and two worktrees must not share a stack), on its own ports so it runs next to the dev stack.

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Refuse a commit whose tree fails `make check`, the same check CI runs. The
+# check reads the working tree, so `make clean-tree` first requires it to hold
+# exactly what is staged. Emergency bypass: --no-verify, and say why.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+exec make clean-tree check

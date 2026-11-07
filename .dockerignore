@@ -38,4 +38,5 @@ node_modules/
 package.json
 pnpm-lock.yaml
 Makefile
+.githooks/
 config/tools/

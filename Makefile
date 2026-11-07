@@ -7,12 +7,12 @@ NODE := $(TOOLS_RUN) node
 TOOLS := config/tools
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
-ROOT := .dockerignore .editorconfig .env .env.dev .gitattributes .github .gitignore \
+ROOT := .dockerignore .editorconfig .env .env.dev .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
 	config frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs prettier fmt prod-test
+.PHONY: help up down check layout php phpstan rector ecs prettier fmt hooks clean-tree fold prod-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -78,6 +78,23 @@ prettier: node_modules
 fmt: vendor node_modules ## Apply the automatic fixes
 	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix'
 	$(NODE) $(PRETTIER) --write .
+
+hooks: ## Use the repo's git hooks
+	git config core.hooksPath .githooks
+
+# The checks read the working tree, so before a commit or a fold it must hold exactly the commits.
+clean-tree:
+	@if ! git diff --quiet || [ -n "$$(git ls-files --others --exclude-standard)" ]; then \
+		echo "The checks read the working tree, which has unstaged or untracked changes:" >&2; \
+		git status --short >&2; \
+		echo "Stage them, or commit them separately first." >&2; \
+		exit 1; \
+	fi
+
+# Git runs no pre-commit hook during a rebase, so each rewritten commit is checked here.
+BASE ?= origin/main
+fold: clean-tree ## Fold the fixup! commits since BASE (origin/main), checking every rewritten commit
+	GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --exec 'make check' $(BASE)
 
 # Its own project, one per checkout (dev's root-owned caddy volumes break the non-root image,
 # and two worktrees must not share a stack), on its own ports so it runs next to the dev stack.

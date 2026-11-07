@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Refuse a commit message that isn't a Conventional Commit, carries a
+# Co-Authored-By trailer, or has a body line over 72 columns.
+# Adapted from the homelab repo's hook. Emergency bypass: --no-verify.
+set -euo pipefail
+
+if grep -v '^#' "$1" | grep -i '^co-authored-by:' >/dev/null; then
+  echo "commit-msg: no Co-Authored-By trailer in this repo" >&2
+  exit 1
+fi
+
+subject=$(grep -v '^#' "$1" | grep -m 1 . || :)
+types='feat|fix|docs|test|build|chore|refactor|perf|ci|style|revert'
+if [[ ! $subject =~ ^($types)(\([a-z0-9_,-]+\))?!?:\ [^\ ] ]] &&
+   [[ ! $subject =~ ^(Merge\ |Revert\ \"|(fixup|squash|amend)!\ ) ]]; then
+  echo "commit-msg: not a Conventional Commit subject: ${subject:-<empty>}" >&2
+  echo "  expected <type>[(<scope>)][!]: <subject>, type one of: ${types//|/ }" >&2
+  exit 1
+fi
+
+# "<line> <columns>" of the first body line over 72, or nothing. A line that is
+# only a URL, indented lines and a final block of trailers are exempt. LC_ALL=C plus dropping UTF-8
+# continuation bytes counts columns, not bytes.
+wide=$(LC_ALL=C awk '
+  /^# -+ >8 -+$/ { exit }
+  /^#/ { next }
+  { line[NR] = $0 }
+  END {
+    for (i = 1; i <= NR; i++) {
+      if (!(i in line)) continue
+      if (line[i] == "") start = 0
+      else { if (!start) start = i; last = start }
+    }
+    trailers = last > 0
+    for (i = last; last && i <= NR; i++)
+      if ((i in line) && line[i] != "" && line[i] !~ /^[A-Za-z][A-Za-z0-9-]*: /) trailers = 0
+    for (i = 1; i <= NR; i++) {
+      if (!(i in line)) continue
+      if (!seen) { if (line[i] != "") seen = 1; continue }
+      l = line[i]
+      if (length(l) <= 72 || l ~ /^(    |\t)/) continue
+      if (l ~ /^[ \t]*(\[[0-9]+\]: )?<?[a-z]+:\/\/[^ ]+>?[ \t]*$/) continue
+      t = l; cols = length(l) - gsub(/[\200-\277]/, "", t)
+      if (cols <= 72) continue
+      if (trailers && i >= last) continue
+      print i, cols; exit
+    }
+  }' "$1")
+if [ -n "$wide" ]; then
+  echo "commit-msg: body line ${wide% *} is ${wide#* } columns (max 72)" >&2
+  exit 1
+fi

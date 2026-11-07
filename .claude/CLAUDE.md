@@ -20,7 +20,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 `make` lists the targets. Every tool runs in Docker, so nothing is installed on the Mac:
 
 - `make up` and `make down`: the dev stack on https://localhost.
-- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), the Pest tests, mutation testing of the PHP classes changed since `origin/main`, and Prettier. CI runs the same, plus `make mutate-all` on every class.
+- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), the Pest tests, mutation testing of the PHP classes changed since `origin/main`, Prettier, and the deploy script's tests (`make deploy-test`). CI runs the same, plus `make mutate-all` on every class.
 - `make test` and `make mutate`: the tests alone, and mutation testing alone. Locally, test impact analysis only runs the tests a change affects, except in agent worktrees, where git can't run inside the container.
 - `make fmt`: applies the Rector, ECS, twig-cs-fixer and Prettier fixes.
 - `make hooks`: run once per clone. Commits then run `make check`, and their messages are checked.
@@ -54,4 +54,4 @@ The playable single-file prototype is the private artifact https://claude.ai/art
 
 ## Deployment
 
-OVH VPS (1 vCore, 2 GB RAM, 20 GB) running Debian 13. The firewall only allows ports 22, 80 and 443, and SSH accepts keys only. FrankenPHP is exposed directly and handles HTTPS. The deploy pipeline (GitHub Actions to GHCR, then the VPS) is not built yet, and DNS for the apex and `www` still has to point to the VPS.
+OVH VPS (1 vCore, 2 GB RAM, 20 GB) running Debian 13. The firewall only allows ports 22, 80 and 443, and SSH accepts keys only. FrankenPHP is exposed directly and handles HTTPS. A push to `main` builds the production image, pushes it to GHCR and deploys it over SSH: see [docs/deploy.md](../docs/deploy.md). Until launch, a Caddy client-IP allowlist (`SITE_ALLOWLIST`) keeps the site to its owner.

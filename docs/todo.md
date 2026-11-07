@@ -5,8 +5,8 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 ## Going live
 
 - Point the apex and `www` DNS records to the VPS, and remove OVH's web redirect. Keep the MX records.
-- Deploy workflow: build the production image in CI, push it to GHCR, then pull and restart it on the VPS through a dedicated `deploy` user restricted to that command. Pin Actions to commit SHAs.
-- Build and start the production image in CI (`make prod-test`), so a base image update that breaks it fails before deploying.
+- Read the compose files from the pulled image instead of the SSH caller, so the deploy key stops being root-equivalent.
+- Preserve IPv6 client addresses (`enable_ipv6` on the Compose network), then publish an AAAA record.
 - Security headers in the Caddyfile (HSTS, `X-Content-Type-Options`, `Referrer-Policy`, framing) and hide the `server` header.
 - A first app route, then point the Docker `HEALTHCHECK` at it instead of Caddy's metrics.
 - Make `main` the GitHub default branch, so Dependabot runs on it.

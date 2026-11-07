@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# bash runs with -eo pipefail, which the default shell does not.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -21,13 +26,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build Docker images
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           pull: true
           load: true
@@ -50,3 +55,99 @@ jobs:
         run: make check
       - name: Run mutation testing on every class
         run: make mutate-all
+
+  image:
+    name: Production image
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # GHCR names are lowercase, GitHub owner and repository names are not.
+      - name: Name the image
+        run: echo "REGISTRY_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Build the production image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: frankenphp_prod
+          pull: true
+          load: true
+          tags: |
+            ${{ env.REGISTRY_IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY_IMAGE }}:latest
+          cache-from: |
+            type=gha,scope=prod-${{ github.ref }}
+            type=gha,scope=prod-refs/heads/main
+          cache-to: type=gha,scope=prod-${{ github.ref }},mode=max
+      - name: Start and probe the production image
+        run: make prod-test IMAGE="$REGISTRY_IMAGE:$GITHUB_SHA" PROD_BUILD=--no-build
+      - name: Log in to GHCR
+        if: env.PUSH == 'true'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push the image
+        if: env.PUSH == 'true'
+        env:
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        # :latest only moves forward: an older run finishing late leaves it to the newer commit.
+        run: |
+          docker push "$REGISTRY_IMAGE:$GITHUB_SHA"
+          head=$(git ls-remote "$REPOSITORY_URL" refs/heads/main | cut -f1)
+          [ -n "$head" ] || { echo 'cannot read the head of main' >&2; exit 1; }
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            docker push "$REGISTRY_IMAGE:latest"
+          fi
+
+  deploy:
+    name: Deploy
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    # A deploy is never cancelled half-way. This serialises runs without ordering them: the SSH
+    # step skips a run that is no longer the head of main.
+    concurrency: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # See docs/deploy.md. The host and port are secrets, so the bare values that ssh's own errors
+      # print are masked. The user name is a variable: masked, it would hide every "deploy" in the log.
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          head=$(git ls-remote "$REPOSITORY_URL" refs/heads/main | cut -f1)
+          [ -n "$head" ] || { echo 'cannot read the head of main' >&2; exit 1; }
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "main moved to $head: skipping $GITHUB_SHA, a newer run deploys."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          tar -c compose.yaml compose.prod.yaml |
+            ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -p "${DEPLOY_PORT:-22}" -l "$DEPLOY_USER" "$DEPLOY_HOST" "$GITHUB_SHA"

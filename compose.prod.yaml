@@ -2,7 +2,8 @@
 # Production environment override
 services:
   php:
-    image: ${IMAGES_PREFIX:-}app-php-prod
+    # The VPS sets IMAGE to the registry image of the deployed commit; builds keep the local name.
+    image: ${IMAGE:-${IMAGES_PREFIX:-}app-php-prod}
     build:
       context: .
       target: frankenphp_prod

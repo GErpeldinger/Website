@@ -11,10 +11,10 @@ BASE ?= origin/main
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
+	config deploy docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs twig test mutate mutate-all prettier fmt hooks clean-tree fold prod-test
+.PHONY: help up down check layout php phpstan rector ecs twig test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -46,7 +46,7 @@ vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES)
 node_modules: package.json pnpm-lock.yaml $(IMAGES)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
-check: layout php prettier ## Run every check CI runs, tests and mutation testing included
+check: layout php prettier deploy-test ## Run every check CI runs, tests and mutation testing included
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -89,6 +89,10 @@ CHANGED_CLASSES = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
 	&& { git diff --name-only --diff-filter=ACMR --merge-base $(BASE) -- 'src/*.php'; \
 		git ls-files --others --exclude-standard -- 'src/*.php'; } \
 	| sed -e 's|^src/||' -e 's|\.php$$||' -e 's|/|\\|g' -e 's|^|App\\|' | paste -sd, -)
+
+# The forced command of the deploy key, against a fake docker: it only needs a shell and tar.
+deploy-test: $(IMAGES)
+	$(PHP) sh deploy/test.sh
 
 # One container, one warmup and one test run for the PHP checks: the run also mutation-tests
 # the changed classes. The targets below run each step alone.
@@ -151,6 +155,10 @@ fold: clean-tree ## Fold the fixup! commits since BASE (origin/main), checking e
 # and two worktrees must not share a stack), on its own ports so it runs next to the dev stack.
 PROD_PROJECT := prodtest-$(shell basename "$(CURDIR)" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '-')
 
+# CI sets IMAGE to the image it already built and PROD_BUILD to --no-build, so the probe runs the
+# image that gets pushed. The probe is open (no SITE_ALLOWLIST), as the site is by default.
+PROD_BUILD ?= --build
+
 # A signal exits explicitly, so the EXIT cleanup also runs on Ctrl-C (dash skips it otherwise).
 prod-test: ## Build and probe the production image on https://localhost:8443
 	@set -e; \
@@ -158,7 +166,7 @@ prod-test: ## Build and probe the production image on https://localhost:8443
 	compose='docker compose -p $(PROD_PROJECT) -f compose.yaml -f compose.prod.yaml'; \
 	trap "$$compose down -v >/dev/null 2>&1" EXIT; \
 	trap 'exit 130' INT TERM; \
-	$$compose up --build --wait; \
+	$$compose up $(PROD_BUILD) --wait; \
 	status=$$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost:8443) || status=000; \
 	echo "production image answered HTTP $$status"; \
 	case $$status in [1-4][0-9][0-9]) ;; *) exit 1 ;; esac

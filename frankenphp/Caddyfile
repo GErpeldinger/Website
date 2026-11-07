@@ -20,6 +20,11 @@
 
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
+	# Space-separated CIDRs allowed to see the site; everyone when unset (an empty value would let
+	# nobody in: compose.yaml covers it). Not in the firewall: Let's Encrypt must stay reachable.
+	@denied not client_ip {$SITE_ALLOWLIST:0.0.0.0/0 ::/0}
+	respond @denied 403
+
 	@phpRoute {
 		not file {path}
 	}

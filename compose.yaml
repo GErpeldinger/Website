@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     environment:
       SERVER_NAME: ${SERVER_NAME:-localhost}
+      # Unset or empty, the site is open: an empty list would make Caddy refuse everyone.
+      SITE_ALLOWLIST: ${SITE_ALLOWLIST:-0.0.0.0/0 ::/0}
+      CADDY_EXTRA_CONFIG: ${CADDY_EXTRA_CONFIG:-}
       DEFAULT_URI: ${DEFAULT_URI:-https://${SERVER_NAME:-localhost}:${HTTPS_PORT:-443}}
     volumes:
       - caddy_data:/data

@@ -11,10 +11,10 @@ BASE ?= origin/main
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config docs frankenphp package.json pnpm-lock.yaml public src symfony.lock tests
+	config docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs test mutate mutate-all prettier fmt hooks clean-tree fold prod-test
+.PHONY: help up down check layout php phpstan rector ecs twig test mutate mutate-all prettier fmt hooks clean-tree fold prod-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -68,6 +68,11 @@ WARM := bin/console cache:warmup -q
 PHPSTAN := vendor/bin/phpstan analyse -c $(TOOLS)/phpstan.neon --no-progress
 RECTOR := vendor/bin/rector process --config $(TOOLS)/rector.php --no-progress-bar
 ECS := vendor/bin/ecs check --config $(TOOLS)/ecs.php --no-progress-bar
+# TwigStan compiles the templates and has PHPStan analyse them next to the controllers that render them.
+# lint:twig compiles like production: only it catches a debug-only function (dump) in a template.
+TWIG := bin/console lint:twig --env=prod --no-debug templates \
+	&& vendor/bin/twig-cs-fixer lint --config $(TOOLS)/twig-cs-fixer.php \
+	&& vendor/bin/twigstan -c $(TOOLS)/twigstan.php --no-interaction
 # Pest only knows it runs on CI from --ci, which turns test impact analysis off there.
 PEST := vendor/bin/pest --configuration $(TOOLS)/phpunit.xml --parallel $(if $(CI),--ci)
 # Constraints stay at the installed versions, so an update can never go backwards.
@@ -89,7 +94,7 @@ CHANGED_CLASSES = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
 # the changed classes. The targets below run each step alone.
 php: vendor
 	$(PHP) sh -c '$(BUMPED) && $(WARM) && $(PHPSTAN) && $(RECTOR) --dry-run && $(ECS) \
-		&& $(PEST) $(if $(CHANGED_CLASSES),$(MUTATE) --class="$(CHANGED_CLASSES)")'
+		&& $(TWIG) && $(PEST) $(if $(CHANGED_CLASSES),$(MUTATE) --class="$(CHANGED_CLASSES)")'
 
 phpstan: vendor
 	$(PHP) sh -c '$(WARM) && $(PHPSTAN)'
@@ -99,6 +104,9 @@ rector: vendor
 
 ecs: vendor
 	$(PHP) $(ECS)
+
+twig: vendor
+	$(PHP) sh -c '$(WARM) && $(TWIG)'
 
 # Locally, tests/Pest.php turns on test impact analysis: only the tests a change affects run.
 test: vendor ## Run the tests
@@ -119,7 +127,8 @@ prettier: node_modules
 
 # Rector first: ECS then formats what Rector rewrote.
 fmt: vendor node_modules ## Apply the automatic fixes
-	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix'
+	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix \
+		&& vendor/bin/twig-cs-fixer lint --fix --config $(TOOLS)/twig-cs-fixer.php'
 	$(NODE) $(PRETTIER) --write .
 
 hooks: ## Use the repo's git hooks

@@ -21,6 +21,10 @@ parameters:
         -
             identifiers: [method.notFound, method.nonObject]
             path: ../../tests/ArchTest.php
+        # Pest binds test closures to the WebTestCase, so static:: reaches its createClient().
+        -
+            identifier: outOfClass.static
+            path: ../../tests/Controller/*
     symfony:
         containerXmlPath: ../../var/cache/dev/App_KernelDevDebugContainer.xml
     disallowedFunctionCalls:

@@ -22,6 +22,7 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.1",
         "phpstan/phpstan-symfony": "^2.1",
+        "shipmonk/phpstan-rules": "^4.4",
         "symplify/easy-coding-standard": "^13.3"
     },
     "config": {

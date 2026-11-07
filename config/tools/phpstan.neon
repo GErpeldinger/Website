@@ -1,15 +1,15 @@
 includes:
-    - vendor/spaze/phpstan-disallowed-calls/disallowed-dangerous-calls.neon
-    - vendor/spaze/phpstan-disallowed-calls/disallowed-execution-calls.neon
-    - vendor/spaze/phpstan-disallowed-calls/disallowed-insecure-calls.neon
-    - vendor/spaze/phpstan-disallowed-calls/disallowed-loose-calls.neon
+    - ../../vendor/spaze/phpstan-disallowed-calls/disallowed-dangerous-calls.neon
+    - ../../vendor/spaze/phpstan-disallowed-calls/disallowed-execution-calls.neon
+    - ../../vendor/spaze/phpstan-disallowed-calls/disallowed-insecure-calls.neon
+    - ../../vendor/spaze/phpstan-disallowed-calls/disallowed-loose-calls.neon
 
 parameters:
     level: max
     paths:
-        - src
+        - ../../src
     symfony:
-        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        containerXmlPath: ../../var/cache/dev/App_KernelDevDebugContainer.xml
     disallowedFunctionCalls:
         - function: 'exit()'
           message: 'it would kill the FrankenPHP worker.'

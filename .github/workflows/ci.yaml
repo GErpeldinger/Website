@@ -46,7 +46,5 @@ jobs:
           status=$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost)
           echo "HTTP $status"
           test "$status" -lt 500
-      - name: Run PHPStan
-        run: docker compose exec -T php vendor/bin/phpstan analyse --no-progress
-      - name: Check coding standards
-        run: docker compose exec -T php vendor/bin/ecs check --no-progress-bar
+      - name: Run the checks
+        run: make check

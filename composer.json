@@ -24,6 +24,7 @@
         "phpstan/phpstan-symfony": "^2.1",
         "shipmonk/dead-code-detector": "^1.4",
         "shipmonk/phpstan-rules": "^4.4",
+        "spaze/phpstan-disallowed-calls": "^4.15",
         "symplify/easy-coding-standard": "^13.3",
         "tomasvotruba/cognitive-complexity": "^1.3"
     },

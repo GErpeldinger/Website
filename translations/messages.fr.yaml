@@ -1,2 +1,17 @@
 site:
     name: Guillaume Erpeldinger
+home:
+    greeting: Bonjour, je suis
+    role: Développeur web
+    links: Liens
+    photo: '[VOTRE PHOTO : à remplacer par un portrait.]'
+    intro: '[VOTRE PRÉSENTATION : deux ou trois phrases sur votre expérience.]'
+board:
+    title: Le chantier, en direct
+    bombs: Bombes
+    tornadoes: Tornades
+    throws: Lancers
+    repairs: Réparations
+    online: En ligne
+    empty: '—'
+    note: Compteurs anonymes, partagés entre tous les visiteurs.

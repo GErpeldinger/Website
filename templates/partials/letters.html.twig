@@ -1,0 +1,4 @@
+{# The text stays real: a span per word, a span per letter, a plain space between words. #}
+{% for word in text|split(' ') %}
+    {{ include('partials/word.html.twig', {word: word}) }}{{ loop.last ? '' : ' ' }}
+{% endfor %}

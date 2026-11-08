@@ -2,6 +2,31 @@
 
 {% block body %}
     <main data-controller="game">
-        <h1>{{ 'site.name'|trans }}</h1>
+        <header>
+            <p data-physics="block" data-weight="light">{{ 'home.greeting'|trans }}</p>
+            <h1>{{ include('partials/letters.html.twig', {text: 'site.name'|trans}) }}</h1>
+            <p data-physics="block" data-weight="light">{{ 'home.role'|trans }}</p>
+            <nav aria-label="{{ 'home.links'|trans }}">
+                <ul>
+                    <li><a href="https://www.linkedin.com/in/guillaumeerpeldinger/" data-physics="link">LinkedIn</a></li>
+                    <li><a href="https://github.com/GErpeldinger" data-physics="link">GitHub</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <div data-physics="block" data-breakable="true">{{ 'home.photo'|trans }}</div>
+        <p data-physics="block" data-breakable="true">{{ 'home.intro'|trans }}</p>
+
+        <section aria-labelledby="board-title" data-physics="block" data-breakable="true">
+            <h2 id="board-title">{{ 'board.title'|trans }}</h2>
+            <dl>
+                {{ include('partials/counter.html.twig', {label: 'board.bombs'|trans}) }}
+                {{ include('partials/counter.html.twig', {label: 'board.tornadoes'|trans}) }}
+                {{ include('partials/counter.html.twig', {label: 'board.throws'|trans}) }}
+                {{ include('partials/counter.html.twig', {label: 'board.repairs'|trans}) }}
+                {{ include('partials/counter.html.twig', {label: 'board.online'|trans}) }}
+            </dl>
+            <p>{{ 'board.note'|trans }}</p>
+        </section>
     </main>
 {% endblock %}

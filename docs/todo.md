@@ -23,6 +23,12 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Enforce "no user-facing literal in a template" with a twig-cs-fixer or TwigStan rule.
 - On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 
+## Content
+
+- Launch blocker, with the allowlist removal: replace the photo and intro placeholders on the home page (`home.photo`, `home.intro` in both catalogues) with the real portrait and text, so the owner notes never ship publicly.
+- Wire the board's counters to the live values (the live board item below); they render an em dash until then, which has no accessible value. When the board lands, give each counter a spoken value: the dash `aria-hidden` plus visually hidden text, which needs the CSS foundation's visually-hidden utility.
+- Make the physics-hook values a single source for the engine and the test once the engine reads them, instead of the table in docs and the lists in `HomeControllerTest`.
+
 ## Game layer
 
 - Unit tests for the Brain and activities, with a fake Motor, as they are written (Vitest and Stryker are in `make check`).

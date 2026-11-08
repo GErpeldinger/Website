@@ -8,6 +8,22 @@ Pages are normal server-rendered Twig, with semantic HTML that is readable witho
 
 The game is a layer on top. Elements opt in with `data-physics` attributes in Twig: `letter`, `block`, `link` and so on, plus their properties (grabbable, hangable, breakable, weight). The engine measures the marked elements and turns them into physics bodies (Matter.js). Adding a page needs Twig only, no game code.
 
+### The physics hooks
+
+An element becomes a body with `data-physics`, and only then. The home page (`templates/home.html.twig`) uses:
+
+| `data-physics` | Used for                                              | Defaults (grabbable, hangable, breakable, weight) |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| `letter`       | One letter of the name, a span holding real text      | yes, no, no, light                                |
+| `block`        | A box of content: greeting, role, photo, intro, board | yes, no, no, heavy                                |
+| `link`         | A link of the navigation                              | yes, yes, no, medium                              |
+
+A property attribute overrides the kind's default, and only exists on an element that has `data-physics`: `data-grabbable`, `data-hangable` and `data-breakable` take `true` or `false`; `data-weight` takes `light`, `medium` or `heavy`. The page sets `data-breakable="true"` on the photo, the intro and the board, and `data-weight="light"` on the greeting and the role. The engine will take its defaults from this table, so a page states only its exceptions.
+
+Nesting: a body's children are not bodies unless they carry `data-physics` themselves. The board is one block, its counters are not bodies. `tests/Controller/HomeControllerTest.php` fails on an unknown kind or property value, and on a property outside a body; a new kind or property is added there and in this table together.
+
+The name is real text: `h1 > span (word) > span[data-physics=letter]`, with a plain space between the words and no `aria-label` or `aria-hidden`, so assistive technology reads the heading as the name. The `partials/letters.html.twig` partial builds it from any string. Repeated patterns are partials, not Twig macros: TwigStan reports the closures Twig compiles macros into.
+
 ## The monkey
 
 Every behaviour belongs to one of four kinds:
@@ -76,6 +92,8 @@ A device whose frame rate collapses during play is downgraded on the spot, and t
   - a career timeline and a stack list: LinkedIn covers the history, and experience matters more than tools
   - importing positions through LinkedIn's data portability API, which would rebuild LinkedIn, with unclear terms and an extra dependency
 - **Content first, game as a layer.** The same HTML serves SEO, accessibility and old devices, and pages need no game code. The alternative, a canvas-only site, loses all three.
+- **The physics hooks are a kind plus overrides, not a flag per property.** `data-physics` names what the element is, and the engine owns the defaults, so Twig stays one attribute in the common case and the numbers can change without touching a page. Rejected: stating every property on every element, which repeats the table in each template. Values are validated by a test on the rendered page rather than by a Twig function, because the test also catches an attribute typed by hand.
+- **Letters are nested spans of real text.** Rejected: an `aria-label` on the h1 with `aria-hidden` letters (the prototype), which keeps the name out of the readable text and relies on the label alone. The trade-off: a screen reader in browse mode may still pause between inline spans.
 - **Behaviour modules with a Brain, not flags.** The prototype's flags and hand-ordered conditions broke with every new behaviour. One module per behaviour, with declared priorities, makes adding one local.
 - **Host authority over server physics.** PHP is not suited to a real-time physics loop, and one browser running it keeps the server a relay. Rejected: every client simulating on its own, because one shared monkey needs a single source of truth.
 - **Mercure with scoped tokens.** Relaying through PHP would cost one request per message. Rejected for now: WebRTC, lower latency but heavier to set up (signalling, TURN). It stays an option if latency matters.

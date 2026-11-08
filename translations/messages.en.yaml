@@ -1,2 +1,17 @@
 site:
     name: Guillaume Erpeldinger
+home:
+    greeting: Hi, I'm
+    role: Web developer
+    links: Links
+    photo: '[YOUR PHOTO: replace with a portrait.]'
+    intro: '[YOUR INTRO: two or three sentences about your experience.]'
+board:
+    title: The site, live
+    bombs: Bombs
+    tornadoes: Tornadoes
+    throws: Throws
+    repairs: Repairs
+    online: Online
+    empty: '—'
+    note: Anonymous counters, shared by every visitor.

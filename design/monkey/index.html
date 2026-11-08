@@ -280,7 +280,6 @@
     /* hidden unless a state shows them */
     .m .mouth,
     .m .zippo,
-    .m .arms-up,
     .m .eyes-red,
     .m .cig-hand,
     .m .exhale,
@@ -888,26 +887,41 @@
     }
 
     /* ================= work and rest ================= */
-    .m.carry .arms-up {
-        display: block;
-    }
-    .m.carry .arm-l,
-    .m.carry .arm-r {
-        display: none;
-    }
-    /* the load sways him; his arms give a little and push back */
+    /* the load sways him; his arms give a little and push back. The sleeves stretch so the
+       hands reach above his head; the forearm undoes the stretch to keep the hand round. */
     .m.carry .pose {
         animation: carry-sway 2.4s ease-in-out infinite;
     }
-    .m.carry .arms-up {
-        transform-origin: 28px 26px;
-        animation: carry-arms 2.4s ease-in-out infinite;
+    .m.carry .arm-r .upper {
+        animation: carry-ru 2.4s ease-in-out infinite;
+    }
+    .m.carry .arm-l .upper {
+        animation: carry-lu 2.4s ease-in-out infinite;
+    }
+    .m.carry .arm-r .fore,
+    .m.carry .arm-l .fore {
+        animation: carry-f 2.4s ease-in-out infinite;
+    }
+    /* the right fist brings the Zippo under the cigarette tip; the Zippo undoes the arm's
+       turn, so it stays upright and is drawn in the page's own coordinates */
+    .m {
+        --light-upper: -19.5deg;
+        --light-fore: 179.5deg;
     }
     .m.lighting .zippo {
         display: block;
     }
-    .m.lighting .arm-r {
-        display: none;
+    .m.lighting .arm-r .upper {
+        transform: rotate(var(--light-upper));
+    }
+    .m.lighting .arm-r .fore {
+        transform: rotate(var(--light-fore));
+    }
+    .m .zippo {
+        transform-origin: 0 0;
+        transform: translate(44px, 51px) rotate(calc(-1 * var(--light-fore)))
+            translate(0, -9px) rotate(calc(-1 * var(--light-upper)))
+            translate(-44px, -42px);
     }
     /* leans into the flame and draws: the ember flares, then a puff */
     .m.lighting .head {
@@ -3651,15 +3665,39 @@
             transform: rotate(1.5deg);
         }
     }
-    @keyframes carry-arms {
+    /* the hand sits 9 × stretch + 6.5 from the shoulder, 13° out: 3.611 and 3.759 bob it
+       between y = 4 and 2.7, as the old one-piece raised arms did around y = 3 */
+    @keyframes carry-ru {
         0%,
         50%,
         100% {
-            transform: translateY(1px);
+            transform: rotate(-167deg) scaleY(3.611);
         }
         25%,
         75% {
-            transform: translateY(-0.3px);
+            transform: rotate(-167deg) scaleY(3.759);
+        }
+    }
+    @keyframes carry-lu {
+        0%,
+        50%,
+        100% {
+            transform: rotate(167deg) scaleY(3.611);
+        }
+        25%,
+        75% {
+            transform: rotate(167deg) scaleY(3.759);
+        }
+    }
+    @keyframes carry-f {
+        0%,
+        50%,
+        100% {
+            transform: scaleY(0.2769);
+        }
+        25%,
+        75% {
+            transform: scaleY(0.266);
         }
     }
     @keyframes light-head {
@@ -4124,7 +4162,16 @@
         <rect x="51.4" y="57.2" width="2.6" height="2.6" rx="1" transform="rotate(141 44 58.5)" fill="#ff7a2a"/>
         <circle cx="36.3" cy="64.7" r="4.5" fill="url(#glowE)"/>
       </g>
-      <g class="hammer"><rect x="43" y="58" width="2.2" height="10" rx=".9" fill="#8a5a2b"/><rect x="39.4" y="65.5" width="9.4" height="4.2" rx="1" fill="#9aa0a8" stroke="#5d636b" stroke-width=".6"/></g>`
+      <g class="hammer"><rect x="43" y="58" width="2.2" height="10" rx=".9" fill="#8a5a2b"/><rect x="39.4" y="65.5" width="9.4" height="4.2" rx="1" fill="#9aa0a8" stroke="#5d636b" stroke-width=".6"/></g>
+      <g class="zippo">
+        <circle class="flame" cx="44" cy="31" r="12" fill="url(#glowF)"/>
+        <rect x="47.6" y="30" width="4.6" height="6.4" rx="1" fill="#ecc45e" stroke="#8a6a1c" stroke-width=".7" transform="rotate(14 47.6 36.4)"/>
+        <rect x="41.4" y="34.4" width="5.2" height="2.4" rx=".4" fill="#c9ccd2" stroke="#7d828b" stroke-width=".5"/>
+        <rect x="40.5" y="36.6" width="7" height="9.6" rx="1.4" fill="#e0a83c" stroke="#8a6a1c" stroke-width=".8"/>
+        <rect x="45.2" y="37.2" width="1.4" height="8.4" rx=".5" fill="#b98420"/>
+        <path class="flame" d="M44 27.2q2.8 3.6 0 7.2q-2.8-3.6 0-7.2z" fill="url(#flameG)"/>
+        <circle cx="44.8" cy="44.6" r="3.8" fill="${C.skin}"/><circle cx="41.4" cy="41.6" r="1.7" fill="${C.skin}"/>
+      </g>`
               : ''
       }
       <circle cx="${x}" cy="57.5" r="3.4" fill="${C.skin}"/>
@@ -4154,10 +4201,6 @@
 <path class="tail" d="M39 55q12 1 11-9t-6-9" fill="none" stroke="${C.furDark}" stroke-width="3.2" stroke-linecap="round"/>
 <rect class="leg-a" x="18" y="56" width="8" height="15" rx="3" fill="${C.leg}"/>
 <rect class="leg-b" x="30" y="56" width="8" height="15" rx="3" fill="${C.legBack}"/>
-<g class="arms-up">
-  <rect x="6" y="3" width="8" height="23" rx="4" fill="${C.hood}"/><circle cx="10" cy="3" r="3.4" fill="${C.skin}"/>
-  <rect x="42" y="3" width="8" height="23" rx="4" fill="${C.hood}"/><circle cx="46" cy="3" r="3.4" fill="${C.skin}"/>
-</g>
 <ellipse cx="28" cy="39.5" rx="11.5" ry="4.5" fill="${C.hoodDark}"/>
 <rect x="14" y="38" width="28" height="22" rx="8" fill="${C.hood}" stroke="${C.hoodEdge}" stroke-width="1.2"/>
 <path d="M20.5 51.5h15l-1.4 5.5h-12.2z" fill="${C.hoodDark}"/>
@@ -4216,16 +4259,6 @@ ${arm('l')}${arm('r')}
   <circle cx="28" cy="52.2" r="2.2" fill="#eef1f4"/><circle cx="28" cy="49.8" r="1.5" fill="#eef1f4"/><path d="M28 48.3l.6-1.6" stroke="#eef1f4" stroke-width=".7" stroke-linecap="round"/>
   <circle cx="30.3" cy="51" r="1" fill="#c9ced5"/>
   <rect x="15.5" y="58.2" width="25" height="1.8" rx=".9" fill="#9aa1a9"/>
-</g>
-<g class="zippo">
-  <circle class="flame" cx="44" cy="31" r="12" fill="url(#glowF)"/>
-  <rect x="43.5" y="44" width="7" height="13" rx="3.5" fill="${C.hood}"/>
-  <rect x="47.6" y="30" width="4.6" height="6.4" rx="1" fill="#ecc45e" stroke="#8a6a1c" stroke-width=".7" transform="rotate(14 47.6 36.4)"/>
-  <rect x="41.4" y="34.4" width="5.2" height="2.4" rx=".4" fill="#c9ccd2" stroke="#7d828b" stroke-width=".5"/>
-  <rect x="40.5" y="36.6" width="7" height="9.6" rx="1.4" fill="#e0a83c" stroke="#8a6a1c" stroke-width=".8"/>
-  <rect x="45.2" y="37.2" width="1.4" height="8.4" rx=".5" fill="#b98420"/>
-  <path class="flame" d="M44 27.2q2.8 3.6 0 7.2q-2.8-3.6 0-7.2z" fill="url(#flameG)"/>
-  <circle cx="44.8" cy="44.6" r="3.8" fill="${C.skin}"/><circle cx="41.4" cy="41.6" r="1.7" fill="${C.skin}"/>
 </g>
 <circle class="ball" cx="28" cy="57" r="7" fill="url(#ballG)"/>
 <g class="beam"><rect x="60" y="33" width="700" height="18" rx="9" fill="#3fe0ff" opacity=".28"/><rect class="core" x="60" y="37" width="700" height="10" rx="5" fill="url(#beamG)"/><circle cx="60" cy="42" r="8" fill="url(#ballG)"/></g>

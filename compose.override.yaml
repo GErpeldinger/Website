@@ -1,5 +1,21 @@
 ---
 # Development environment override
+# The Node tooling image, shared by the Vite dev server and the tools service.
+x-node: &node
+  image: ${IMAGES_PREFIX:-}app-node
+  build:
+    context: .
+    target: node_tools
+  working_dir: /app
+  volumes:
+    - ./:/app
+
+x-node-environment:
+  &node_environment # Corepack's pnpm download and pnpm's store survive between runs in the bind-mounted .cache/.
+  COREPACK_HOME: /app/.cache/corepack
+  pnpm_config_store_dir: /app/.cache/pnpm-store
+  pnpm_config_update_notifier: 'false'
+
 services:
   php:
     image: ${IMAGES_PREFIX:-}app-php-dev
@@ -25,23 +41,51 @@ services:
         watch ./templates/**/*.twig
         watch ./public/**/*.php
         watch ./.env*
+        watch ./public/build/.vite/entrypoints.json
         watch ./vendor/composer/installed.php
       # Packages survive `docker compose run --rm` in the bind-mounted .cache/, with the tools' caches.
       COMPOSER_CACHE_DIR: /app/.cache/composer
+      # Production leaves this empty. Here Caddy sends /build/ (assets, HMR websocket) to the Vite
+      # dev server, so the browser sees one https origin. Host is rewritten to the one Vite allows.
+      CADDY_SERVER_EXTRA_DIRECTIVES: |
+        reverse_proxy /build/* vite:5173 {
+            header_up Host {upstream_hostport}
+        }
+    depends_on:
+      vite:
+        condition: service_healthy
     tty: true
 
-  # Dev and CI tooling only (Prettier, later tsc and the JS tests): never in production.
-  node:
-    image: ${IMAGES_PREFIX:-}app-node
-    build:
-      context: .
-      target: node_tools
-    profiles: [tools]
-    working_dir: /app
-    environment:
-      # Corepack's pnpm download and pnpm's store survive between runs in the bind-mounted .cache/.
-      COREPACK_HOME: /app/.cache/corepack
-      pnpm_config_store_dir: /app/.cache/pnpm-store
-      pnpm_config_update_notifier: 'false'
+  # The Vite dev server: assets and HMR. Dev only; production serves the built output.
+  vite:
+    <<: *node
+    restart: unless-stopped
     volumes:
       - ./:/app
+      # Agent worktrees stay out of the container, so Vite does not watch their sources.
+      - /app/.claude/worktrees
+    environment:
+      <<: *node_environment
+      # The origin the browser reaches the site on. Not DEFAULT_URI: .env sets it, for the CLI.
+      VITE_DEV_ORIGIN: https://${SERVER_NAME:-localhost}:${HTTPS_PORT:-443}
+    command: sh -c 'pnpm install --frozen-lockfile && exec pnpm run dev'
+    healthcheck:
+      # The plugin serves its info page once the server listens, which is also when it has written
+      # public/build/.vite/entrypoints.json, the file PHP reads.
+      test:
+        [
+          'CMD',
+          'wget',
+          '-q',
+          '-O',
+          '/dev/null',
+          'http://127.0.0.1:5173/build/@vite/info',
+        ]
+      start_period: 120s
+      interval: 5s
+
+  # Dev and CI tooling only (Prettier, tsc, later the JS tests): never in production.
+  node:
+    <<: *node
+    environment: *node_environment
+    profiles: [tools]

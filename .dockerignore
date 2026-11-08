@@ -37,9 +37,10 @@ config/secrets/prod/prod.decrypt.private.php
 .claude/
 .cache/
 node_modules/
-package.json
-pnpm-lock.yaml
+public/build/
 Makefile
 .make/
 .githooks/
-config/tools/
+# Only what the assets_builder stage reads
+config/tools/*
+!config/tools/vite.config.ts

@@ -25,8 +25,15 @@
 	@denied not client_ip {$SITE_ALLOWLIST:0.0.0.0/0 ::/0}
 	respond @denied 403
 
+	# The manifest and entrypoints.json in /build/.vite/ are for PHP only.
+	@viteMeta path /build/.vite/*
+	respond @viteMeta 404
+
+	# /build/ holds the front-end build: a missing file is a 404, never a Symfony page. In dev, the
+	# Vite proxy (CADDY_SERVER_EXTRA_DIRECTIVES) answers it, and the rewrite must not take it first.
 	@phpRoute {
 		not file {path}
+		not path /build/*
 	}
 	rewrite @phpRoute index.php
 

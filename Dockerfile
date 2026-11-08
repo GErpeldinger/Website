@@ -3,11 +3,20 @@
 # Versions
 FROM dunglas/frankenphp:1-php8.5 AS frankenphp_upstream
 
-# Dev and CI tooling only (Prettier, later the JS checks). Here so Dependabot updates it.
-# Corepack runs the pnpm version that package.json pins.
+# Node for the Vite dev server and the JS checks, and the stage that builds the assets for production.
+# Here so Dependabot updates it. Corepack runs the pnpm version that package.json pins.
 FROM node:24-alpine AS node_tools
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable pnpm
+
+# Builds the front-end assets. Only /app/public/build leaves this stage: production has no Node.
+FROM node_tools AS assets_builder
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY assets ./assets
+COPY config/tools/vite.config.ts ./config/tools/
+RUN pnpm run build
 
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/build/building/multi-stage/#stop-at-a-specific-build-stage
@@ -86,17 +95,15 @@ COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/app.conf.d/
 COPY --link composer.* symfony.* ./
 RUN composer install --no-cache --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
 
-# copy sources
-COPY --link --exclude=frankenphp/ . ./
+# copy sources; the front-end sources and tooling stay in assets_builder, only its output comes
+COPY --link --exclude=frankenphp/ --exclude=assets/ --exclude=package.json --exclude=pnpm-lock.yaml --exclude=config/tools/ . ./
+COPY --link --from=assets_builder /app/public/build public/build
 
 RUN <<-EOF
 	mkdir -p var/cache var/log var/share
 	composer dump-autoload --classmap-authoritative --no-dev
 	composer dump-env prod
 	composer run-script --no-dev post-install-cmd
-	if [ -f importmap.php ]; then
-		php bin/console asset-map:compile
-	fi
 	chmod +x bin/console
 	chmod -R g=u var
 	sync

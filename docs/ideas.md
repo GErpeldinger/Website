@@ -4,7 +4,6 @@ Not planned work. An idea moves to [todo.md](todo.md) once decided.
 
 ## Undecided choices
 
-- JavaScript with JSDoc checked by `tsc` (recommended: no build step, enforced in CI), or TypeScript through a build.
 - How players join a session: private links shared with friends (simpler to secure) or open sessions any visitor can join.
 - Session lifetime: closed when everyone has left, or after a fixed time. No history kept either way.
 - Whether a wrecked page stays wrecked across navigation (recommended: rebuild it).

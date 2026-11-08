@@ -8,6 +8,9 @@
             "ref": "fdd756167454623e21f1d769c5b814b243782a67"
         }
     },
+    "pentatrion/vite-bundle": {
+        "version": "v8.2.4"
+    },
     "phpstan/phpstan": {
         "version": "2.3.5"
     },

@@ -1,9 +1,22 @@
 {
     "private": true,
-    "description": "Development tooling only. Nothing here ships to production.",
+    "description": "The front-end build (Vite) and its tooling. Only the built output ships to production.",
+    "type": "module",
     "packageManager": "pnpm@12.15.0",
+    "scripts": {
+        "dev": "vite --config config/tools/vite.config.ts",
+        "build": "vite build --config config/tools/vite.config.ts",
+        "typecheck": "tsc --project config/tools/tsconfig.json && tsc --project config/tools/tsconfig.node.json"
+    },
+    "dependencies": {
+        "@hotwired/stimulus": "3.2.2"
+    },
     "devDependencies": {
-        "prettier": "3.9.10"
+        "@types/node": "24.19.2",
+        "prettier": "3.9.10",
+        "typescript": "7.0.2",
+        "vite": "8.3.6",
+        "vite-plugin-symfony": "8.2.4"
     },
     "prettier": "./config/tools/prettier.json"
 }

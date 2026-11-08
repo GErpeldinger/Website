@@ -20,3 +20,5 @@
 # Every tool's cache, one folder each: it survives `docker compose run --rm`, and CI restores it
 /.cache/
 
+# The front-end build (Vite): dev writes entrypoints.json there, `vite build` the hashed assets
+/public/build/

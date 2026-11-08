@@ -50,6 +50,7 @@ jobs:
             .cache/rector
             .cache/ecs
             .cache/prettier
+            .cache/tsc
             .cache/phpunit
           key: tools-results-${{ runner.os }}-${{ github.run_id }}
           restore-keys: tools-results-${{ runner.os }}-

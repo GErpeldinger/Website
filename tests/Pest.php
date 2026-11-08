@@ -15,6 +15,7 @@ if (is_dir(__DIR__ . '/../.git')) {
             '.env*' => 'tests',
             'composer.lock' => 'tests',
             'config/**' => 'tests',
+            'tests/Fixtures/**' => 'tests',
             'tests/Pest.php' => 'tests',
             'tests/bootstrap.php' => 'tests',
         ]);

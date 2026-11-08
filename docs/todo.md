@@ -14,14 +14,12 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Foundations
 
-- Install AssetMapper and Stimulus.
 - Enforce FR/EN parity with a check that fails on a missing translation.
 - On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 
 ## Game layer
 
 - JavaScript checks in `make check`:
-  - `tsc --checkJs`
   - ESLint, including rules for the architecture: no raw `setTimeout` or `setInterval` in game code (everything goes through the game clock), and no DOM or physics access in Brain and activity modules
   - unit tests for the Brain and activities
 - Port the prototype's behaviours to the activity system described in [architecture.md](architecture.md).

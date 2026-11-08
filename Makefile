@@ -11,11 +11,11 @@ BASE ?= origin/main
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
-	Dockerfile Makefile bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
+	Dockerfile Makefile assets bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
 	config deploy docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs twig test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
+.PHONY: help up down check layout php phpstan rector ecs twig tsc test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -52,7 +52,7 @@ vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES) $(CACHE)
 node_modules: package.json pnpm-lock.yaml $(IMAGES) | $(CACHE)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
-check: layout php prettier deploy-test ## Run every check CI runs, tests and mutation testing included
+check: layout php tsc prettier deploy-test ## Run every check CI runs, tests and mutation testing included
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -132,6 +132,10 @@ mutate-all: vendor
 # package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
 PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore
 
+# Type-checks the TypeScript sources and the Vite config; $(TOOLS)/tsconfig.json keeps its cache in $(CACHE)/tsc.
+tsc: node_modules
+	$(NODE) pnpm run typecheck
+
 prettier: node_modules
 	$(NODE) $(PRETTIER) --check .
 
@@ -175,4 +179,9 @@ prod-test: ## Build and probe the production image on https://localhost:8443
 	$$compose up $(PROD_BUILD) --wait; \
 	status=$$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost:8443) || status=000; \
 	echo "production image answered HTTP $$status"; \
-	case $$status in [1-4][0-9][0-9]) ;; *) exit 1 ;; esac
+	case $$status in [1-4][0-9][0-9]) ;; *) exit 1 ;; esac; \
+	script=$$(curl --insecure --silent https://localhost:8443 | sed -n 's|.*<script[^>]* src="\(/build/[^"]*\)".*|\1|p'); \
+	test -n "$$script" || { echo "no /build/ script tag on the page" >&2; exit 1; }; \
+	status=$$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' "https://localhost:8443$$script") || status=000; \
+	echo "built script $$script answered HTTP $$status"; \
+	test "$$status" = 200

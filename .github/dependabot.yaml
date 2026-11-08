@@ -21,6 +21,10 @@ updates:
       prefix: 'chore'
     cooldown:
       default-days: 7
+    ignore:
+      # Shares its major version with the npm vite-plugin-symfony: a major bump is a manual change to both.
+      - dependency-name: pentatrion/vite-bundle
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
@@ -39,3 +43,11 @@ updates:
       prefix: 'chore'
     cooldown:
       default-days: 7
+    ignore:
+      # Shares its major version with pentatrion/vite-bundle (composer): a major bump is a manual
+      # change to both.
+      - dependency-name: vite-plugin-symfony
+        update-types: ['version-update:semver-major']
+      # The types follow the Node major of the Docker image.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

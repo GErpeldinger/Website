@@ -16,7 +16,7 @@ MIRROR_EXEMPT := assets/app.ts
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile assets bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config deploy design docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
+	config deploy design docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests translations
 
 .DEFAULT_GOAL := help
 .PHONY: help up down check layout php js phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
@@ -214,12 +214,12 @@ prod-test: ## Build and probe the production image on https://localhost:8443
 	status=$$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost:8443) || status=000; \
 	echo "production image answered HTTP $$status"; \
 	case $$status in [1-4][0-9][0-9]) ;; *) exit 1 ;; esac; \
-	script=$$(curl --insecure --silent https://localhost:8443 | sed -n 's|.*<script[^>]* src="\(/build/[^"]*\)".*|\1|p'); \
+	script=$$(curl --insecure --silent https://localhost:8443/fr/ | sed -n 's|.*<script[^>]* src="\(/build/[^"]*\)".*|\1|p'); \
 	test -n "$$script" || { echo "no /build/ script tag on the page" >&2; exit 1; }; \
 	status=$$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' "https://localhost:8443$$script") || status=000; \
 	echo "built script $$script answered HTTP $$status"; \
 	test "$$status" = 200; \
-	page=$$(curl --insecure --silent --show-error --head https://localhost:8443) || { echo "HEAD on the page failed" >&2; exit 1; }; \
+	page=$$(curl --insecure --silent --show-error --head https://localhost:8443/fr/) || { echo "HEAD on the page failed" >&2; exit 1; }; \
 	asset=$$(curl --insecure --silent --show-error --head "https://localhost:8443$$script") || { echo "HEAD on the built script failed" >&2; exit 1; }; \
 	for header in 'strict-transport-security: max-age=' 'x-content-type-options: nosniff' 'x-frame-options: DENY' \
 		'referrer-policy: strict-origin-when-cross-origin' "content-security-policy: frame-ancestors 'none'"; do \

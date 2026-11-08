@@ -19,7 +19,10 @@ return TwigStanConfig::configure($root)
     ->phpPaths($root . '/src')
     // The dead code detector, loaded with every PHPStan extension, reads the members Twig
     // generates in each compiled template as unused: Twig calls them by reflection.
+    // Same for the Generator: a compiled template yields its output, and any function that can
+    // throw a RuntimeError (url(), path()) is then reported.
     ->ignoreErrors(
+        IgnoreError::identifier('shipmonk.checkedExceptionInYieldingMethod'),
         IgnoreError::identifier('shipmonk.deadMethod'),
         IgnoreError::identifier('shipmonk.deadProperty.neverRead'),
     )

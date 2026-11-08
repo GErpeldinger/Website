@@ -20,7 +20,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - A performance budget in CI: a first-load JavaScript size cap and a load-time target, with the numbers set from the first real build.
 - End-to-end tests with Playwright (decided earlier: the official image, against the built assets), then accessibility checks in CI: axe-core on every page (zero violations), a keyboard-only test of every game action, and contrast checked for each time-of-day palette.
 - The CSS foundation once the visual direction is chosen: the design tokens from it, the CUBE layers, and Stylelint in `make check` enforcing them (class names per layer, no IDs, state only through data attributes, colours and spacing only from the tokens).
-- FR/EN: `/fr/` and `/en/` routes, `/` redirecting by `Accept-Language` (302, with `Vary: Accept-Language`), `hreflang` links including `x-default` to `/`, canonical links, and a check that fails on a missing translation.
+- Enforce "no user-facing literal in a template" with a twig-cs-fixer or TwigStan rule.
 - On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 
 ## Game layer

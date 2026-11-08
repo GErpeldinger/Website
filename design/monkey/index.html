@@ -362,6 +362,34 @@
     .m.no-glasses .eyes-red {
         display: block;
     }
+    /* the smoke sits outside the head group, so it follows the cigarette's visibility itself */
+    .m.no-cig .cig-smoke,
+    .m.yawn .cig-smoke,
+    .m.scratch .cig-smoke,
+    .m.tumble .cig-smoke,
+    .m.float .cig-smoke,
+    .m.talk .cig-smoke,
+    .m.burnt .cig-smoke,
+    .m.nap .cig-smoke {
+        display: none;
+    }
+    .m.smoking .cig-smoke {
+        animation: sm-mouth 6s step-end infinite;
+    }
+    .m.sneeze .cig-smoke {
+        animation: sneeze-smoke 3s step-end infinite;
+    }
+    @keyframes sneeze-smoke {
+        0% {
+            opacity: 1;
+        }
+        45% {
+            opacity: 0;
+        }
+        92% {
+            opacity: 1;
+        }
+    }
     .m.no-cig .cig {
         display: none;
     }
@@ -441,6 +469,9 @@
     }
     .m.yawn .cig {
         display: none;
+    }
+    .m.yawn .cig-hand {
+        display: block;
     }
     /* scratching his head, puzzled */
     .m.scratch .qmark {
@@ -3045,10 +3076,10 @@
     }
     @keyframes recoil {
         0% {
-            transform: rotate(-6deg) translateX(-0.6px);
+            transform: translateX(-0.6px);
         }
         50% {
-            transform: rotate(-6deg) translateX(0.6px);
+            transform: translateX(0.6px);
         }
     }
     @keyframes beam {
@@ -4171,7 +4202,6 @@
     <rect x="32" y="34" width="3.6" height="2.6" rx="1" transform="rotate(-12 32 35)" fill="#d39a5c"/>
     <circle class="ember" cx="44.2" cy="32.6" r="5" fill="url(#glowE)"/>
     <rect x="42" y="31.4" width="3" height="2.6" rx="1" transform="rotate(-12 43 33)" fill="#ff7a2a"/>
-    <g><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/></g>
   </g>
   <g class="exhale"><circle cx="31" cy="36" r="2.8" fill="url(#puffG)"/><circle cx="31" cy="36" r="2.8" fill="url(#puffG)"/><circle cx="31" cy="36" r="2.8" fill="url(#puffG)"/><circle cx="31" cy="36" r="2.8" fill="url(#puffG)"/></g>
   <g class="spray" stroke="#cfe6ee" stroke-width=".9" stroke-linecap="round"><path d="M33 36l5 1M33 38l4 3M32 39l2 4"/></g>
@@ -4179,6 +4209,7 @@
   <g class="smoulder"><circle class="puff" cx="18" cy="0" r="3" fill="url(#puffG)"/><circle class="puff" cx="29" cy="-3" r="3" fill="url(#puffG)"/><circle class="puff" cx="39" cy="1" r="3" fill="url(#puffG)"/></g>
   <text class="qmark" x="47" y="4" font-family="Baloo 2, sans-serif" font-weight="800" font-size="11" fill="#f4b547">?</text>
 </g>
+<g class="cig-smoke"><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/><circle class="puff" cx="44.5" cy="30.5" r="2.6" fill="url(#puffG)"/></g>
 ${arm('l')}${arm('r')}
 <g class="laptop">
   <rect x="17" y="43.5" width="22" height="15" rx="2" fill="#c9ced5" stroke="#9aa1a9" stroke-width=".6"/>

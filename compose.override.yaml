@@ -11,10 +11,23 @@ services:
       - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
       # Keep var/ off the bind-mount for faster I/O on Mac/Windows; comment to inspect from the host.
       - /app/var
-      # Agent worktrees stay out of the container, or each write in them restarts the watching worker.
+      # Agent worktrees stay out of the container, so the worker's recursive watcher skips their
+      # vendor/ and node_modules/.
       - /app/.claude/worktrees
     environment:
       APP_ENV: '${APP_ENV:-dev}'
+      # Not the bare `watch` (any .php or .yaml under /app): the tools write .cache/ on every run.
+      # Every folder the kernel reads at runtime goes here. Composer rewrites installed.php last
+      # on every change to vendor/, so the worker restarts once the new code is in place.
+      FRANKENPHP_WORKER_CONFIG: |
+        watch ./src/**/*.php
+        watch ./config/**/*.{php,yaml,yml}
+        watch ./templates/**/*.twig
+        watch ./public/**/*.php
+        watch ./.env*
+        watch ./vendor/composer/installed.php
+      # Packages survive `docker compose run --rm` in the bind-mounted .cache/, with the tools' caches.
+      COMPOSER_CACHE_DIR: /app/.cache/composer
     tty: true
 
   # Dev and CI tooling only (Prettier, later tsc and the JS tests): never in production.
@@ -26,12 +39,9 @@ services:
     profiles: [tools]
     working_dir: /app
     environment:
-      pnpm_config_store_dir: /root/.cache/pnpm-store
+      # Corepack's pnpm download and pnpm's store survive between runs in the bind-mounted .cache/.
+      COREPACK_HOME: /app/.cache/corepack
+      pnpm_config_store_dir: /app/.cache/pnpm-store
       pnpm_config_update_notifier: 'false'
     volumes:
       - ./:/app
-      # Corepack's pnpm download and pnpm's store survive between runs.
-      - node_cache:/root/.cache
-
-volumes:
-  node_cache:

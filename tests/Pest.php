@@ -9,7 +9,7 @@ if (is_dir(__DIR__ . '/../.git')) {
     // cache keeps it. Local only, since CI passes --ci. Every test reads the watched files without
     // covering them, so a change to one reruns the whole suite.
     pest()->tia()
-        ->directory('.phpunit.cache/tia')
+        ->directory('.cache/phpunit/tia')
         ->locally()
         ->watch([
             '.env*' => 'tests',

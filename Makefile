@@ -6,6 +6,7 @@ PHP := $(TOOLS_RUN) php
 NODE := $(TOOLS_RUN) node
 TOOLS := config/tools
 WORKTREES := .claude/worktrees
+CACHE := .cache
 BASE ?= origin/main
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
@@ -30,6 +31,11 @@ down: ## Stop the dev stack
 $(WORKTREES):
 	mkdir -p $@
 
+# Every tool's cache (see config/tools/, compose.override.yaml). Created by the host, so the
+# folder itself is the user's. On Linux its subfolders belong to root, as the tools write them.
+$(CACHE):
+	mkdir -p $@
+
 # `run` never rebuilds an existing image, so the tool images are rebuilt here, and only when
 # what they are built from changes: an unconditional `--build` doubled the time of `make check`.
 TOOL_SERVICES := php node
@@ -40,10 +46,10 @@ $(IMAGES): Dockerfile compose.yaml compose.override.yaml $(shell find frankenphp
 	@mkdir -p $(@D) && touch $@
 
 # The touch runs in the container: on Linux the directory belongs to the container's root.
-vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES)
+vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES) $(CACHE)
 	$(PHP) sh -c 'composer install --no-interaction --no-progress && touch vendor'
 
-node_modules: package.json pnpm-lock.yaml $(IMAGES)
+node_modules: package.json pnpm-lock.yaml $(IMAGES) | $(CACHE)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
 check: layout php prettier deploy-test ## Run every check CI runs, tests and mutation testing included
@@ -124,7 +130,7 @@ mutate-all: vendor
 	$(PHP) $(PEST) $(MUTATE) --everything
 
 # package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
-PRETTIER := node_modules/.bin/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore
+PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore
 
 prettier: node_modules
 	$(NODE) $(PRETTIER) --check .

@@ -60,7 +60,6 @@ FROM frankenphp_base AS frankenphp_dev
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
 ENV APP_ENV=dev
-ENV FRANKENPHP_WORKER_CONFIG=watch
 
 # dev dependencies; pcov gives Pest the coverage its mutation testing and impact analysis need
 RUN <<-EOF

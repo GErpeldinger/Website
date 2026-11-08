@@ -9,6 +9,8 @@ $root = dirname(__DIR__, 2);
 
 return TwigStanConfig::configure($root)
     ->reportUnmatchedIgnoredErrors(true)
+    // Not under .cache/: kept between runs, its PHPStan result cache loses the dead code detector's
+    // files and fails the next run ("DCD cache file not found").
     ->tempDirectory($root . '/var/twigstan')
     ->phpstanBinPath($root . '/vendor/bin/phpstan')
     ->phpstanConfigurationFile(__DIR__ . '/twigstan.neon')

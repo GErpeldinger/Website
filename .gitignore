@@ -17,6 +17,6 @@
 /node_modules/
 /.make/
 
-###> phpunit/phpunit ###
-/.phpunit.cache/
-###< phpunit/phpunit ###
+# Every tool's cache, one folder each: it survives `docker compose run --rm`, and CI restores it
+/.cache/
+

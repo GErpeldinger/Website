@@ -6,6 +6,8 @@ includes:
 
 parameters:
     level: max
+    # Under .cache/, which survives `docker compose run --rm` and CI runs; the default is the temp dir.
+    tmpDir: ../../.cache/phpstan
     paths:
         - ../../src
         - ../../tests

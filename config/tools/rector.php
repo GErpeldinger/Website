@@ -10,6 +10,8 @@ $scope = require __DIR__ . '/paths.php';
 return RectorConfig::configure()
     ->withPaths($scope['paths'])
     ->withSkip($scope['skip'])
+    // Under .cache/, which survives `docker compose run --rm` and CI runs; the default is the temp dir.
+    ->withCache(__DIR__ . '/../../.cache/rector')
     ->withPhpSets()
     ->withComposerBased(symfony: true)
     ->withAttributesSets(symfony: true)

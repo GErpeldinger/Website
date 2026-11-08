@@ -35,6 +35,7 @@ config/secrets/prod/prod.decrypt.private.php
 .env.local.php
 .env.test
 .claude/
+.cache/
 node_modules/
 package.json
 pnpm-lock.yaml

@@ -29,6 +29,30 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The tools' caches (config/tools/, compose.override.yaml). Caches are scoped to a ref: a pull
+      # request reads main's but never writes to it. A cache is never saved again under a key that
+      # hit, so the downloads are keyed on what they hold, and the results (which change with
+      # every commit) on the run: each run restores the latest and saves its own.
+      - name: Restore the downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cache/composer
+            .cache/pnpm-store
+            .cache/corepack
+          key: tools-downloads-${{ runner.os }}-${{ hashFiles('composer.lock', 'pnpm-lock.yaml', 'package.json') }}
+          restore-keys: tools-downloads-${{ runner.os }}-
+      - name: Restore the analysis results
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cache/phpstan
+            .cache/rector
+            .cache/ecs
+            .cache/prettier
+            .cache/phpunit
+          key: tools-results-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: tools-results-${{ runner.os }}-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build Docker images

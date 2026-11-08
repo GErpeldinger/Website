@@ -17,6 +17,10 @@ Not planned work. An idea moves to [todo.md](todo.md) once decided.
 - A hammock strung between two elements as his bed.
 - Ghost monkeys for other players' cursors in multiplayer.
 
+## Physics
+
+- The physics steps at a fixed 60 Hz with no interpolation between steps, so a piece may judder on a 144 Hz screen. Interpolating the drawn position between the last two steps would fix it.
+
 ## For developers
 
 - `curl erpeldinger.fr` answers a clean text version of the page.

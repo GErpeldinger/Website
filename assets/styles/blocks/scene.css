@@ -4,7 +4,7 @@
     isolation: isolate;
     display: flex;
     align-items: center;
-    min-height: 100dvh;
+    min-height: 100svh;
     padding-block: var(--space-xl) calc(var(--ground-size) + var(--space-l));
     padding-inline: max(var(--space-m), env(safe-area-inset-left, 0px))
         max(var(--space-m), env(safe-area-inset-right, 0px));

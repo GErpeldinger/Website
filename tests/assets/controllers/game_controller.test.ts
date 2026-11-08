@@ -1,30 +1,142 @@
 import { Application } from '@hotwired/stimulus';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import GameController from '../../../assets/controllers/game_controller';
 
+// The game entry is imported dynamically, so the test decides when that import settles.
+const mocks = vi.hoisted(() => {
+    const stop = vi.fn();
+    const startGame = vi.fn(() => ({ stop }));
+    const imports = vi.fn();
+    const chunk = { gone: false };
+    const gate = {
+        promise: Promise.resolve(),
+        release: (): void => undefined,
+    };
+    // A new import waits for a new gate: the test opens it when the game "arrives".
+    const arm = (): void => {
+        gate.promise = new Promise<void>((resolve) => {
+            gate.release = resolve;
+        });
+    };
+    return { stop, startGame, imports, chunk, gate, arm };
+});
+
 let application: Application | undefined;
+
+beforeEach(() => {
+    vi.resetModules();
+    mocks.arm();
+    mocks.chunk.gone = false;
+    // Not vi.mock: its factory would run once, and the gate only holds the first import.
+    vi.doMock('../../../assets/game/game', async () => {
+        mocks.imports();
+        if (mocks.chunk.gone) {
+            throw new Error('Failed to fetch the chunk');
+        }
+        await mocks.gate.promise;
+        return { startGame: mocks.startGame };
+    });
+    vi.useFakeTimers();
+    // happy-dom has no font loading API.
+    Object.defineProperty(document, 'fonts', {
+        configurable: true,
+        value: { ready: Promise.resolve() },
+    });
+    mocks.startGame.mockClear();
+    mocks.imports.mockClear();
+    mocks.stop.mockClear();
+});
 
 afterEach(() => {
     application?.stop();
     application = undefined;
     document.body.innerHTML = '';
+    vi.useRealTimers();
+    Reflect.deleteProperty(document, 'fonts');
 });
 
-it('connects to its element and leaves it untouched', async () => {
+const connect = async (): Promise<Element> => {
     document.body.innerHTML = '<main data-controller="game"></main>';
     application = Application.start();
     application.register('game', GameController);
-
     // Stimulus connects on the next microtask after the registration.
     await Promise.resolve();
+    return document.querySelector('main') as Element;
+};
 
-    const element = document.querySelector('main');
-    expect(element).not.toBeNull();
+it('connects to its element and leaves it untouched', async () => {
+    const element = await connect();
+
     expect(
-        application.getControllerForElementAndIdentifier(
-            element as Element,
-            'game',
-        ),
+        application?.getControllerForElementAndIdentifier(element, 'game'),
     ).toBeInstanceOf(GameController);
-    expect(element?.outerHTML).toBe('<main data-controller="game"></main>');
+    expect(element.outerHTML).toBe('<main data-controller="game"></main>');
+});
+
+it('starts the game on its element once the page has painted and the game loaded', async () => {
+    const element = await connect();
+
+    expect(mocks.startGame).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(mocks.startGame).not.toHaveBeenCalled();
+
+    mocks.gate.release();
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.startGame).toHaveBeenCalledExactlyOnceWith(element);
+});
+
+it('stops the game when the element leaves the page', async () => {
+    const element = await connect();
+    mocks.gate.release();
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.stop).toHaveBeenCalledTimes(1);
+});
+
+it('never starts the game of an element that left before the first paint', async () => {
+    const element = await connect();
+    mocks.gate.release();
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // The game was not even fetched.
+    expect(mocks.imports).not.toHaveBeenCalled();
+    expect(mocks.startGame).not.toHaveBeenCalled();
+    expect(mocks.stop).not.toHaveBeenCalled();
+});
+
+it('never starts the game of an element that left while the game was loading', async () => {
+    const element = await connect();
+    await vi.advanceTimersByTimeAsync(100);
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(0);
+    mocks.gate.release();
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.startGame).not.toHaveBeenCalled();
+});
+
+it('leaves the static page alone when the game chunk is gone, as after a deploy', async () => {
+    mocks.chunk.gone = true;
+    const element = await connect();
+    mocks.gate.release();
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.imports).toHaveBeenCalledTimes(1);
+    expect(mocks.startGame).not.toHaveBeenCalled();
+    expect(element.outerHTML).toBe('<main data-controller="game"></main>');
 });

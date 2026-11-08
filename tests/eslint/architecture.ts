@@ -20,6 +20,7 @@ const globals = 'no-restricted-globals';
 const properties = 'no-restricted-properties';
 const importRule = 'no-restricted-imports';
 const syntax = 'no-restricted-syntax';
+const listener = 'architecture/listener-signal';
 
 const imported = (path: string, from: string, rule?: string): Case => ({
     name: `${from} imported by ${path}`,
@@ -220,6 +221,50 @@ const cases: Case[] = [
             ),
     ),
 
+    // Listeners are attached with the signal of an AbortController.
+    ...[
+        "window.addEventListener('pointermove', () => undefined);",
+        "document.addEventListener('visibilitychange', () => undefined, { passive: true });",
+        "root.addEventListener('click', () => undefined, true);",
+        "root.addEventListener('click', () => undefined, options);",
+        "root.addEventListener('click', () => undefined, { ...options });",
+        "root['addEventListener']('click', () => undefined);",
+        "root.addEventListener('click', () => undefined, { ['signal']: abort.signal });",
+        'element.addEventListener(name, () => undefined, {});',
+        "addEventListener('click', () => undefined);",
+        "addEventListener('click', () => undefined, { passive: true });",
+    ].map((code) => used('assets/game/input/input.ts', code, listener)),
+    ...[
+        "window.addEventListener('pointermove', () => undefined, { signal });",
+        "root.addEventListener('click', () => undefined, { capture: true, signal });",
+        "root.addEventListener('click', () => undefined, { signal: abort.signal, passive: false });",
+        "root['addEventListener']('click', () => undefined, { signal });",
+        "events.on('item.freed', () => undefined);",
+        "root.removeEventListener('click', () => undefined);",
+        "addEventListener('click', () => undefined, { signal });",
+        "root[name]('click', () => undefined);",
+    ].map((code) => used('assets/game/frame/frame.ts', code)),
+    ...[
+        'assets/game/clock/clock.ts',
+        'assets/game/brain/brain.ts',
+        'assets/game/physics/world.ts',
+    ].map((path) =>
+        used(
+            path,
+            "root.addEventListener('click', () => undefined);",
+            listener,
+        ),
+    ),
+    used(
+        'assets/controllers/game_controller.ts',
+        "root.addEventListener('click', () => undefined);",
+    ),
+    used(
+        'assets/game/input/input.mts',
+        "root.addEventListener('click', () => undefined);",
+        listener,
+    ),
+
     // The rules apply to every TypeScript extension.
     used(
         'assets/game/brain/brain.mts',
@@ -238,7 +283,13 @@ const eslint = new ESLint({
     ],
 });
 
-const architectureRules = new Set([globals, properties, importRule, syntax]);
+const architectureRules = new Set([
+    globals,
+    properties,
+    importRule,
+    syntax,
+    listener,
+]);
 const failures: string[] = [];
 
 for (const { name, path, code, rule } of cases) {

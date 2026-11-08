@@ -1,6 +1,8 @@
 /* The page's defaults, on bare elements: what a page without a class looks like. */
+
+/* The ground's colour: it shows under the scene when a phone's toolbar hides. */
 html {
-    background: var(--bg);
+    background: var(--ground);
 }
 
 body {
@@ -29,9 +31,10 @@ h1 {
     letter-spacing: -0.02em;
 }
 
-/* The name reads one word per line. */
+/* The name reads one word per line, and a word never breaks between its letters. */
 h1 > span {
     display: block;
+    white-space: nowrap;
 }
 
 h2 {

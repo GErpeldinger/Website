@@ -1,4 +1,4 @@
-import type { Linter } from 'eslint';
+import type { Linter, Rule } from 'eslint';
 
 // The rules that keep the game layer's modules apart (docs/architecture.md). The DOM ban is not
 // here: tsconfig.game.json has no DOM lib, so the compiler enforces it. These rules need no type
@@ -33,6 +33,50 @@ const dynamicImport = {
 // A game module is imported from another folder: the folder comes right after the `../`.
 const gameModule = (names: string[]): string =>
     `^(\\.\\./)+(${names.join('|')})(/|$)|/game/(${names.join('|')})(/|$)`;
+
+// A listener the game attaches is detached with the game: it passes the `signal` of an
+// AbortController. Calls are matched by the method's name, on whatever it is called.
+const listenerSignal: Rule.RuleModule = {
+    meta: {
+        type: 'problem',
+        schema: [],
+        messages: {
+            missing:
+                'Attach the listener with `{ signal }` from an AbortController, so stopping the game detaches it.',
+        },
+    },
+    create: (context): Rule.RuleListener => ({
+        CallExpression(node): void {
+            const { callee } = node;
+            // `addEventListener(...)` alone is the window's.
+            const isListener =
+                callee.type === 'Identifier'
+                    ? callee.name === 'addEventListener'
+                    : callee.type === 'MemberExpression' &&
+                      (callee.computed
+                          ? callee.property.type === 'Literal' &&
+                            callee.property.value === 'addEventListener'
+                          : callee.property.type === 'Identifier' &&
+                            callee.property.name === 'addEventListener');
+            if (!isListener) {
+                return;
+            }
+            const options = node.arguments[2];
+            const hasSignal =
+                options?.type === 'ObjectExpression' &&
+                options.properties.some(
+                    (property) =>
+                        property.type === 'Property' &&
+                        !property.computed &&
+                        property.key.type === 'Identifier' &&
+                        property.key.name === 'signal',
+                );
+            if (!hasSignal) {
+                context.report({ node, messageId: 'missing' });
+            }
+        },
+    }),
+};
 
 interface Restriction {
     patterns?: { regex: string; message: string }[];
@@ -105,6 +149,14 @@ export const architecture: Linter.Config[] = [
         files: [`${GAME}/${TS}`],
         ignores: [`${GAME}/physics/${TS}`],
         rules: imports({ patterns: [toTheController] }),
+    },
+    {
+        name: 'architecture/listeners',
+        files: [`${GAME}/${TS}`],
+        plugins: {
+            architecture: { rules: { 'listener-signal': listenerSignal } },
+        },
+        rules: { 'architecture/listener-signal': 'error' },
     },
     {
         name: 'architecture/frame',

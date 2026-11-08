@@ -172,6 +172,9 @@ importers:
       '@hotwired/stimulus':
         specifier: 3.2.2
         version: 3.2.2
+      matter-js:
+        specifier: 0.20.0
+        version: 0.20.0
     devDependencies:
       '@eslint/js':
         specifier: 10.0.1
@@ -185,6 +188,9 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: 10.1.1
         version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@24.19.2))(vitest@5.1.0(@types/node@24.19.2)(happy-dom@21.0.4)(vite@8.3.6(@types/node@24.19.2)(jiti@2.7.0)))
+      '@types/matter-js':
+        specifier: 0.20.2
+        version: 0.20.2
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
@@ -870,6 +876,9 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
+  '@types/matter-js@0.20.2':
+    resolution: {integrity: sha512-3PPKy3QxvZ89h9+wdBV2488I1JLVs7DEpIkPvgO8JC1mUdiVSO37ZIvVctOTD7hIq8OAL2gJ3ugGSuUip6DhCw==}
 
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
@@ -1565,6 +1574,9 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  matter-js@0.20.0:
+    resolution: {integrity: sha512-iC9fYR7zVT3HppNnsFsp9XOoQdQN2tUyfaKg4CHLH8bN+j6GT4Gw7IH2rP0tflAebrHFw730RR3DkVSZRX8hwA==}
 
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
@@ -2743,6 +2755,8 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/matter-js@0.20.2': {}
+
   '@types/minimatch@3.0.5': {}
 
   '@types/node@24.19.2':
@@ -3417,6 +3431,8 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.6.0
 
   math-intrinsics@1.1.0: {}
+
+  matter-js@0.20.0: {}
 
   mdn-data@2.27.1: {}
 

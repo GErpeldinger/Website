@@ -1,0 +1,35 @@
+/* State, read from the data attributes the game writes. No state changes layout. */
+
+/* A transform ignores an inline box. */
+[data-physics='letter'] {
+    display: inline-block;
+}
+
+/* Once the game runs: no text selection, no callout on a long press, and a pinch still zooms. */
+[data-physics][data-state] {
+    -webkit-touch-callout: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+[data-physics][data-state='pinned'],
+[data-physics][data-state='loose'] {
+    cursor: grab;
+}
+
+/* Layout-neutral only while no piece has a position of its own: this overrides it. */
+[data-physics][data-state='held'] {
+    position: relative;
+    z-index: 2;
+    cursor: grabbing;
+}
+
+/*
+ * A bomb's mark sits above the ground and below the content, so it never dims the text. Equal
+ * z-indexes paint in tree order: the backdrop, the ground, then the marks added last.
+ */
+[data-scorch] {
+    z-index: -1;
+    background: radial-gradient(circle, var(--scorch), transparent 70%);
+    pointer-events: none;
+}

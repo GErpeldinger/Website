@@ -1,0 +1,257 @@
+import { Clock } from './clock/clock';
+import { EventBus } from './events/event_bus';
+import type { GameEvents, Point } from './events/game_events';
+import { Frame, type FrameEnvironment } from './frame/frame';
+import { Input } from './input/input';
+import {
+    clearPlacement,
+    measureBounds,
+    measurePieces,
+    pieceAt,
+    prefersReducedMotion,
+    resetPiece,
+    scrollOffset,
+    setState,
+    writePlacements,
+    type Measured,
+} from './page/page';
+import { Scorches } from './page/scorches';
+import { Shake } from './page/shake';
+import type { Bounds } from './physics/bodies';
+import { PhysicsWorld } from './physics/world';
+
+// What the dock, the monkey and the Rebuild call. Positions are page coordinates.
+export interface Game {
+    readonly events: EventBus<GameEvents>;
+    // A bomb falls from `at`, burns its fuse and blows.
+    bomb(at: Point): void;
+    // A tornado over `at.x`, for a few seconds. None under reduced motion.
+    tornado(at: Point): void;
+    setZeroGravity(on: boolean): void;
+    // Moves a piece back to its home and pins it again.
+    restore(id: number): void;
+    // Wipes the marks bombs left, as the Rebuild does.
+    clearScorches(): void;
+    stop(): void;
+}
+
+export interface GameOptions {
+    // Shared with the other systems; a new bus when omitted.
+    events?: EventBus<GameEvents>;
+    random?: () => number;
+    // Read from the browser when omitted.
+    reducedMotion?: boolean;
+    frameEnvironment?: FrameEnvironment;
+}
+
+// A resize that settles for this long, in ms of game time, measures the page again.
+const RESIZE_DELAY = 160;
+const MAX_SCORCHES = 12;
+const SHAKE = 16;
+
+interface Scene {
+    world: PhysicsWorld;
+    measured: Measured;
+    bounds: Bounds;
+}
+
+// Builds the physics from the page's `data-physics` elements and runs it: the loop, the pointer,
+// the effects. `stop` hands the page back as the server rendered it.
+export const startGame = (
+    root: HTMLElement,
+    options: GameOptions = {},
+): Game => {
+    const events = options.events ?? new EventBus<GameEvents>();
+    const random = options.random ?? Math.random;
+    const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
+    const clock = new Clock();
+    const abort = new AbortController();
+    // Marks go where the shake doesn't reach: it moves the root, and a transform would carry
+    // them along. The ground's parent is the scene, whose box starts at the page's origin.
+    const stage = document.querySelector('[data-ground]')?.parentElement;
+    const scorches = new Scorches(stage ?? document.body, MAX_SCORCHES);
+    const shake = new Shake(root, random);
+    let resizing = false;
+    let cancelResize: (() => void) | undefined;
+
+    const build = (): Scene => {
+        const scroll = scrollOffset();
+        const measured = measurePieces(root, scroll);
+        const bounds = measureBounds(scroll);
+        const world = new PhysicsWorld(bounds, measured.specs, {
+            events,
+            clock,
+            random,
+            reducedMotion,
+        });
+        return { world, measured, bounds };
+    };
+    let scene = build();
+
+    const frame = new Frame({
+        clock,
+        environment: options.frameEnvironment,
+        onFrame: (elapsed): void => {
+            scene.world.step(elapsed);
+            writePlacements(scene.measured.elements, scene.world.placements());
+            shake.step(elapsed);
+        },
+        idle: (): boolean =>
+            scene.world.resting && !input.busy && !shake.active && !resizing,
+    });
+
+    const input = new Input({
+        root,
+        clock,
+        signal: abort.signal,
+        hooks: {
+            pick: (target): number | undefined => {
+                const id = pieceAt(scene.measured, target);
+                return id !== undefined &&
+                    scene.measured.specs[id]?.traits.grabbable
+                    ? id
+                    : undefined;
+            },
+            grab: (id, at): boolean => scene.world.grab(id, at),
+            drag: (to): void => {
+                scene.world.drag(to);
+            },
+            release: (velocity): void => {
+                scene.world.release(velocity);
+            },
+            aim: (x): void => {
+                scene.world.aim(x);
+            },
+            wake: (): void => {
+                frame.wake();
+            },
+        },
+    });
+
+    // The page shows what the physics says: a state on the element for the CSS to style.
+    const show = (
+        state: 'pinned' | 'loose' | 'held',
+        { id }: { id: number },
+    ): void => {
+        const element = scene.measured.elements.get(id);
+        if (element) {
+            setState(element, state);
+        }
+    };
+    const unsubscribe = [
+        events.on('item.freed', (payload) => {
+            show('loose', payload);
+        }),
+        events.on('item.grabbed', (payload) => {
+            show('held', payload);
+        }),
+        events.on('item.dropped', (payload) => {
+            show('loose', payload);
+        }),
+        events.on('item.thrown', (payload) => {
+            show('loose', payload);
+        }),
+        events.on('item.restored', (payload) => {
+            show('pinned', payload);
+            const element = scene.measured.elements.get(payload.id);
+            if (element) {
+                clearPlacement(element);
+            }
+        }),
+        events.on('bomb.exploded', ({ at }) => {
+            scorches.add(at);
+            if (!reducedMotion) {
+                shake.trigger(SHAKE);
+            }
+        }),
+    ];
+
+    const reset = (): void => {
+        for (const element of scene.measured.elements.values()) {
+            resetPiece(element);
+        }
+        scorches.clear();
+        shake.stop();
+    };
+
+    const rebuild = (): void => {
+        resizing = false;
+        scene.world.dispose();
+        input.cancel();
+        reset();
+        scene = build();
+    };
+
+    window.addEventListener(
+        'resize',
+        () => {
+            // The ground sits at the bottom of the scene (`svh`, so the toolbar of a phone never
+            // moves it): measure again when a real resize changed the width or the floor.
+            const now = measureBounds(scrollOffset());
+            if (
+                now.width === scene.bounds.width &&
+                now.floor === scene.bounds.floor
+            ) {
+                // Back to the built layout: no rebuild is owed any more.
+                cancelResize?.();
+                cancelResize = undefined;
+                resizing = false;
+                return;
+            }
+            cancelResize?.();
+            resizing = true;
+            cancelResize = clock.after(RESIZE_DELAY, rebuild);
+            frame.wake();
+        },
+        { signal: abort.signal },
+    );
+
+    const live = (action: () => void): void => {
+        if (!abort.signal.aborted) {
+            action();
+            frame.wake();
+        }
+    };
+
+    return {
+        events,
+        bomb: (at): void => {
+            live(() => {
+                scene.world.placeBomb(at);
+            });
+        },
+        tornado: (at): void => {
+            live(() => {
+                scene.world.startTornado(at.x);
+            });
+        },
+        setZeroGravity: (on): void => {
+            live(() => {
+                scene.world.setZeroGravity(on);
+            });
+        },
+        restore: (id): void => {
+            live(() => {
+                const wasHeld = scene.world.holding;
+                scene.world.restore(id);
+                // Restoring the held piece lets go of it: the hand is free again.
+                if (wasHeld && !scene.world.holding) {
+                    input.cancel();
+                }
+            });
+        },
+        clearScorches: (): void => {
+            scorches.clear();
+        },
+        // Safe to call twice: each step is.
+        stop: (): void => {
+            abort.abort();
+            frame.stop();
+            for (const off of unsubscribe) {
+                off();
+            }
+            scene.world.dispose();
+            reset();
+        },
+    };
+};

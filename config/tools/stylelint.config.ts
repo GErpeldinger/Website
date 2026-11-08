@@ -52,7 +52,16 @@ const config: Config = {
                 browsers,
                 // clip-path and masks: reported as partial for shape types we don't use
                 // (`inset()` is supported). Nesting: Vite lowers it for the build target.
-                ignore: ['css-clip-path', 'css-masks', 'css-nesting'],
+                //
+                // touch-action: older Safari lacks only some values and keeps its default.
+                // Grab cursors: iOS has no cursor to show.
+                ignore: [
+                    'css-clip-path',
+                    'css-masks',
+                    'css-nesting',
+                    'css-touch-action',
+                    'css3-cursors-grab',
+                ],
             },
         ],
 

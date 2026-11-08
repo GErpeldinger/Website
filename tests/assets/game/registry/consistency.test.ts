@@ -126,7 +126,16 @@ describe('emittedEvents', () => {
         // The Brain's own helper.
         expect(names.has('behaviour.started')).toBe(true);
         expect(names.has('line.said')).toBe(true);
-        expect(names.has('monkey.hit')).toBe(false);
+        for (const name of [
+            'monkey.grabbed',
+            'monkey.dropped',
+            'monkey.thrown',
+            'monkey.landed',
+            'monkey.hit',
+        ]) {
+            expect(names.has(name), name).toBe(true);
+        }
+        expect(names.has('monkey.waved')).toBe(false);
     });
 
     it('reads every .ts file below the folder, and nothing else', () => {

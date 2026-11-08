@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     clearPlacement,
     measureBounds,
+    measureViewport,
     measurePieces,
     pieceAt,
     prefersReducedMotion,
@@ -203,6 +204,30 @@ describe('pieceAt', () => {
         expect(pieceAt(found, byId('text'))).toBe(0);
         expect(pieceAt(found, byId('plain'))).toBeUndefined();
         expect(pieceAt(found, null)).toBeUndefined();
+    });
+});
+
+describe('measureViewport', () => {
+    it('is what the visitor sees: the scroll and the size of the window', () => {
+        vi.spyOn(window, 'scrollX', 'get').mockReturnValue(30);
+        vi.spyOn(window, 'scrollY', 'get').mockReturnValue(250);
+        vi.spyOn(
+            document.documentElement,
+            'clientWidth',
+            'get',
+        ).mockReturnValue(1000);
+        vi.spyOn(
+            document.documentElement,
+            'clientHeight',
+            'get',
+        ).mockReturnValue(700);
+
+        expect(measureViewport()).toEqual({
+            x: 30,
+            y: 250,
+            width: 1000,
+            height: 700,
+        });
     });
 });
 

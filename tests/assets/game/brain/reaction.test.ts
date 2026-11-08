@@ -112,10 +112,10 @@ describe('its conditions', () => {
     });
 
     it('holds the payload to what it names', () => {
-        const letter = behaviour({ where: { kind: 'letter' } } as never);
+        const letter = behaviour({ where: { kind: 'letter' } });
         const links = behaviour({
             where: { kind: ['link', 'block'] },
-        } as never);
+        });
 
         expect(letter.canStart(context(grabbed))).toBe(true);
         expect(links.canStart(context(grabbed))).toBe(false);
@@ -163,11 +163,12 @@ describe('defineReactions', () => {
         // Never called: tsc is the test.
         const misuse = (): void => {
             defineReactions([
+                // @ts-expect-error `kind` is not 'planet' (reported on the reaction: the union
+                // of events is wide enough that TypeScript no longer points at the property).
                 {
                     actor: 'monkey',
                     on: 'item.grabbed',
                     line: 'x',
-                    // @ts-expect-error `kind` is not 'planet'.
                     where: { kind: 'planet' },
                 },
                 {

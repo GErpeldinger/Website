@@ -5,11 +5,19 @@ export interface Point {
     y: number;
 }
 
+// A rectangle of the page, in the same coordinates.
+export interface Box {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 export type PieceKind = 'letter' | 'block' | 'link';
 
 export type FreedBy = 'impact' | 'grab' | 'bomb' | 'tornado' | 'gravity';
 
-export type HitAgainst = 'piece' | 'bomb' | 'floor' | 'wall';
+export type HitAgainst = 'piece' | 'bomb' | 'floor' | 'wall' | 'monkey';
 
 export type BehaviourKind = 'reflex' | 'activity' | 'ambient' | 'line';
 
@@ -33,6 +41,16 @@ export interface GameEvents {
     };
     // Moved back to its home and pinned again.
     'item.restored': { id: number; kind: PieceKind };
+    // The visitor took the monkey; `at` is where, on the page.
+    'monkey.grabbed': { at: Point };
+    // Let go slowly: put down rather than thrown.
+    'monkey.dropped': undefined;
+    // Let go fast; `speed` is the release speed in pixels per step.
+    'monkey.thrown': { speed: number };
+    // Back on his feet after a fall; `speed` is how fast he came down, in pixels per step.
+    'monkey.landed': { speed: number };
+    // A hard collision: a loose piece or a bomb at 7 px per step or more, a fall on the floor at 10.
+    'monkey.hit': { speed: number; against: HitAgainst };
     'bomb.placed': { id: number; at: Point };
     // A rebuild of the page put the bomb out before it blew.
     'bomb.cancelled': { id: number };

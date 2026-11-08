@@ -139,6 +139,7 @@ const cases: Case[] = [
             'motor/motor',
             'look/pose',
             'voice/voice',
+            'monkey/monkey',
             'frame/driver',
         ].map((layer) =>
             imported(`assets/game/${file}.ts`, `../${layer}`, importRule),
@@ -166,6 +167,7 @@ const cases: Case[] = [
         'motor/motor',
         'look/pose',
         'voice/voice',
+        'monkey/monkey',
         'frame/driver',
     ].map((layer) =>
         imported('assets/game/lines/speaker.ts', `../${layer}`, importRule),

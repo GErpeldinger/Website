@@ -30,15 +30,22 @@ export class Engine {
     readonly clock: ClockView;
     readonly #options: EngineOptions;
     readonly #brains = new Map<string, Brain>();
+    readonly #motors = new Map<string, Motor>();
 
     constructor(options: EngineOptions) {
         this.#options = options;
         this.clock = options.clock;
     }
 
-    // The actors that have behaviours, in the order the registry lists them.
+    // The actors that have behaviours, in the order the registry lists them, then those that
+    // have a body and no behaviour yet.
     actors(): string[] {
-        return [...new Set(this.#options.behaviours.map(({ actor }) => actor))];
+        return [
+            ...new Set([
+                ...this.#options.behaviours.map(({ actor }) => actor),
+                ...this.#brains.keys(),
+            ]),
+        ];
     }
 
     behaviours(actor: string): readonly Behaviour[] {
@@ -50,6 +57,11 @@ export class Engine {
     // The Brain of an actor that has a body, once attached.
     brain(actor: string): Brain | undefined {
         return this.#brains.get(actor);
+    }
+
+    // The body of an actor that has one, which the Brain asks.
+    motor(actor: string): Motor | undefined {
+        return this.#motors.get(actor);
     }
 
     // True while any Brain runs, plays or has something waiting: the loop must go on.
@@ -76,6 +88,7 @@ export class Engine {
             speaker: speaks ? new Speaker({ book: lines, clock }) : undefined,
         });
         this.#brains.set(actor, brain);
+        this.#motors.set(actor, motor);
         return brain;
     }
 
@@ -84,5 +97,6 @@ export class Engine {
             brain.stop();
         }
         this.#brains.clear();
+        this.#motors.clear();
     }
 }

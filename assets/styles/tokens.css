@@ -50,6 +50,9 @@
     --photo-size: 124px;
     --ground-size: 92px;
     --touch-size: 44px;
+    --monkey-width: 56px;
+    --monkey-height: 72px;
+    --bubble-width: 240px;
 }
 
 @media (width <= 860px) {

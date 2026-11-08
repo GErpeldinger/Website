@@ -2,11 +2,15 @@ import { Body } from 'matter-js';
 import { describe, expect, it } from 'vitest';
 import {
     GROUND,
+    MONKEY_HEIGHT,
+    MONKEY_WIDTH,
     SIDE,
     bombBody,
     looseFilter,
+    monkeyBody,
     pieceBody,
     pinnedFilter,
+    takenFilter,
     wallBodies,
 } from '../../../../assets/game/physics/bodies';
 import { traitsOf } from '../../../../assets/game/physics/kinds';
@@ -82,18 +86,71 @@ describe('pieceBody', () => {
 });
 
 describe('the filters', () => {
-    it('let a pinned piece feel only the loose and the bombs, and a loose one everything', () => {
-        expect(pinnedFilter()).toEqual({ category: 4, mask: 8 | 32, group: 0 });
+    it('let a pinned piece feel only the loose, the monkey and the bombs, and a loose one everything', () => {
+        expect(pinnedFilter()).toEqual({
+            category: 4,
+            mask: 8 | 16 | 32,
+            group: 0,
+        });
         expect(looseFilter()).toEqual({
             category: 8,
+            mask: GROUND | SIDE | 4 | 8 | 16 | 32,
+            group: 0,
+        });
+    });
+
+    it('make the monkey stand on the ground, the walls and every piece, and be pushed by bombs', () => {
+        expect(monkeyBody(100, 700).collisionFilter).toEqual({
+            category: 16,
             mask: GROUND | SIDE | 4 | 8 | 32,
             group: 0,
         });
     });
 
-    it('gives a new object each time, since a body owns its filter', () => {
+    it('make a taken piece collide with nothing', () => {
+        expect(takenFilter()).toEqual({ category: 64, mask: 0, group: 0 });
+    });
+
+    it('give a new object each time, since a body owns its filter', () => {
         expect(pinnedFilter()).not.toBe(pinnedFilter());
         expect(looseFilter()).not.toBe(looseFilter());
+        expect(takenFilter()).not.toBe(takenFilter());
+    });
+});
+
+describe('monkeyBody', () => {
+    it('is the prototype’s 40 by 70 rectangle, standing on the floor at x', () => {
+        const body = monkeyBody(300, 700);
+
+        expect(MONKEY_WIDTH).toBe(40);
+        expect(MONKEY_HEIGHT).toBe(70);
+        expect(body.isStatic).toBe(false);
+        expect(body.position.x).toBeCloseTo(300);
+        expect(body.position.y).toBeCloseTo(665);
+        expect(body.bounds.min.x).toBeCloseTo(280);
+        expect(body.bounds.max.x).toBeCloseTo(320);
+        expect(body.bounds.min.y).toBeCloseTo(630);
+        expect(body.bounds.max.y).toBeCloseTo(700);
+    });
+
+    it('has the prototype feel: grippy, hardly bouncy, a little denser than a piece', () => {
+        const body = monkeyBody(300, 700);
+
+        expect(body.friction).toBe(0.8);
+        expect(body.restitution).toBe(0.15);
+        expect(body.density).toBe(0.002);
+    });
+
+    it('rounds its corners by 14 px', () => {
+        const body = monkeyBody(300, 700);
+
+        expect(
+            body.vertices.some(
+                (vertex) =>
+                    Math.abs(vertex.x - 280) < 0.01 &&
+                    Math.abs(vertex.y - 644) < 0.01,
+            ),
+        ).toBe(true);
     });
 });
 
@@ -109,14 +166,14 @@ describe('bombBody', () => {
         expect(body.density).toBe(0.004);
     });
 
-    it('collides with everything, the pinned pieces included', () => {
+    it('collides with everything, the pinned pieces and the monkey included', () => {
         const { category, mask } = bombBody(
             { x: 0, y: 0 },
             700,
         ).collisionFilter;
 
         expect(category).toBe(32);
-        expect(mask).toBe(GROUND | SIDE | 4 | 8 | 32);
+        expect(mask).toBe(GROUND | SIDE | 4 | 8 | 16 | 32);
     });
 
     it('does not start under the ground', () => {

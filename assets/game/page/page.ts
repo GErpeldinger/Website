@@ -1,4 +1,4 @@
-import type { PieceKind, Point } from '../events/game_events';
+import type { Box, PieceKind, Point } from '../events/game_events';
 import { heightScaleOf, kindOf, traitsOf } from '../physics/kinds';
 import type { Bounds, PieceSpec, Placement } from '../physics/world';
 
@@ -17,6 +17,17 @@ export const scrollOffset = (): Point => ({
     x: window.scrollX,
     y: window.scrollY,
 });
+
+// What the visitor sees of the page, in page coordinates.
+export const measureViewport = (): Box => {
+    const root = document.documentElement;
+    return {
+        x: window.scrollX,
+        y: window.scrollY,
+        width: root.clientWidth,
+        height: root.clientHeight,
+    };
+};
 
 // A body smaller than this would slip through anything.
 const MIN_SIZE = 10;

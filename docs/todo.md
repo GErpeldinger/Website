@@ -31,8 +31,8 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 - Every behaviour and reaction comes with its Vitest test, written as a sequence on the `FakeMotor` (`ports/fake_motor.ts`), and its lines in both catalogues; `make check` fails otherwise.
 - Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
-- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics and the behaviour engine are done; the monkey's Motor, Look and Voice come next (`engine.attach('monkey', motor, { speaks: true })`, the Voice drawing `line.said`), then his behaviours and the dock.
-- The Brain's timers run on the game clock, which only ticks while the loop runs: when the monkey's Motor lands, decide how idle time and the bed relate (the loop stops once the scene is still, so ambient behaviours only run while something else keeps it awake).
+- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics, the behaviour engine and the monkey's Motor, Look and Voice are done; his behaviours (idle smoking, the reactions, fleeing, the rebuild) come next, then the dock.
+- The Brain's timers run on the game clock, which only ticks while the loop runs: with the monkey's Motor in, decide how idle time and the bed relate (the loop stops once the scene is still, so ambient behaviours only run while something else keeps it awake).
 - Counters and the network must ignore events whose origin is `director` (the bus passes it to listeners), when the live board lands.
 - Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): the cigarette arc, hanging and climbing.
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
@@ -42,6 +42,11 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - A keyboard and button alternative to dragging a piece (WCAG 2.5.7), with the dock: the physics exposes `bomb`, `tornado`, `setZeroGravity` and `restore`, but a piece can only be moved with a pointer.
 - The page's side of the physics (see [architecture.md](architecture.md), Decisions, "Hooks the page provides"): check on a real touch device that a long press on a piece neither selects text nor opens the callout.
 - Measure the page again when a layout shift moves the pieces without changing the width (a late font, a loaded image): today only a new width does.
+
+- Check the monkey in a real browser (the agent that built him could not open the page): his look at 72 px next to the content, a throw, a walk from the director panel, his bubble at the viewport's edges, a touch long press on him.
+- Jump and climb behaviours: measure whether a running hop that lands on a pinned piece exceeds the 9 px per step that frees it (and the 10 that counts as a hit).
+- The tornado does not take the monkey yet: add it with his flee behaviour.
+- A walk that fails when he is blocked leaves the behaviour to decide (go round, jump, give up): the first behaviours decide.
 
 ## Multiplayer
 

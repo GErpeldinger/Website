@@ -1,0 +1,31 @@
+/* The monkey's speech bubble (docs/architecture.md, The monkey). Only the voice module imports
+   this file. The Voice writes its position and its data-state: it is always in the page, empty
+   and transparent when he says nothing, so a screen reader hears the lines as they arrive. */
+@layer blocks {
+    .bubble {
+        position: absolute;
+        z-index: 3;
+        top: 0;
+        left: 0;
+        max-width: var(--bubble-width);
+        padding: var(--space-xs) var(--space-s);
+        color: var(--bg);
+        font-size: var(--step-s);
+        font-weight: var(--weight-semibold);
+        line-height: 1.25;
+        background: var(--fg);
+        border-radius: var(--radius-m);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .bubble[data-state='shown'] {
+        opacity: 1;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .bubble {
+            transition: opacity 120ms;
+        }
+    }
+}

@@ -224,6 +224,7 @@ export const architecture: Linter.Config[] = [
                         'look',
                         'motor',
                         'voice',
+                        'monkey',
                         'frame',
                     ]),
                     message:

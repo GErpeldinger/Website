@@ -10,6 +10,8 @@ import type { GameEvents } from '../../../assets/game/events/game_events';
 import { startGame, type Game } from '../../../assets/game/game';
 import type { LineBook } from '../../../assets/game/lines/speaker';
 import { FakeMotor } from '../../../assets/game/ports/fake_motor';
+import type { MonkeyRequest } from '../../../assets/game/ports/monkey';
+import type { Motor } from '../../../assets/game/ports/motor';
 import { byId, rect, select } from './dom';
 import { FakeBrowser } from './frame/fake_environment';
 
@@ -37,6 +39,11 @@ const names = [
     'item.thrown',
     'item.hit',
     'item.restored',
+    'monkey.grabbed',
+    'monkey.dropped',
+    'monkey.thrown',
+    'monkey.landed',
+    'monkey.hit',
     'bomb.placed',
     'bomb.cancelled',
     'bomb.exploded',
@@ -591,9 +598,13 @@ describe('resizing', () => {
 
         const s = setup();
 
-        const call = listen.mock.calls.find(([type]) => type === 'resize');
-        const options = call?.[2] as AddEventListenerOptions | undefined;
-        expect(options?.signal).toBeInstanceOf(AbortSignal);
+        const calls = listen.mock.calls.filter(([type]) => type === 'resize');
+        // The game's own, and the monkey's for his bubble.
+        expect(calls).toHaveLength(2);
+        for (const call of calls) {
+            const options = call[2] as AddEventListenerOptions | undefined;
+            expect(options?.signal).toBeInstanceOf(AbortSignal);
+        }
         s.game.stop();
     });
 
@@ -741,8 +752,8 @@ describe('an unknown piece', () => {
 
 describe('the behaviour engine', () => {
     const bombReaction = (overrides: Partial<Behaviour> = {}): Behaviour => ({
-        id: 'monkey/flee',
-        actor: 'monkey',
+        id: 'drone/flee',
+        actor: 'drone',
         kind: 'activity',
         priority: 1,
         triggers: ['bomb.placed'],
@@ -757,7 +768,8 @@ describe('the behaviour engine', () => {
         const { game } = setup({ behaviours: [bombReaction()] });
 
         expect(game.engine).toBeInstanceOf(Engine);
-        expect(game.engine.actors()).toEqual(['monkey']);
+        // The monkey has a body from the start, and no behaviour yet.
+        expect(game.engine.actors()).toEqual(['drone', 'monkey']);
         expect(game.engine.clock.now()).toBe(0);
     });
 
@@ -767,7 +779,7 @@ describe('the behaviour engine', () => {
         });
         const started = vi.fn();
         game.events.on('behaviour.started', started);
-        game.engine.attach('monkey', new FakeMotor());
+        game.engine.attach('drone', new FakeMotor());
 
         game.bomb({ x: 500, y: 330 });
         expect(started).toHaveBeenCalledTimes(1);
@@ -776,7 +788,7 @@ describe('the behaviour engine', () => {
         run();
 
         expect(names('bomb.exploded')).toHaveLength(1);
-        expect(game.engine.brain('monkey')?.snapshot().body).toBeUndefined();
+        expect(game.engine.brain('drone')?.snapshot().body).toBeUndefined();
         expect(game.engine.clock.now()).toBeGreaterThan(500);
     });
 
@@ -786,7 +798,7 @@ describe('the behaviour engine', () => {
         });
         const started = vi.fn();
         game.events.on('behaviour.started', started);
-        game.engine.attach('monkey', new FakeMotor());
+        game.engine.attach('drone', new FakeMotor());
         game.events.emit('gravity.changed', { zero: false });
         run();
         expect(browser.pending).toBe(false);
@@ -809,7 +821,7 @@ describe('the behaviour engine', () => {
                 }),
             ],
         });
-        game.engine.attach('monkey', new FakeMotor());
+        game.engine.attach('drone', new FakeMotor());
 
         game.events.emit('gravity.changed', { zero: false });
         run(200);
@@ -839,7 +851,7 @@ describe('the behaviour engine', () => {
                 behaviours: [bombReaction({ canStart })],
                 reducedMotion,
             });
-            game.engine.attach('monkey', new FakeMotor());
+            game.engine.attach('drone', new FakeMotor());
             canStart.mockClear();
 
             game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
@@ -866,12 +878,12 @@ describe('the behaviour engine', () => {
         });
         const said = vi.fn();
         game.events.on('line.said', said);
-        game.engine.attach('monkey', new FakeMotor(), { speaks: true });
+        game.engine.attach('drone', new FakeMotor(), { speaks: true });
 
         game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
 
         expect(said).toHaveBeenCalledExactlyOnceWith(
-            { actor: 'monkey', key: 'run', text: 'Sauve qui peut !' },
+            { actor: 'drone', key: 'run', text: 'Sauve qui peut !' },
             'game',
         );
     });
@@ -891,20 +903,20 @@ describe('the behaviour engine', () => {
                 }),
             ],
         });
-        game.engine.attach('monkey', new FakeMotor());
+        game.engine.attach('drone', new FakeMotor());
         const ended = vi.fn();
         game.events.on('behaviour.ended', ended);
 
         game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
 
         expect(error).toHaveBeenCalledExactlyOnceWith(
-            'The behaviour engine failed in monkey/flee.',
+            'The behaviour engine failed in drone/flee.',
             failure,
         );
         expect(ended).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
-                actor: 'monkey',
-                id: 'monkey/flee',
+                actor: 'drone',
+                id: 'drone/flee',
                 by: 'failed',
             }),
             'game',
@@ -915,11 +927,302 @@ describe('the behaviour engine', () => {
         const { game } = setup({ behaviours: [bombReaction()] });
         const started = vi.fn();
         game.events.on('behaviour.started', started);
-        game.engine.attach('monkey', new FakeMotor());
+        game.engine.attach('drone', new FakeMotor());
 
         game.stop();
         game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
 
         expect(started).not.toHaveBeenCalled();
+    });
+});
+
+describe('the monkey', () => {
+    // The Motor the engine holds takes requests of any actor: this one's are the monkey's.
+    const monkeyMotor = (game: Game): Motor<MonkeyRequest> | undefined =>
+        game.engine.motor('monkey');
+    const monkey = (): SVGSVGElement => {
+        const found = document.querySelector<SVGSVGElement>('svg.monkey');
+        if (!found) {
+            throw new Error('No monkey on the page.');
+        }
+        return found;
+    };
+
+    it('is not on the page until the game starts', () => {
+        document.body.innerHTML = '<div id="scene"><main></main></div>';
+
+        expect(document.querySelector('.monkey')).toBeNull();
+        expect(document.querySelector('.bubble')).toBeNull();
+    });
+
+    it('stands on the ground in the scene, hidden from assistive technology', () => {
+        const { get } = setup();
+
+        expect(monkey().parentElement).toBe(get('ground').parentElement);
+        expect(monkey().getAttribute('aria-hidden')).toBe('true');
+        expect(monkey().dataset.pose).toBe('stand');
+        // 64 px from the left, his centre 35 px above the ground at 800.
+        expect(monkey().style.transform).toBe(
+            'translate(36.0px, 729.0px) rotate(0.000rad)',
+        );
+    });
+
+    it('stands on the body of the page when it has no ground strip', () => {
+        document.body.innerHTML = '<main><p data-physics="block">x</p></main>';
+        const game = startGame(select('main'), {
+            lines: { locale: 'en', pools: {} },
+            frameEnvironment: new FakeBrowser(),
+        });
+        games.push(game);
+
+        expect(monkey().parentElement).toBe(document.body);
+    });
+
+    it('has a Motor on the game’s engine, and a voice', () => {
+        const { game, get } = setup();
+
+        expect(game.engine.brain('monkey')).toBeDefined();
+        expect(game.engine.motor('monkey')).toBeDefined();
+        game.events.emit('line.said', {
+            actor: 'monkey',
+            key: 'k',
+            text: 'Salut',
+        });
+
+        expect(
+            get('ground').parentElement?.querySelector('.bubble')?.textContent,
+        ).toBe('Salut');
+    });
+
+    it('speaks the lines of the page through his Brain', () => {
+        const say: Behaviour = {
+            id: 'monkey/greet',
+            actor: 'monkey',
+            kind: 'line',
+            priority: 0,
+            triggers: ['bomb.placed'],
+            lines: ['hello'],
+            canStart: () => true,
+            *run(_, act): Run {
+                act.say('hello');
+                yield wait(1);
+            },
+        };
+        const { game, get } = setup({
+            behaviours: [say],
+            lines: { locale: 'en', pools: { hello: ['Hello there'] } },
+        });
+
+        game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+        expect(
+            get('ground').parentElement?.querySelector('.bubble')?.textContent,
+        ).toBe('Hello there');
+    });
+
+    it('takes part in the engine whatever the registry found', () => {
+        const { game } = setup();
+
+        expect(game.engine.actors()).toEqual(['monkey']);
+    });
+
+    it('walks where the Motor is asked to, which wakes the loop, and lets it sleep after', () => {
+        const { game, browser, run } = setup();
+        const outcomes: string[] = [];
+        expect(browser.pending).toBe(false);
+
+        monkeyMotor(game)?.perform(
+            { type: 'walk', x: 400 },
+            (outcome) => outcomes.push(outcome),
+            'body',
+        );
+        expect(browser.pending).toBe(true);
+        run();
+
+        expect(outcomes).toEqual(['done']);
+        expect(monkey().dataset.walking).toBeUndefined();
+        const [, x] = /translate\(([\d.-]+)px/.exec(
+            monkey().style.transform,
+        ) ?? [undefined, '0'];
+        expect(Math.abs(Number(x) + 28 - 400)).toBeLessThanOrEqual(10);
+        expect(browser.pending).toBe(false);
+    });
+
+    it('steps while he walks, and faces the way he goes', () => {
+        const { game, run } = setup();
+
+        monkeyMotor(game)?.perform(
+            { type: 'walk', x: 400 },
+            () => undefined,
+            'body',
+        );
+        run(10);
+
+        expect(monkey().dataset.walking).toBeDefined();
+        expect(monkey().dataset.facing).toBe('right');
+    });
+
+    it('is taken with the mouse like a piece, and thrown', () => {
+        const { names, browser, run, pointer } = setup();
+
+        pointer(monkey(), 'pointerdown', 64, 765, 0);
+        expect(names('monkey.grabbed')).toEqual([]);
+        pointer(window, 'pointermove', 80, 700, 8);
+        pointer(window, 'pointermove', 200, 500, 16);
+
+        expect(names('monkey.grabbed')).toEqual([{ at: { x: 64, y: 765 } }]);
+        run(30);
+        expect(monkey().dataset.state).toBe('held');
+
+        pointer(window, 'pointerup', 200, 500, 16);
+        expect(names('monkey.thrown')).toHaveLength(1);
+        run(1);
+        expect(monkey().dataset.state).toBe('free');
+        run();
+
+        expect(browser.pending).toBe(false);
+        expect(names('monkey.landed').length).toBeGreaterThan(0);
+        expect(monkey().dataset.pose).toBe('stand');
+    });
+
+    it('tumbles in the air when thrown', () => {
+        const { run, pointer } = setup();
+        pointer(monkey(), 'pointerdown', 64, 765, 0);
+        pointer(window, 'pointermove', 80, 700, 8);
+        pointer(window, 'pointermove', 400, 400, 16);
+        pointer(window, 'pointerup', 400, 400, 16);
+
+        run(8);
+
+        expect(monkey().dataset.pose).toBe('tumble');
+    });
+
+    it('is put down when let go gently', () => {
+        const { names, pointer } = setup();
+
+        pointer(monkey(), 'pointerdown', 64, 765, 0);
+        pointer(window, 'pointermove', 70, 760, 8);
+        pointer(window, 'pointerup', 70, 760, 400);
+
+        expect(names('monkey.dropped')).toHaveLength(1);
+    });
+
+    it('is not taken by a click that does not move', () => {
+        const { names, pointer, browser } = setup();
+
+        pointer(monkey(), 'pointerdown', 64, 765, 0);
+        pointer(window, 'pointerup', 64, 765, 40);
+
+        expect(names('monkey.grabbed')).toEqual([]);
+        expect(browser.requested).toBe(0);
+    });
+
+    it('is the only thing a press on him takes, not the piece under the pointer', () => {
+        const { names, pointer } = setup();
+
+        pointer(monkey(), 'pointerdown', 500, 300, 0);
+        pointer(window, 'pointermove', 600, 300, 8);
+
+        expect(names('item.grabbed')).toEqual([]);
+        expect(names('monkey.grabbed')).toHaveLength(1);
+    });
+
+    it('keeps his place when the page is measured again, within the new walls', () => {
+        const s = setup();
+        monkeyMotor(s.game)?.perform(
+            { type: 'walk', x: 400 },
+            () => undefined,
+            'body',
+        );
+        s.run();
+        const at = (): number[] =>
+            [
+                ...monkey().style.transform.matchAll(
+                    /translate\(([\d.-]+)px, ([\d.-]+)px/g,
+                ),
+            ].flatMap(([, x, y]) => [Number(x), Number(y)]);
+        const before = at();
+
+        s.size.width = 700;
+        window.dispatchEvent(new Event('resize'));
+        s.run();
+
+        expect(at()[0]).toBeCloseTo(before[0] ?? 0, 0);
+        expect(at()[1]).toBeCloseTo(before[1] ?? 0, 0);
+        expect(document.querySelectorAll('svg.monkey')).toHaveLength(1);
+    });
+
+    it('is let go of when the page is measured again', () => {
+        const s = setup();
+        s.pointer(monkey(), 'pointerdown', 64, 765, 0);
+        s.pointer(window, 'pointermove', 100, 700, 8);
+        s.run(2);
+
+        s.size.width = 700;
+        window.dispatchEvent(new Event('resize'));
+        s.run();
+
+        expect(s.names('monkey.dropped')).toHaveLength(1);
+        expect(monkey().dataset.state).toBe('free');
+    });
+
+    it('looks at the pointer', () => {
+        const { pointer } = setup();
+
+        pointer(window, 'pointermove', 900, 761);
+
+        expect(
+            [...monkey().querySelectorAll('.pupil')].map((pupil) =>
+                pupil.getAttribute('transform'),
+            ),
+        ).toEqual(['translate(3.0 0.0)', 'translate(3.0 0.0)']);
+    });
+
+    it('does not follow the pointer with his eyes under reduced motion', () => {
+        const { pointer } = setup({ reducedMotion: true });
+
+        pointer(window, 'pointermove', 900, 761);
+
+        expect(
+            monkey().querySelector('.pupil')?.hasAttribute('transform'),
+        ).toBe(false);
+    });
+
+    it('goes when the game stops, picture and bubble, and nothing listens', () => {
+        const { game, get } = setup();
+        const scene = get('ground').parentElement;
+
+        game.stop();
+
+        expect(document.querySelector('.monkey')).toBeNull();
+        expect(scene?.querySelector('.bubble')).toBeNull();
+        expect(game.engine.motor('monkey')).toBeUndefined();
+    });
+
+    it('keeps a piece he took with him, which the page can restore', () => {
+        const { game, get, run, pointer } = setup();
+        pointer(get('block'), 'pointerdown', 500, 300, 0);
+        pointer(window, 'pointermove', 520, 300, 8);
+        pointer(window, 'pointerup', 520, 300, 400);
+        run();
+        const outcomes: string[] = [];
+        const motor = monkeyMotor(game);
+
+        motor?.perform(
+            { type: 'carry', piece: 0 },
+            (outcome) => outcomes.push(outcome),
+            'body',
+        );
+        run();
+        motor?.perform(
+            { type: 'place', piece: 0 },
+            (outcome) => outcomes.push(outcome),
+            'body',
+        );
+        run();
+
+        expect(outcomes).toEqual(['done', 'done']);
+        expect(get('block').dataset.state).toBe('pinned');
+        expect(monkey().dataset.pose).toBe('stand');
     });
 });

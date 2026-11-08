@@ -21,26 +21,39 @@ export interface PieceSpec {
 }
 
 // What collides with what. A pinned piece only reacts to what hits it: the monkey standing on
-// the text is no impact.
+// the text is no impact (the world says how hard a fall must be). A piece the monkey carries
+// collides with nothing.
 export const GROUND = 1;
 export const SIDE = 2;
 const PINNED = 4;
 const LOOSE = 8;
+const MONKEY = 16;
 const BOMB = 32;
+const TAKEN = 64;
 
 export const pinnedFilter = (): ICollisionFilter => ({
     category: PINNED,
-    mask: LOOSE | BOMB,
+    mask: LOOSE | MONKEY | BOMB,
     group: 0,
 });
 export const looseFilter = (): ICollisionFilter => ({
     category: LOOSE,
+    mask: GROUND | SIDE | PINNED | LOOSE | MONKEY | BOMB,
+    group: 0,
+});
+export const takenFilter = (): ICollisionFilter => ({
+    category: TAKEN,
+    mask: 0,
+    group: 0,
+});
+const monkeyFilter = (): ICollisionFilter => ({
+    category: MONKEY,
     mask: GROUND | SIDE | PINNED | LOOSE | BOMB,
     group: 0,
 });
 const bombFilter = (): ICollisionFilter => ({
     category: BOMB,
-    mask: GROUND | SIDE | PINNED | LOOSE | BOMB,
+    mask: GROUND | SIDE | PINNED | LOOSE | MONKEY | BOMB,
     group: 0,
 });
 const wallFilter = (category: number): ICollisionFilter => ({
@@ -64,6 +77,24 @@ export const pieceBody = ({ x, y, width, height, traits }: PieceSpec): Body => {
     body.collisionFilter = pinnedFilter();
     return body;
 };
+
+// The prototype's monkey: a chamfered rectangle that stands on the floor, at `x`.
+export const MONKEY_WIDTH = 40;
+export const MONKEY_HEIGHT = 70;
+export const monkeyBody = (x: number, floor: number): Body =>
+    Bodies.rectangle(
+        x,
+        floor - MONKEY_HEIGHT / 2,
+        MONKEY_WIDTH,
+        MONKEY_HEIGHT,
+        {
+            friction: 0.8,
+            restitution: 0.15,
+            density: 0.002,
+            chamfer: { radius: 14 },
+            collisionFilter: monkeyFilter(),
+        },
+    );
 
 // A bomb never starts under the ground.
 export const bombBody = (at: Point, floor: number): Body =>

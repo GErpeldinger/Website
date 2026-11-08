@@ -66,6 +66,15 @@ describe('the actors', () => {
         expect(engine.behaviours('cat')).toEqual([]);
     });
 
+    it('lists an actor that has a body and no behaviour yet, after the others, once', () => {
+        const { engine } = setup();
+
+        engine.attach('cat', new FakeMotor());
+        engine.attach('monkey', new FakeMotor());
+
+        expect(engine.actors()).toEqual(['monkey', 'drone', 'cat']);
+    });
+
     it('shares its clock', () => {
         const { engine, clock } = setup();
 
@@ -84,6 +93,17 @@ describe('attaching a body', () => {
         expect(engine.brain('monkey')).toBe(brain);
         expect(log).toEqual(['monkey:monkey/flee']);
         expect(motor.requests).toEqual([walk(1)]);
+    });
+
+    it('keeps the body an actor was given, for whoever wants to drive it', () => {
+        const { engine } = setup();
+        const motor = new FakeMotor();
+
+        expect(engine.motor('monkey')).toBeUndefined();
+        engine.attach('monkey', motor);
+
+        expect(engine.motor('monkey')).toBe(motor);
+        expect(engine.motor('drone')).toBeUndefined();
     });
 
     it('leaves an actor with no body out of the game', () => {
@@ -215,6 +235,8 @@ describe('busy and stop', () => {
 
         expect(log).toEqual([]);
         expect(engine.brain('monkey')).toBeUndefined();
+        expect(engine.motor('monkey')).toBeUndefined();
+        expect(engine.actors()).toEqual(['monkey', 'drone']);
         expect(engine.busy).toBe(false);
     });
 });

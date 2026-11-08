@@ -4,7 +4,8 @@ import type { Brain, BrainSnapshot } from '../brain/brain';
 import type { GameEvents } from '../events/game_events';
 import type { Game } from '../game';
 import { FakeMotor } from '../ports/fake_motor';
-import { eventSamples } from './samples';
+import type { Motor, MotorRequest } from '../ports/motor';
+import { eventSamples, requestSamples } from './samples';
 
 // What the panel needs of the game.
 export type DirectedGame = Pick<Game, 'events' | 'engine'>;
@@ -32,6 +33,71 @@ const describe = ({
         ...(suspended.length > 0 ? [`suspended: ${suspended.join(', ')}`] : []),
         ...(waiting.length > 0 ? [`waiting: ${waiting.join(', ')}`] : []),
     ].join(' · ');
+
+// A form that sends one request straight to an actor's Motor, on either layer, and tells how it
+// ended: the Brain is not asked, so a body can be tried without a behaviour.
+const motorForm = (
+    actor: string,
+    motor: Motor,
+    requests: Record<string, MotorRequest>,
+    report: (text: string) => void,
+    signal: AbortSignal,
+): HTMLFormElement => {
+    const form = element('form');
+    form.dataset.motor = actor;
+    const choice = element('select');
+    choice.name = 'request';
+    choice.setAttribute('aria-label', `${actor} request`);
+    for (const type of Object.keys(requests)) {
+        const option = element('option', type);
+        option.value = type;
+        choice.append(option);
+    }
+    const layer = element('select');
+    layer.name = 'layer';
+    layer.setAttribute('aria-label', `${actor} layer`);
+    for (const name of ['body', 'overlay']) {
+        const option = element('option', name);
+        option.value = name;
+        layer.append(option);
+    }
+    const payload = element('textarea');
+    payload.name = 'payload';
+    payload.rows = 3;
+    payload.setAttribute('aria-label', `${actor} request (JSON)`);
+    const sample = (): void => {
+        payload.value = JSON.stringify(requests[choice.value]);
+    };
+    sample();
+    choice.addEventListener('change', sample, { signal });
+    const send = element('button', 'Send');
+    form.append(choice, layer, payload, send);
+    form.addEventListener(
+        'submit',
+        (event) => {
+            event.preventDefault();
+            try {
+                const request = JSON.parse(payload.value) as MotorRequest;
+                report('');
+                motor.perform(
+                    request,
+                    (outcome) => {
+                        report(`${actor} ${request.type}: ${outcome}`);
+                    },
+                    layer.value === 'overlay' ? 'overlay' : 'body',
+                );
+            } catch (error) {
+                report(
+                    error instanceof SyntaxError
+                        ? `Invalid JSON: ${error.message}`
+                        : String(error),
+                );
+            }
+        },
+        { signal },
+    );
+    return form;
+};
 
 // The development panel (docs/architecture.md, The behaviour engine): fires any event on the bus,
 // starts any behaviour of any actor, and shows what each actor is doing and what happens on the
@@ -157,6 +223,11 @@ export const mountDirector = (
             list.append(item);
         }
         section.append(list);
+        const requests = requestSamples[actor];
+        const motor = engine.motor(actor);
+        if (requests && motor) {
+            section.append(motorForm(actor, motor, requests, report, signal));
+        }
         actors.append(section);
     }
     refresh();

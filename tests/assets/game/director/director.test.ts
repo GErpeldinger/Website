@@ -7,7 +7,10 @@ import {
 import { Engine } from '../../../../assets/game/brain/engine';
 import { Clock } from '../../../../assets/game/clock/clock';
 import { mountDirector } from '../../../../assets/game/director/director';
-import { eventSamples } from '../../../../assets/game/director/samples';
+import {
+    eventSamples,
+    requestSamples,
+} from '../../../../assets/game/director/samples';
 import { EventBus } from '../../../../assets/game/events/event_bus';
 import type { GameEvents } from '../../../../assets/game/events/game_events';
 import { FakeMotor } from '../../../../assets/game/ports/fake_motor';
@@ -524,5 +527,212 @@ describe('once removed', () => {
         expect(heard).not.toHaveBeenCalled();
         expect(game.engine.brain('monkey')?.snapshot().body).toBeUndefined();
         expect(list.children).toHaveLength(0);
+    });
+});
+
+describe('the motor console', () => {
+    // A monkey with a body of its own, and a drone the panel gives a fake one.
+    const mounted = (
+        behaviours: Behaviour[] = [hover],
+    ): {
+        events: EventBus<GameEvents>;
+        engine: Engine;
+        motor: FakeMotor;
+        unmount: () => void;
+    } => {
+        const events = new EventBus<GameEvents>();
+        const engine = new Engine({
+            events,
+            clock: new Clock({ maxStep: 100_000 }),
+            random: (): number => 0,
+            lines: { locale: 'en', pools: {} },
+            behaviours,
+            onError: (error): void => {
+                throw error as Error;
+            },
+        });
+        const motor = new FakeMotor();
+        engine.attach('monkey', motor);
+        const unmount = mountDirector({ events, engine });
+        return { events, engine, motor, unmount };
+    };
+    const consoleOf = (actor: string): HTMLFormElement =>
+        select(`form[data-motor="${actor}"]`) as HTMLFormElement;
+    const field = (name: string): HTMLSelectElement | HTMLTextAreaElement =>
+        select(`form[data-motor="monkey"] [name="${name}"]`) as
+            HTMLSelectElement | HTMLTextAreaElement;
+    const send = (request: string, payload?: string, layer = 'body'): void => {
+        field('request').value = request;
+        field('request').dispatchEvent(new Event('change'));
+        if (payload !== undefined) {
+            field('payload').value = payload;
+        }
+        field('layer').value = layer;
+        consoleOf('monkey').dispatchEvent(
+            new Event('submit', { cancelable: true }),
+        );
+    };
+
+    it('lists the actor that has a body and no behaviour, with a form for its requests', () => {
+        mounted();
+
+        const actors = [...document.querySelectorAll('[data-actor]')].map(
+            (actor) => actor.getAttribute('data-actor'),
+        );
+
+        expect(actors).toEqual(['drone', 'monkey']);
+        expect(consoleOf('monkey')).not.toBeNull();
+    });
+
+    it('has no form for an actor whose requests it does not know', () => {
+        mounted();
+
+        expect(document.querySelectorAll('form[data-motor]')).toHaveLength(1);
+        expect(select('[data-actor="drone"]').querySelector('form')).toBeNull();
+    });
+
+    it('also has one for a monkey that has behaviours and no body, which the panel gives a fake one', () => {
+        setup();
+
+        expect(consoleOf('monkey')).not.toBeNull();
+    });
+
+    it('offers each request, starting from a sample of the first', () => {
+        mounted();
+        const request = field('request') as HTMLSelectElement;
+
+        expect(
+            [...request.options].map((option) => option.value).sort(),
+        ).toEqual([
+            'carry',
+            'drop',
+            'face',
+            'mood',
+            'place',
+            'pose',
+            'stand',
+            'stop',
+            'walk',
+        ]);
+        expect(JSON.parse(field('payload').value)).toEqual(
+            requestSamples.monkey?.[request.value],
+        );
+        expect(request.getAttribute('aria-label')).toBe('monkey request');
+        expect(field('payload').getAttribute('aria-label')).toBe(
+            'monkey request (JSON)',
+        );
+        expect(field('layer').getAttribute('aria-label')).toBe('monkey layer');
+    });
+
+    it('offers the two layers', () => {
+        mounted();
+
+        expect(
+            [...(field('layer') as HTMLSelectElement).options].map(
+                (option) => option.value,
+            ),
+        ).toEqual(['body', 'overlay']);
+    });
+
+    it('fills the payload with the sample of the request chosen', () => {
+        mounted();
+
+        field('request').value = 'face';
+        field('request').dispatchEvent(new Event('change'));
+
+        expect(JSON.parse(field('payload').value)).toEqual({
+            type: 'face',
+            direction: 'left',
+        });
+    });
+
+    it('sends the request to the Motor, on the body layer, and says how it ended', () => {
+        const { motor } = mounted();
+
+        send('walk', '{"type":"walk","x":700}');
+
+        expect(motor.requests).toEqual([{ type: 'walk', x: 700 }]);
+        expect(motor.layers).toEqual(['body']);
+        expect(error().hidden).toBe(true);
+        motor.finish('done');
+        expect(error().hidden).toBe(false);
+        expect(error().textContent).toBe('monkey walk: done');
+
+        send('stop', '{"type":"stop"}');
+        motor.finish('failed');
+        expect(error().textContent).toBe('monkey stop: failed');
+    });
+
+    it('is a form with a button to send, which the browser does not submit', () => {
+        mounted();
+        const submit = new Event('submit', { cancelable: true });
+
+        consoleOf('monkey').dispatchEvent(submit);
+
+        expect(consoleOf('monkey').querySelector('button')?.textContent).toBe(
+            'Send',
+        );
+        expect(submit.defaultPrevented).toBe(true);
+    });
+
+    it('sends it on the overlay layer when asked to', () => {
+        const { motor } = mounted();
+
+        send('mood', '{"type":"mood","mood":"scared","ms":500}', 'overlay');
+
+        expect(motor.layers).toEqual(['overlay']);
+    });
+
+    it('clears the last message when it sends, then tells what comes', () => {
+        const { motor } = mounted();
+        send('walk', '{"type":"walk","x":700}');
+        motor.finish('done');
+        expect(error().hidden).toBe(false);
+
+        send('walk', '{"type":"walk","x":100}');
+
+        expect(error().hidden).toBe(true);
+    });
+
+    it('says when the payload is not JSON, and sends nothing', () => {
+        const { motor } = mounted();
+
+        send('walk', '{"type":');
+
+        expect(error().textContent).toMatch(/^Invalid JSON: /);
+        expect(motor.requests).toEqual([]);
+    });
+
+    it('says what a Motor that refuses a request throws', () => {
+        const { engine } = mounted();
+        vi.spyOn(
+            engine.motor('monkey') as FakeMotor,
+            'perform',
+        ).mockImplementation(() => {
+            throw new Error('No body.');
+        });
+
+        send('stop', '{"type":"stop"}');
+
+        expect(error().textContent).toBe('Error: No body.');
+    });
+
+    it('is gone with the panel, and stops listening', () => {
+        const { motor, unmount } = mounted();
+        const consoleForm = consoleOf('monkey');
+        const request = field('request');
+        const payload = field('payload');
+        const before = payload.value;
+        unmount();
+
+        request.value = 'face';
+        request.dispatchEvent(new Event('change'));
+        const after = payload.value;
+        payload.value = '{"type":"stop"}';
+        consoleForm.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        expect(after).toBe(before);
+        expect(motor.requests).toEqual([]);
+        expect(document.querySelector('form[data-motor]')).toBeNull();
     });
 });

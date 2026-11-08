@@ -6,10 +6,12 @@ import type { GameEvents, Point } from './events/game_events';
 import { Frame, type FrameEnvironment } from './frame/frame';
 import { Input } from './input/input';
 import type { LineBook } from './lines/speaker';
+import { Monkey } from './monkey/monkey';
 import {
     clearPlacement,
     measureBounds,
     measurePieces,
+    measureViewport,
     pieceAt,
     prefersReducedMotion,
     resetPiece,
@@ -21,7 +23,8 @@ import {
 import { Scorches } from './page/scorches';
 import { Shake } from './page/shake';
 import type { Bounds } from './physics/bodies';
-import { PhysicsWorld } from './physics/world';
+import type { MonkeyBody } from './physics/monkey_body';
+import { MONKEY, PhysicsWorld } from './physics/world';
 import { registered } from './registry/behaviours';
 
 // What the dock, the monkey and the Rebuild call. Positions are page coordinates.
@@ -58,11 +61,14 @@ export interface GameOptions {
 const RESIZE_DELAY = 160;
 const MAX_SCORCHES = 12;
 const SHAKE = 16;
+// Where the monkey first stands on the ground, from the left edge.
+const SPAWN_X = 64;
 
 interface Scene {
     world: PhysicsWorld;
     measured: Measured;
     bounds: Bounds;
+    monkey: MonkeyBody;
 }
 
 // Builds the physics from the page's `data-physics` elements and runs it: the loop, the pointer,
@@ -87,13 +93,15 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const abort = new AbortController();
     // Marks go where the shake doesn't reach: it moves the root, and a transform would carry
     // them along. The ground's parent is the scene, whose box starts at the page's origin.
-    const stage = document.querySelector('[data-ground]')?.parentElement;
-    const scorches = new Scorches(stage ?? document.body, MAX_SCORCHES);
+    const stage =
+        document.querySelector('[data-ground]')?.parentElement ?? document.body;
+    const scorches = new Scorches(stage, MAX_SCORCHES);
     const shake = new Shake(root, random);
     let resizing = false;
     let cancelResize: (() => void) | undefined;
 
-    const build = (): Scene => {
+    // The monkey stands on the ground at `monkeyX`.
+    const build = (monkeyX: number): Scene => {
         const scroll = scrollOffset();
         const measured = measurePieces(root, scroll);
         const bounds = measureBounds(scroll);
@@ -103,9 +111,10 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             random,
             reducedMotion,
         });
-        return { world, measured, bounds };
+        const monkey = world.addMonkey(monkeyX);
+        return { world, measured, bounds, monkey };
     };
-    let scene = build();
+    let scene = build(SPAWN_X);
 
     const frame = new Frame({
         clock,
@@ -113,6 +122,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         onFrame: (elapsed): void => {
             scene.world.step(elapsed);
             writePlacements(scene.measured.elements, scene.world.placements());
+            monkey.step(elapsed);
             shake.step(elapsed);
         },
         idle: (): boolean =>
@@ -120,15 +130,36 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             !input.busy &&
             !shake.active &&
             !resizing &&
-            !engine.busy,
+            !engine.busy &&
+            !monkey.busy,
     });
 
+    const monkey = new Monkey({
+        host: stage,
+        world: (): PhysicsWorld => scene.world,
+        body: (): MonkeyBody => scene.monkey,
+        events,
+        clock,
+        signal: abort.signal,
+        reducedMotion,
+        viewport: measureViewport,
+        wake: (): void => {
+            frame.wake();
+        },
+    });
+    engine.attach('monkey', monkey.motor, { speaks: true });
+    monkey.step(0);
+
+    // The scene holds the content and the monkey, so a press on either reaches the hand.
     const input = new Input({
-        root,
+        root: stage,
         clock,
         signal: abort.signal,
         hooks: {
             pick: (target): number | undefined => {
+                if (monkey.look.contains(target)) {
+                    return MONKEY;
+                }
                 const id = pieceAt(scene.measured, target);
                 return id !== undefined &&
                     scene.measured.specs[id]?.traits.grabbable
@@ -206,7 +237,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         scene.world.dispose();
         input.cancel();
         reset();
-        scene = build();
+        scene = build(scene.monkey.position.x);
     };
 
     window.addEventListener(
@@ -279,6 +310,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
                 off();
             }
             engine.stop();
+            monkey.stop();
             scene.world.dispose();
             reset();
         },

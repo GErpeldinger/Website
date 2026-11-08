@@ -1,0 +1,858 @@
+/* The monkey (docs/monkey-art.md), ported from design/monkey/index.html. Only the look module
+   imports this file: the game builds the SVG, so a page without the game never loads it. The state
+   is five data attributes on the root, written by the Look: data-pose, data-mood, data-facing,
+   data-walking and data-state.
+   Every length in the art is a drawing coordinate in its 56 x 72 frame, not a layout length. */
+@layer blocks {
+    .monkey {
+        position: absolute;
+        z-index: 1;
+        top: 0;
+        left: 0;
+        width: var(--monkey-width);
+        height: var(--monkey-height);
+        overflow: visible;
+        cursor: grab;
+        user-select: none;
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
+    }
+
+    .monkey[data-state='held'] {
+        z-index: 2;
+        cursor: grabbing;
+    }
+
+    .monkey .flip {
+        transform-origin: 28px 36px;
+    }
+
+    .monkey[data-facing='left'] .flip {
+        transform: scaleX(-1);
+    }
+
+    .monkey .pose {
+        transform-origin: 28px 72px;
+    }
+
+    .monkey .breath {
+        transform-origin: 28px 60px;
+    }
+
+    .monkey .tail {
+        transform-origin: 40px 55px;
+    }
+
+    .monkey .head {
+        transform-origin: 28px 40px;
+    }
+
+    .monkey .leg-a {
+        transform-origin: 22px 58px;
+    }
+
+    .monkey .leg-b {
+        transform-origin: 34px 58px;
+    }
+
+    .monkey .arm-l .upper {
+        transform-origin: 12px 42px;
+    }
+
+    .monkey .arm-l .fore {
+        transform-origin: 12px 51px;
+    }
+
+    .monkey .arm-r .upper {
+        transform-origin: 44px 42px;
+    }
+
+    .monkey .arm-r .fore {
+        transform-origin: 44px 51px;
+    }
+
+    .monkey .shades {
+        transform-origin: 28px 19px;
+    }
+
+    .monkey .ember,
+    .monkey .puff,
+    .monkey .exhale circle,
+    .monkey .iris,
+    .monkey .mouth-talk {
+        transform-box: fill-box;
+        transform-origin: center;
+    }
+
+    .monkey .puff {
+        opacity: 0;
+    }
+
+    /* Hidden unless a pose or a mood shows them. */
+    .monkey .mouth,
+    .monkey .arms-up,
+    .monkey .eyes-red,
+    .monkey .cig-hand,
+    .monkey .exhale {
+        display: none;
+    }
+
+    /* The moods. */
+    .monkey[data-mood='calm'] .mouth-calm,
+    .monkey[data-mood='scared'] .mouth-scared,
+    .monkey[data-mood='cross'] .mouth-cross,
+    .monkey[data-mood='proud'] .mouth-proud {
+        display: block;
+    }
+
+    /* Scared: the glasses jump and his real eyes show, red. The two white dots on the lenses
+       are the glow of those eyes: they go with the glasses. */
+    .monkey[data-mood='scared'] .shades {
+        transform: translateY(-11px);
+    }
+
+    .monkey[data-mood='scared'] .pupil,
+    .monkey[data-mood='scared'] .eyes-white {
+        display: none;
+    }
+
+    .monkey[data-mood='scared'] .eyes-red {
+        display: block;
+    }
+
+    .monkey[data-mood='scared'] .iris {
+        transform: scale(1.18);
+    }
+
+    /* The cigarette is in his mouth, and in his hand while he talks or tumbles. */
+    .monkey[data-pose='talk'] .cig,
+    .monkey[data-pose='tumble'] .cig {
+        display: none;
+    }
+
+    .monkey[data-pose='talk'] .cig-hand,
+    .monkey[data-pose='tumble'] .cig-hand {
+        display: block;
+    }
+
+    .monkey[data-pose='talk'] .cig-smoke,
+    .monkey[data-pose='tumble'] .cig-smoke {
+        display: none;
+    }
+
+    /* Talking: the mouth moves, the hand gestures. */
+    .monkey[data-pose='talk'] .mouth {
+        display: none;
+    }
+
+    .monkey[data-pose='talk'] .mouth-talk {
+        display: block;
+    }
+
+    .monkey[data-pose='talk'] .arm-r .upper {
+        transform: rotate(-15deg);
+    }
+
+    .monkey[data-pose='talk'] .arm-r .fore {
+        transform: rotate(210deg);
+    }
+
+    /* Carrying: both arms up around the load. */
+    .monkey[data-pose='carry'] .arms-up {
+        display: block;
+        transform-origin: 28px 26px;
+    }
+
+    .monkey[data-pose='carry'] .arm-l,
+    .monkey[data-pose='carry'] .arm-r {
+        display: none;
+    }
+
+    /* The ambient and the walking animations. Under reduced motion he only changes position
+       and pose: nothing here moves. */
+    @media (prefers-reduced-motion: no-preference) {
+        .monkey .shades {
+            transition:
+                transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                opacity 160ms;
+        }
+
+        .monkey .breath {
+            animation: monkey-breath 2.6s ease-in-out infinite;
+        }
+
+        .monkey .tail {
+            animation: monkey-tail 2.2s ease-in-out infinite;
+        }
+
+        /* A slow weight shift, and blinks of the eye glow. */
+        .monkey .pose {
+            animation: monkey-shift 7s ease-in-out infinite;
+        }
+
+        .monkey .pupil {
+            animation: monkey-blink 5.2s step-end infinite;
+        }
+
+        .monkey .ember {
+            animation: monkey-ember 1.8s ease-in-out infinite;
+        }
+
+        .monkey .puff {
+            animation: monkey-puff 2.4s linear infinite;
+        }
+
+        .monkey .puff:nth-child(2) {
+            animation-delay: 0.8s;
+        }
+
+        .monkey .puff:nth-child(3) {
+            animation-delay: 1.6s;
+        }
+
+        .monkey[data-mood='scared'] .iris {
+            animation: monkey-tremble 0.12s linear infinite;
+        }
+
+        /* Smoking: hand to mouth, a drag, the cigarette held up, an exhale, and back (6 s). */
+        .monkey[data-pose='smoke'] .cig-hand,
+        .monkey[data-pose='smoke'] .exhale {
+            display: block;
+        }
+
+        .monkey[data-pose='smoke'] .arm-r .upper {
+            animation: monkey-smoke-upper 6s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='smoke'] .arm-r .fore {
+            animation: monkey-smoke-fore 6s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='smoke'] .head {
+            animation: monkey-smoke-head 6s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='smoke'] .cig,
+        .monkey[data-pose='smoke'] .cig-smoke {
+            animation: monkey-smoke-mouth 6s step-end infinite;
+        }
+
+        .monkey[data-pose='smoke'] .cig-hand {
+            animation: monkey-smoke-hand 6s step-end infinite;
+        }
+
+        .monkey[data-pose='smoke'] .cig .ember {
+            animation: monkey-smoke-drag 6s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='smoke'] .exhale {
+            animation: monkey-smoke-exhale 6s linear infinite;
+        }
+
+        .monkey .exhale circle {
+            animation: monkey-cloud 1.3s ease-out infinite;
+        }
+
+        .monkey .exhale circle:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .monkey .exhale circle:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .monkey .exhale circle:nth-child(4) {
+            animation-delay: 0.9s;
+        }
+
+        /* Talking. */
+        .monkey[data-pose='talk'] .mouth-talk {
+            animation: monkey-talk 0.9s steps(1) infinite;
+        }
+
+        .monkey[data-pose='talk'] .head {
+            animation: monkey-nod 2.4s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='talk'] .arm-r .fore {
+            animation: monkey-gesture 2.4s ease-in-out infinite;
+        }
+
+        /* Walking, whatever the upper body does: his legs step and the smoke trails behind. */
+        .monkey[data-walking] .leg-a {
+            animation: monkey-step-a 260ms linear infinite;
+        }
+
+        .monkey[data-walking] .leg-b {
+            animation: monkey-step-b 260ms linear infinite;
+        }
+
+        .monkey[data-walking] .tail {
+            animation: monkey-tail-trail 520ms ease-in-out infinite alternate;
+        }
+
+        .monkey[data-walking] .puff {
+            animation-name: monkey-puff-trail;
+        }
+
+        /* Tumbling: the body turns by itself, so only the limbs flail. */
+        .monkey[data-pose='tumble'] .pose {
+            animation: none;
+        }
+
+        .monkey[data-pose='tumble'] .arm-r .upper {
+            animation: monkey-flail-r 0.25s ease-in-out infinite alternate;
+        }
+
+        .monkey[data-pose='tumble'] .arm-l .upper {
+            animation: monkey-flail-l 0.25s ease-in-out infinite
+                alternate-reverse;
+        }
+
+        .monkey[data-pose='tumble'] .leg-a {
+            animation: monkey-kick 0.2s ease-in-out infinite alternate;
+        }
+
+        .monkey[data-pose='tumble'] .leg-b {
+            animation: monkey-kick 0.2s ease-in-out infinite alternate-reverse;
+        }
+
+        .monkey[data-pose='tumble'] .tail {
+            animation: monkey-tail-run 0.22s ease-in-out infinite alternate;
+        }
+
+        /* Carrying: the load sways him, and his arms give a little. */
+        .monkey[data-pose='carry'] .pose {
+            animation: monkey-carry-sway 2.4s ease-in-out infinite;
+        }
+
+        .monkey[data-pose='carry'] .arms-up {
+            animation: monkey-carry-arms 2.4s ease-in-out infinite;
+        }
+
+        /* Standing and walking: the arms swing, and two bobs per stride. */
+        .monkey[data-walking][data-pose='stand'] .arm-r .upper {
+            animation: monkey-swing 260ms linear infinite;
+        }
+
+        .monkey[data-walking][data-pose='stand'] .arm-l .upper {
+            animation: monkey-swing 260ms linear infinite reverse;
+        }
+
+        .monkey[data-walking][data-pose='stand'] .pose {
+            animation: monkey-walk-bob 260ms ease-in-out infinite;
+        }
+    }
+
+    @keyframes monkey-breath {
+        50% {
+            transform: scaleY(1.025);
+        }
+    }
+
+    @keyframes monkey-tail {
+        50% {
+            transform: rotate(10deg);
+        }
+    }
+
+    @keyframes monkey-shift {
+        0%,
+        100% {
+            transform: none;
+        }
+
+        30% {
+            transform: rotate(-1deg) translateX(-0.3px);
+        }
+
+        70% {
+            transform: rotate(1deg) translateX(0.3px);
+        }
+    }
+
+    @keyframes monkey-blink {
+        0% {
+            opacity: 1;
+        }
+
+        44% {
+            opacity: 0;
+        }
+
+        46.5% {
+            opacity: 1;
+        }
+
+        86% {
+            opacity: 0;
+        }
+
+        88% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes monkey-ember {
+        50% {
+            opacity: 0.55;
+        }
+    }
+
+    @keyframes monkey-puff {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(0.5);
+        }
+
+        15% {
+            opacity: 0.7;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translate(2px, -14px) scale(2.2);
+        }
+    }
+
+    @keyframes monkey-puff-trail {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(0.5);
+        }
+
+        15% {
+            opacity: 0.7;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translate(-14px, -8px) scale(2.2);
+        }
+    }
+
+    @keyframes monkey-tremble {
+        0%,
+        100% {
+            transform: translate(-0.35px, 0) scale(1.18);
+        }
+
+        25% {
+            transform: translate(0.3px, -0.3px) scale(1.18);
+        }
+
+        50% {
+            transform: translate(0.35px, 0.2px) scale(1.18);
+        }
+
+        75% {
+            transform: translate(-0.2px, 0.3px) scale(1.18);
+        }
+    }
+
+    @keyframes monkey-cloud {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(0.4);
+        }
+
+        20% {
+            opacity: 0.9;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translate(-7px, -11px) scale(2.6);
+        }
+    }
+
+    @keyframes monkey-smoke-upper {
+        0%,
+        4% {
+            transform: rotate(0);
+        }
+
+        12% {
+            transform: rotate(86deg);
+        }
+
+        15%,
+        26% {
+            transform: rotate(82deg);
+        }
+
+        35% {
+            transform: rotate(-19deg);
+        }
+
+        39%,
+        58% {
+            transform: rotate(-15deg);
+        }
+
+        67% {
+            transform: rotate(85deg);
+        }
+
+        69%,
+        72% {
+            transform: rotate(82deg);
+        }
+
+        82% {
+            transform: rotate(-4deg);
+        }
+
+        86%,
+        100% {
+            transform: rotate(0);
+        }
+    }
+
+    @keyframes monkey-smoke-fore {
+        0%,
+        4% {
+            transform: rotate(0);
+        }
+
+        12% {
+            transform: rotate(88deg);
+        }
+
+        15%,
+        26% {
+            transform: rotate(84deg);
+        }
+
+        35% {
+            transform: rotate(214deg);
+        }
+
+        39%,
+        47% {
+            transform: rotate(210deg);
+        }
+
+        49% {
+            transform: rotate(196deg);
+        }
+
+        51% {
+            transform: rotate(216deg);
+        }
+
+        53%,
+        58% {
+            transform: rotate(210deg);
+        }
+
+        67% {
+            transform: rotate(86deg);
+        }
+
+        69%,
+        72% {
+            transform: rotate(84deg);
+        }
+
+        82% {
+            transform: rotate(3deg);
+        }
+
+        86%,
+        100% {
+            transform: rotate(0);
+        }
+    }
+
+    @keyframes monkey-smoke-head {
+        0%,
+        12%,
+        26%,
+        64%,
+        100% {
+            transform: none;
+        }
+
+        18% {
+            transform: rotate(-2deg);
+        }
+
+        40% {
+            transform: rotate(-5deg) translateY(-0.5px);
+        }
+
+        56% {
+            transform: rotate(-4deg) translateY(-0.3px);
+        }
+    }
+
+    @keyframes monkey-smoke-mouth {
+        0% {
+            opacity: 1;
+        }
+
+        27% {
+            opacity: 0;
+        }
+
+        70% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes monkey-smoke-hand {
+        0% {
+            opacity: 0;
+        }
+
+        27% {
+            opacity: 1;
+        }
+
+        70% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes monkey-smoke-drag {
+        0%,
+        12% {
+            transform: scale(1);
+            opacity: 0.8;
+        }
+
+        18%,
+        25% {
+            transform: scale(1.9);
+            opacity: 1;
+        }
+
+        30%,
+        100% {
+            transform: scale(1);
+            opacity: 0.8;
+        }
+    }
+
+    @keyframes monkey-smoke-exhale {
+        0%,
+        38% {
+            opacity: 0;
+        }
+
+        42%,
+        58% {
+            opacity: 1;
+        }
+
+        64%,
+        100% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes monkey-talk {
+        0% {
+            transform: scaleY(0.3);
+        }
+
+        15% {
+            transform: scaleY(1);
+        }
+
+        30% {
+            transform: scaleY(0.5);
+        }
+
+        45% {
+            transform: scaleY(0.9);
+        }
+
+        60% {
+            transform: scaleY(0.25);
+        }
+
+        75% {
+            transform: scaleY(0.8);
+        }
+
+        90% {
+            transform: scaleY(0.4);
+        }
+    }
+
+    @keyframes monkey-nod {
+        0%,
+        100% {
+            transform: none;
+        }
+
+        14% {
+            transform: rotate(3deg);
+        }
+
+        30% {
+            transform: rotate(-1deg);
+        }
+
+        58% {
+            transform: rotate(3.5deg);
+        }
+
+        74% {
+            transform: rotate(-0.5deg);
+        }
+    }
+
+    @keyframes monkey-gesture {
+        0%,
+        100% {
+            transform: rotate(200deg);
+        }
+
+        14% {
+            transform: rotate(228deg);
+        }
+
+        24% {
+            transform: rotate(218deg);
+        }
+
+        46% {
+            transform: rotate(204deg);
+        }
+
+        58% {
+            transform: rotate(230deg);
+        }
+
+        66% {
+            transform: rotate(222deg);
+        }
+
+        84% {
+            transform: rotate(206deg);
+        }
+    }
+
+    @keyframes monkey-step-a {
+        50% {
+            transform: rotate(24deg);
+        }
+
+        0%,
+        100% {
+            transform: rotate(-24deg);
+        }
+    }
+
+    @keyframes monkey-step-b {
+        50% {
+            transform: rotate(-24deg);
+        }
+
+        0%,
+        100% {
+            transform: rotate(24deg);
+        }
+    }
+
+    @keyframes monkey-swing {
+        0%,
+        100% {
+            transform: rotate(-12deg);
+        }
+
+        50% {
+            transform: rotate(12deg);
+        }
+    }
+
+    @keyframes monkey-walk-bob {
+        0%,
+        50%,
+        100% {
+            transform: translateY(0.6px);
+        }
+
+        25%,
+        75% {
+            transform: translateY(-0.9px);
+        }
+    }
+
+    @keyframes monkey-tail-trail {
+        from {
+            transform: rotate(-4deg);
+        }
+
+        to {
+            transform: rotate(6deg);
+        }
+    }
+
+    @keyframes monkey-flail-r {
+        from {
+            transform: rotate(-150deg);
+        }
+
+        to {
+            transform: rotate(-40deg);
+        }
+    }
+
+    @keyframes monkey-flail-l {
+        from {
+            transform: rotate(150deg);
+        }
+
+        to {
+            transform: rotate(40deg);
+        }
+    }
+
+    @keyframes monkey-kick {
+        from {
+            transform: rotate(-25deg);
+        }
+
+        to {
+            transform: rotate(25deg);
+        }
+    }
+
+    @keyframes monkey-tail-run {
+        from {
+            transform: rotate(-14deg);
+        }
+
+        to {
+            transform: rotate(-26deg);
+        }
+    }
+
+    @keyframes monkey-carry-sway {
+        0%,
+        100% {
+            transform: rotate(-1.5deg);
+        }
+
+        50% {
+            transform: rotate(1.5deg);
+        }
+    }
+
+    @keyframes monkey-carry-arms {
+        0%,
+        50%,
+        100% {
+            transform: translateY(1px);
+        }
+
+        25%,
+        75% {
+            transform: translateY(-0.3px);
+        }
+    }
+}

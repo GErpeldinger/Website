@@ -1,12 +1,39 @@
 // The physics feel, from the prototype. Speeds are in pixels per 60 Hz step, Matter's own unit.
 
 // A pinned piece struck by a body this fast comes loose. The monkey standing on one is no
-// impact: only a hard fall knocks a piece off its place.
-export const loosensPinned = (strikerSpeed: number): boolean =>
-    strikerSpeed > 2.2;
+// impact: only a hard fall (9 px per step) knocks a piece off its place, a loose body 2.2.
+export const loosensPinned = (
+    strikerSpeed: number,
+    byMonkey: boolean,
+): boolean => strikerSpeed > (byMonkey ? 9 : 2.2);
 
 // A collision this hard is worth an event (a reaction, a sound).
 export const isHardHit = (relativeSpeed: number): boolean => relativeSpeed >= 7;
+
+// A hit on the monkey is worth an event from the same speed; the floor or a pinned piece, which
+// he falls onto, only from a hard fall.
+export const hurtsMonkey = (
+    relativeSpeed: number,
+    againstSolid: boolean,
+): boolean => (againstSolid ? relativeSpeed >= 10 : isHardHit(relativeSpeed));
+
+// On his feet: not falling or rising, and either his soles are within 6 px of the floor or
+// something holds him up from under (a piece), which the world says.
+export const isGrounded = (
+    velocityY: number,
+    soles: number,
+    floor: number,
+    supported: boolean,
+): boolean => Math.abs(velocityY) < 0.8 && (soles >= floor - 6 || supported);
+
+// A contact holds him up when it pushes mostly upward (the contact normal is steeper than 45
+// degrees) and the other body is below his centre: a piece he stands on, not one he bumps his
+// head on or leans against.
+export const holdsUp = (
+    normalY: number,
+    otherY: number,
+    monkeyY: number,
+): boolean => Math.abs(normalY) > 0.7 && otherY > monkeyY;
 
 // Let go at this speed, a piece was thrown rather than put down.
 export const isThrow = (releaseSpeed: number): boolean => releaseSpeed >= 4;

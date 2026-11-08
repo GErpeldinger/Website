@@ -10,3 +10,13 @@ services:
     environment:
       SERVER_NAME: ${SERVER_NAME:?SERVER_NAME is required}
       APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      # Dev leaves these out: HSTS would pin https://localhost in the browser. No includeSubDomains:
+      # only the apex could pin the homelab's *.home.erpeldinger.fr, and it sends no HSTS. No preload.
+      # Hashed assets never change under their name; the HTML keeps Symfony's no-cache.
+      CADDY_SERVER_EXTRA_DIRECTIVES: |
+        header Strict-Transport-Security "max-age=7776000"
+        @hashedAsset {
+            path /build/assets/*
+            file {path}
+        }
+        header @hashedAsset Cache-Control "public, max-age=31536000, immutable"

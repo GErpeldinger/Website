@@ -6,8 +6,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 - Read the compose files from the pulled image instead of the SSH caller, so the deploy key stops being root-equivalent.
 - Preserve IPv6 client addresses (`enable_ipv6` on the Compose network), then publish an AAAA record.
-- Security headers in the Caddyfile (HSTS, `X-Content-Type-Options`, `Referrer-Policy`, framing) and hide the `server` header.
-- Point the Docker `HEALTHCHECK` at the home route instead of Caddy's metrics.
+- Content-Security-Policy: it must account for the Vite dev client (HMR, inline preamble) and any future inline script or style, so it is its own item. The other security headers are in place; they are deferred, so they overwrite a CSP the app sets.
 - Make `main` the GitHub default branch, so Dependabot runs on it.
 - Remove the `claude` user and its sudo rule from the VPS once the deploy user exists.
 - The DNS zone says the domain sends no mail (SPF `-all`, DMARC `p=reject`); `contact@` only receives, through OVH's redirect. Before anything sends as `contact@erpeldinger.fr` (a contact form, Gmail's "send as"), add that sender to SPF and set up DKIM.

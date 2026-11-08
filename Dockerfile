@@ -174,5 +174,7 @@ WORKDIR /app
 
 ENTRYPOINT ["docker-entrypoint"]
 
-HEALTHCHECK --start-period=60s CMD ["php", "-r", "exit(false === @file_get_contents('http://localhost:2019/metrics', context: stream_context_create(['http' => ['timeout' => 5]])) ? 1 : 0);"]
+# The home route through Caddy (TLS, allowlist, PHP); one bare host name assumed. The dev stage keeps
+# the metrics probe on purpose.
+HEALTHCHECK --start-period=60s CMD ["php", "-r", "$h = getenv('SERVER_NAME') ?: 'localhost'; exit(false === @file_get_contents('https://127.0.0.1/', context: stream_context_create(['http' => ['timeout' => 5, 'header' => \"Host: $h\"], 'ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'peer_name' => $h]])) ? 1 : 0);"]
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile" ]

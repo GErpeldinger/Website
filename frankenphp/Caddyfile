@@ -20,10 +20,22 @@
 
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
-	# Space-separated CIDRs allowed to see the site; everyone when unset (an empty value would let
-	# nobody in: compose.yaml covers it). Not in the firewall: Let's Encrypt must stay reachable.
-	@denied not client_ip {$SITE_ALLOWLIST:0.0.0.0/0 ::/0}
-	respond @denied 403
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
+		-Server
+	}
+
+	# Space-separated CIDRs allowed in; everyone when unset (empty would let nobody in: compose.yaml
+	# covers it). Not in the firewall: Let's Encrypt must stay reachable. Loopback, the healthcheck's
+	# source, always passes: published ports arrive from the bridge gateway. no-store beats immutable.
+	@denied not client_ip {$SITE_ALLOWLIST:0.0.0.0/0 ::/0} 127.0.0.1/32 ::1/128
+	handle @denied {
+		header Cache-Control no-store
+		respond 403
+	}
 
 	# The manifest and entrypoints.json in /build/.vite/ are for PHP only.
 	@viteMeta path /build/.vite/*

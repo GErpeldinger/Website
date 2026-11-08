@@ -184,4 +184,13 @@ prod-test: ## Build and probe the production image on https://localhost:8443
 	test -n "$$script" || { echo "no /build/ script tag on the page" >&2; exit 1; }; \
 	status=$$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' "https://localhost:8443$$script") || status=000; \
 	echo "built script $$script answered HTTP $$status"; \
-	test "$$status" = 200
+	test "$$status" = 200; \
+	page=$$(curl --insecure --silent --show-error --head https://localhost:8443) || { echo "HEAD on the page failed" >&2; exit 1; }; \
+	asset=$$(curl --insecure --silent --show-error --head "https://localhost:8443$$script") || { echo "HEAD on the built script failed" >&2; exit 1; }; \
+	for header in 'strict-transport-security: max-age=' 'x-content-type-options: nosniff' 'x-frame-options: DENY' \
+		'referrer-policy: strict-origin-when-cross-origin' "content-security-policy: frame-ancestors 'none'"; do \
+		echo "$$page" | grep -iqF "$$header" || { echo "missing header on the page: $$header" >&2; exit 1; }; \
+	done; \
+	! echo "$$page" | grep -iq '^server:' || { echo "the page still sends a Server header" >&2; exit 1; }; \
+	echo "$$asset" | grep -iqF 'cache-control: public, max-age=31536000, immutable' || { echo "the built script is not immutable" >&2; exit 1; }; \
+	echo "security headers and asset caching present"

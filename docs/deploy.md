@@ -27,6 +27,10 @@ Without `enable_ipv6` on the Compose network, Docker's proxy hands IPv6 clients 
 
 The apex redirects permanently to `www.erpeldinger.fr` through `CADDY_EXTRA_CONFIG`, which carries a second site block set in `deploy.env`. Host names stay in the environment, as `SERVER_NAME` does.
 
+## HTTP hardening and healthcheck
+
+The Caddyfile sends `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` and a `frame-ancestors 'none'` CSP, and drops `Server`, on the site block (the apex redirect gets none). `compose.prod.yaml` adds HSTS (90 days, no `includeSubDomains`, no preload) and `immutable` caching of `/build/assets/*`, so dev on https://localhost is never pinned. The image's `HEALTHCHECK` requests the home route over loopback, which the allowlist always lets through: published ports reach Caddy from the bridge gateway, never from loopback. `up --wait` therefore works with any allowlist.
+
 ## Decisions
 
 - **Forced command with the SHA as the command, compose files on stdin.** The job never chooses what runs, and the VPS needs no checkout. Rejected: a general SSH shell, and a webhook on the VPS, which needs another public endpoint.
@@ -34,4 +38,6 @@ The apex redirects permanently to `www.erpeldinger.fr` through `CADDY_EXTRA_CONF
 - **Skip a stale run instead of cancelling it.** Cancelling a deploy half-way is worse than skipping one that has not started.
 - **Allowlist in Caddy.** See above. Rejected: a firewall rule, which blocks ACME validation.
 - **IPv4 only for now.** Accepted until client addresses are preserved over IPv6.
+- **Loopback always allowed, no separate health port.** The healthcheck goes through the real site (TLS, allowlist, PHP); published ports arrive from the bridge gateway, so loopback is unreachable from outside. Rejected: a second listener only for health.
+- **HSTS and immutable caching in `compose.prod.yaml`.** Dev on https://localhost is never pinned or cached. HSTS has no `includeSubDomains` because only the apex could pin the homelab's `*.home.erpeldinger.fr` names, and the apex sends no HSTS.
 - **Compose files from the caller.** Accepted for now, with the root-equivalent key above. The hardening is to read them from the image instead (see [todo.md](todo.md)).

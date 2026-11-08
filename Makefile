@@ -16,7 +16,7 @@ MIRROR_EXEMPT := assets/app.ts
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile assets bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
-	config deploy docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
+	config deploy design docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
 .PHONY: help up down check layout php js phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test

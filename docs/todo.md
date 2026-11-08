@@ -13,6 +13,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Foundations
 
+- The CSS foundation once the visual direction is chosen: the design tokens from it, the CUBE layers, and Stylelint in `make check` enforcing them (class names per layer, no IDs, state only through data attributes, colours and spacing only from the tokens).
 - Enforce FR/EN parity with a check that fails on a missing translation.
 - On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 

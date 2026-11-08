@@ -23,6 +23,7 @@
 **/Thumbs.db
 .github/
 docs/
+deploy/
 public/bundles/
 tests/
 var/

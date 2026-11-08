@@ -11,7 +11,7 @@ BASE ?= origin/main
 
 # Sources under assets/ without a test: the Vite entry (only wiring), and the placeholder that keeps
 # tsconfig.game.json non-empty until the first game module lands. Declaration files are exempt too.
-MIRROR_EXEMPT := assets/app.ts assets/game/ports/index.ts
+MIRROR_EXEMPT := assets/app.ts
 
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \

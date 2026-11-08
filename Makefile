@@ -20,7 +20,7 @@ ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattribut
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
 
-up: | $(WORKTREES) ## Start the dev stack on https://localhost
+up: vendor | $(WORKTREES) ## Start the dev stack on https://localhost
 	docker compose up --wait
 
 down: ## Stop the dev stack

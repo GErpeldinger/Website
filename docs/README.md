@@ -6,5 +6,6 @@ Reference for the website, one page per topic, written as the current state. Eac
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [architecture.md](architecture.md) | Content and game layers, the monkey's behaviour system, device tiers, lifecycle, long pages, multiplayer |
 | [deploy.md](deploy.md)             | The pipeline from GitHub Actions to the VPS, its trust model and the client-IP allowlist                 |
+| [monkey-art.md](monkey-art.md)     | The monkey's design, his animation palette, the workbench, and why                                       |
 | [todo.md](todo.md)                 | Committed work, the backlog                                                                              |
 | [ideas.md](ideas.md)               | Ideas and undecided choices. Not planned work: an idea moves to todo.md once decided                     |

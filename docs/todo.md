@@ -4,13 +4,13 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Going live
 
-- Point the apex and `www` DNS records to the VPS, and remove OVH's web redirect. Keep the MX records.
 - Read the compose files from the pulled image instead of the SSH caller, so the deploy key stops being root-equivalent.
 - Preserve IPv6 client addresses (`enable_ipv6` on the Compose network), then publish an AAAA record.
 - Security headers in the Caddyfile (HSTS, `X-Content-Type-Options`, `Referrer-Policy`, framing) and hide the `server` header.
-- A first app route, then point the Docker `HEALTHCHECK` at it instead of Caddy's metrics.
+- Point the Docker `HEALTHCHECK` at the home route instead of Caddy's metrics.
 - Make `main` the GitHub default branch, so Dependabot runs on it.
 - Remove the `claude` user and its sudo rule from the VPS once the deploy user exists.
+- The DNS zone says the domain sends no mail (SPF `-all`, DMARC `p=reject`); `contact@` only receives, through OVH's redirect. Before anything sends as `contact@erpeldinger.fr` (a contact form, Gmail's "send as"), add that sender to SPF and set up DKIM.
 
 ## Foundations
 

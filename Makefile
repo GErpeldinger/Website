@@ -15,7 +15,7 @@ ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattribut
 	config deploy docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs twig tsc test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
+.PHONY: help up down check layout php phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -52,7 +52,7 @@ vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES) $(CACHE)
 node_modules: package.json pnpm-lock.yaml $(IMAGES) | $(CACHE)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
-check: layout php tsc prettier deploy-test ## Run every check CI runs, tests and mutation testing included
+check: layout php tsc eslint prettier deploy-test ## Run every check CI runs, tests and mutation testing included
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -136,6 +136,11 @@ PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettie
 tsc: node_modules
 	$(NODE) pnpm run typecheck
 
+# The config is in package.json. The second script proves each architecture
+# rule can fail (tests/eslint/architecture.ts).
+eslint: node_modules
+	$(NODE) sh -c 'pnpm run lint && pnpm run lint:architecture'
+
 prettier: node_modules
 	$(NODE) $(PRETTIER) --check .
 
@@ -143,6 +148,7 @@ prettier: node_modules
 fmt: vendor node_modules ## Apply the automatic fixes
 	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix \
 		&& vendor/bin/twig-cs-fixer lint --fix --config $(TOOLS)/twig-cs-fixer.php'
+	$(NODE) pnpm run lint:fix
 	$(NODE) $(PRETTIER) --write .
 
 hooks: ## Use the repo's git hooks

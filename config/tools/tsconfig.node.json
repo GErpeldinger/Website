@@ -3,7 +3,8 @@
     "compilerOptions": {
         "lib": ["ES2023"],
         "types": ["node"],
+        "allowImportingTsExtensions": true,
         "tsBuildInfoFile": "../../.cache/tsc/node.tsbuildinfo"
     },
-    "include": ["vite.config.ts"]
+    "include": ["*.ts", "../../tests/eslint/*.ts"]
 }

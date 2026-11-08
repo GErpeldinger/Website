@@ -12,7 +12,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 
 - PHP 8.5 and Symfony 8.1 on FrankenPHP in worker mode, based on a trimmed `dunglas/symfony-docker` (no Mercure, Vulcain, database or Xdebug for now).
 - Docker Compose: `compose.yaml` for the base, `compose.override.yaml` for dev and `compose.prod.yaml` for production.
-- Twig for the pages. TypeScript built by Vite (`pentatrion/vite-bundle`, `vite-plugin-symfony`, pnpm), with Stimulus as the only link between the page and the game code. In dev, Caddy proxies `/build/` to the Vite service, with HMR.
+- Twig for the pages. TypeScript built by Vite (`pentatrion/vite-bundle`, `vite-plugin-symfony`, pnpm), with Stimulus as the only link between the page and the game code. In dev, Caddy proxies `/build/` to the Vite service, with HMR. TypeScript stays on 6.0 until typescript-eslint supports 7.
 - Planned and not installed yet: Matter.js and Mercure. No Turbo for now.
 
 ## Commands
@@ -20,9 +20,9 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 `make` lists the targets. Every tool runs in Docker, so nothing is installed on the Mac:
 
 - `make up` and `make down`: the dev stack on https://localhost.
-- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), `tsc --noEmit`, the Pest tests, mutation testing of the PHP classes changed since `origin/main`, Prettier, and the deploy script's tests (`make deploy-test`). CI runs the same, plus `make mutate-all` on every class.
+- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), `tsc --noEmit` (with the game's pure modules compiled without the DOM), ESLint (type-aware, plus the game layer's architecture rules, proven by `tests/eslint/architecture.ts`), the Pest tests, mutation testing of the PHP classes changed since `origin/main`, Prettier, and the deploy script's tests (`make deploy-test`). CI runs the same, plus `make mutate-all` on every class.
 - `make test` and `make mutate`: the tests alone, and mutation testing alone. Locally, test impact analysis only runs the tests a change affects, except in agent worktrees, where git can't run inside the container.
-- `make fmt`: applies the Rector, ECS, twig-cs-fixer and Prettier fixes.
+- `make fmt`: applies the Rector, ECS, twig-cs-fixer, ESLint and Prettier fixes.
 - `make hooks`: run once per clone. Commits then run `make check`, and their messages are checked.
 - `make prod-test`: builds and probes the production image on https://localhost:8443, next to the dev stack.
 

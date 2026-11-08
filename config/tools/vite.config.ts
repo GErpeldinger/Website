@@ -32,6 +32,6 @@ export default defineConfig({
         },
         // The page's own origin: the plugin writes it into entrypoints.json, so the tags and the
         // HMR websocket go through Caddy, on https, with no mixed content.
-        origin: process.env['VITE_DEV_ORIGIN'],
+        origin: process.env.VITE_DEV_ORIGIN,
     },
 });

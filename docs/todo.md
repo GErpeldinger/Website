@@ -18,9 +18,10 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Game layer
 
-- JavaScript checks in `make check`:
-  - ESLint, including rules for the architecture: no raw `setTimeout` or `setInterval` in game code (everything goes through the game clock), and no DOM or physics access in Brain and activity modules
-  - unit tests for the Brain and activities
+- JavaScript checks in `make check`: unit tests for the Brain and activities.
+- Write the game clock (`assets/game/clock/`: `tick(elapsed)`, with the edge cases NaN, negative and large steps, and a read-only view for the Brain) and the events bus (`assets/game/events/`: no re-entrant delivery to listeners added during an emit, throwing listeners, duplicate subscriptions) test-first with Vitest, both DOM-free (see Decisions in [architecture.md](architecture.md)).
+- Known gap in the architecture rules: nothing yet enforces listeners attached through an `AbortController` (see [architecture.md](architecture.md), Lifecycle and memory). Write the ESLint rule with the first listener.
+- Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
 - Port the prototype's behaviours to the activity system described in [architecture.md](architecture.md).
 - Device tiers: feature checks, the frame-rate probe, and the static fallback with the monkey's message.
 - Lifecycle: stop on a hidden tab, the bed after long inactivity, a full stop once the scene is still.

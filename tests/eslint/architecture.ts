@@ -1,0 +1,304 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { ESLint } from 'eslint';
+import tseslint from 'typescript-eslint';
+
+// Each architecture rule must be able to fail: a violating file is reported once, by that rule,
+// and a compliant one passes. The files are linted from memory, at the paths the rules apply to,
+// with the real config.
+
+interface Case {
+    name: string;
+    path: string;
+    code: string;
+    // The rule that must report the file once, or undefined when the file must pass.
+    rule?: string;
+}
+
+const globals = 'no-restricted-globals';
+const properties = 'no-restricted-properties';
+const importRule = 'no-restricted-imports';
+const syntax = 'no-restricted-syntax';
+
+const imported = (path: string, from: string, rule?: string): Case => ({
+    name: `${from} imported by ${path}`,
+    path,
+    code: `import { thing } from '${from}';`,
+    rule,
+});
+
+const used = (path: string, code: string, rule?: string): Case => ({
+    name: `\`${code}\` in ${path}`,
+    path,
+    code,
+    rule,
+});
+
+const cases: Case[] = [
+    // Time goes through the game clock, and only the frame driver reads the browser's.
+    ...[
+        'motor/walk',
+        'voice/lines',
+        'look/pose',
+        'physics/world',
+        'brain/brain',
+        'events/bus',
+        'clock/clock',
+    ].flatMap((file) => [
+        used(
+            `assets/game/${file}.ts`,
+            'setTimeout(() => undefined, 10);',
+            globals,
+        ),
+        used(
+            `assets/game/${file}.ts`,
+            'export const now = performance.now();',
+            globals,
+        ),
+    ]),
+    used(
+        'assets/game/voice/lines.ts',
+        'setInterval(() => undefined, 10);',
+        globals,
+    ),
+    used(
+        'assets/game/look/pose.ts',
+        'requestAnimationFrame(() => undefined);',
+        globals,
+    ),
+    used(
+        'assets/game/brain/brain.ts',
+        'queueMicrotask(() => undefined);',
+        globals,
+    ),
+    used(
+        'assets/game/physics/world.ts',
+        'window.setTimeout(() => undefined, 10);',
+        properties,
+    ),
+    used(
+        'assets/game/physics/world.ts',
+        'self.setInterval(() => undefined, 10);',
+        properties,
+    ),
+    used(
+        'assets/game/motor/walk.ts',
+        'export const now = window.performance.now();',
+        properties,
+    ),
+    used(
+        'assets/game/motor/walk.ts',
+        'export const now = globalThis.performance.now();',
+        properties,
+    ),
+    used(
+        'assets/game/brain/brain.ts',
+        'export const now = Date.now();',
+        globals,
+    ),
+    used(
+        'assets/game/brain/brain.ts',
+        'export const now = new Date();',
+        globals,
+    ),
+    used(
+        'assets/game/physics/world.ts',
+        'export const now = new Date();',
+        globals,
+    ),
+    used(
+        'assets/game/frame/driver.ts',
+        'requestAnimationFrame(() => undefined);\nexport const now = performance.now();',
+    ),
+    used(
+        'assets/game/motor/walk.ts',
+        'export const now = globalThis.Date.now();',
+        properties,
+    ),
+    used(
+        'assets/game/motor/walk.ts',
+        'export const now = window.Date.now();',
+        properties,
+    ),
+    used('assets/game/brain/brain.ts', 'export const now = Date();', globals),
+    used('assets/game/brain/brain.ts', 'export const { now } = Date;', globals),
+    used(
+        'assets/game/brain/brain.ts',
+        "export const now = Date['now']();",
+        globals,
+    ),
+    used('assets/game/frame/driver.ts', 'export const now = new Date();'),
+    used('assets/app.ts', 'setTimeout(() => undefined, 10);'),
+
+    // The Brain, the activities and the ports see no other layer.
+    ...['brain/brain', 'activities/climb', 'ports/motor'].flatMap((file) =>
+        [
+            'physics/world',
+            'motor/motor',
+            'look/pose',
+            'voice/voice',
+            'frame/driver',
+        ].map((layer) =>
+            imported(`assets/game/${file}.ts`, `../${layer}`, importRule),
+        ),
+    ),
+    imported(
+        'assets/game/brain/choice/pick.ts',
+        '../../motor/motor',
+        importRule,
+    ),
+    imported(
+        'assets/game/brain/brain.ts',
+        '../../game/motor/motor',
+        importRule,
+    ),
+    imported('assets/game/brain/brain.ts', '../ports/motor'),
+    imported('assets/game/brain/brain.ts', '../events/bus'),
+    imported('assets/game/brain/brain.ts', '../clock/clock'),
+    imported('assets/game/brain/brain.ts', '../activities/rebuild'),
+    imported('assets/game/ports/index.ts', './motor'),
+
+    // matter-js stays in the physics module, deep imports and dynamic imports included.
+    ...[
+        'assets/game/activities/climb.ts',
+        'assets/game/motor/motor.ts',
+        'assets/game/clock/clock.ts',
+        'assets/controllers/game_controller.ts',
+        'assets/app.ts',
+    ].flatMap((path) => [
+        imported(path, 'matter-js', importRule),
+        imported(path, 'matter-js/build/matter', importRule),
+        used(path, "export const matter = await import('matter-js');", syntax),
+    ]),
+    imported('assets/game/physics/world.ts', 'matter-js'),
+    imported('assets/game/physics/world.ts', 'matter-js/build/matter'),
+    imported('assets/game/motor/motor.ts', '../physics/world'),
+
+    // The clock and the events bus import no other game module.
+    imported('assets/game/clock/clock.ts', '../events/bus', importRule),
+    imported('assets/game/clock/clock.ts', '../game', importRule),
+    imported(
+        'assets/game/clock/clock.ts',
+        '../../game/physics/world',
+        importRule,
+    ),
+    imported('assets/game/events/bus.ts', '../ports/motor', importRule),
+    imported('assets/game/events/bus.ts', '../brain/brain', importRule),
+    imported('assets/game/events/bus.ts', '../clock/clock', importRule),
+    imported('assets/game/events/bus.ts', './payloads'),
+
+    // The game never imports the Stimulus controllers.
+    ...(
+        [
+            ['assets/game/motor/motor.ts', '../../controllers/game_controller'],
+            ['assets/game/ports/motor.ts', '../../controllers/game_controller'],
+            ['assets/game/brain/brain.ts', '../../controllers/game_controller'],
+            ['assets/game/events/bus.ts', '../../controllers/game_controller'],
+            ['assets/game/clock/clock.ts', '../../controllers/game_controller'],
+            [
+                'assets/game/physics/world.ts',
+                '../../controllers/game_controller',
+            ],
+            [
+                'assets/game/frame/driver.ts',
+                '../../controllers/game_controller',
+            ],
+            ['assets/game/game.ts', '../controllers/game_controller'],
+            ['assets/game/voice/voice.ts', '@hotwired/stimulus'],
+        ] satisfies [string, string][]
+    ).map(([path, from]) => imported(path, from, importRule)),
+    imported('assets/controllers/game_controller.ts', '../game/brain/brain'),
+
+    // A dynamic import skips the import rules.
+    ...['brain/brain', 'motor/motor', 'physics/world', 'frame/driver'].map(
+        (file) =>
+            used(
+                `assets/game/${file}.ts`,
+                "export const motor = await import('../motor/motor');",
+                syntax,
+            ),
+    ),
+
+    // The rules apply to every TypeScript extension.
+    used(
+        'assets/game/brain/brain.mts',
+        'setTimeout(() => undefined, 10);',
+        globals,
+    ),
+];
+
+const eslint = new ESLint({
+    cwd: process.cwd(),
+    overrideConfigFile: 'config/tools/eslint.config.ts',
+    // The files don't exist, so the type-aware rules have nothing to read.
+    overrideConfig: [
+        tseslint.configs.disableTypeChecked,
+        { languageOptions: { parserOptions: { project: null } } },
+    ],
+});
+
+const architectureRules = new Set([globals, properties, importRule, syntax]);
+const failures: string[] = [];
+
+for (const { name, path, code, rule } of cases) {
+    const [result] = await eslint.lintText(code, { filePath: path });
+    const reported = (result?.messages ?? [])
+        .map((message) => message.ruleId ?? 'parse error')
+        .filter((id) => architectureRules.has(id) || id === 'parse error');
+    const expected = rule === undefined ? [] : [rule];
+
+    try {
+        assert.deepEqual(reported, expected);
+    } catch {
+        failures.push(
+            `${name} (${path}): expected [${expected.join()}], got [${reported.join()}]`,
+        );
+    }
+}
+
+const tsc = (...args: string[]): { stdout: string } =>
+    spawnSync('node_modules/.bin/tsc', args, { encoding: 'utf8' });
+
+// The DOM ban is the compiler's: tsconfig.game.json has no DOM lib.
+const dom = tsc('--project', 'tests/eslint/fixtures/tsconfig.json');
+
+for (const [file, shouldFail] of [
+    ['dom-global', true],
+    ['dom-type', true],
+    ['compliant', false],
+    ['pure-modules', false],
+] as const) {
+    if (dom.stdout.includes(`no-dom/${file}.ts`) !== shouldFail) {
+        failures.push(
+            `${file}: tsc ${shouldFail ? 'should' : 'should not'} report it\n${dom.stdout}`,
+        );
+    }
+}
+
+// A typo in the include would leave a folder with the DOM lib.
+const config = JSON.parse(
+    tsc('--showConfig', '--project', 'config/tools/tsconfig.game.json').stdout,
+) as {
+    include?: string[];
+};
+
+for (const folder of ['brain', 'activities', 'ports', 'clock', 'events']) {
+    if (
+        !config.include?.some((entry) =>
+            entry.endsWith(`assets/game/${folder}`),
+        )
+    ) {
+        failures.push(
+            `tsconfig.game.json does not include assets/game/${folder}`,
+        );
+    }
+}
+
+if (failures.length > 0) {
+    console.error(`Architecture rules failed:\n${failures.join('\n')}`);
+    process.exitCode = 1;
+} else {
+    console.log(
+        `${String(cases.length)} architecture rule cases and the DOM checks pass.`,
+    );
+}

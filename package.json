@@ -6,15 +6,22 @@
     "scripts": {
         "dev": "vite --config config/tools/vite.config.ts",
         "build": "vite build --config config/tools/vite.config.ts",
-        "typecheck": "tsc --project config/tools/tsconfig.json && tsc --project config/tools/tsconfig.node.json"
+        "typecheck": "tsc --project config/tools/tsconfig.json && tsc --project config/tools/tsconfig.node.json && tsc --project config/tools/tsconfig.game.json",
+        "lint": "eslint --config config/tools/eslint.config.ts assets config/tools/*.ts tests/eslint",
+        "lint:fix": "pnpm run lint --fix",
+        "lint:architecture": "node tests/eslint/architecture.ts"
     },
     "dependencies": {
         "@hotwired/stimulus": "3.2.2"
     },
     "devDependencies": {
+        "@eslint/js": "10.0.1",
         "@types/node": "24.19.2",
+        "eslint": "10.14.0",
+        "eslint-config-prettier": "10.1.8",
         "prettier": "3.9.10",
-        "typescript": "7.0.2",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.72.1",
         "vite": "8.3.6",
         "vite-plugin-symfony": "8.2.4"
     },

@@ -1,0 +1,15 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "lib": ["ES2023"],
+        "types": [],
+        "tsBuildInfoFile": "../../.cache/tsc/game.tsbuildinfo"
+    },
+    "include": [
+        "../../assets/game/brain",
+        "../../assets/game/activities",
+        "../../assets/game/ports",
+        "../../assets/game/clock",
+        "../../assets/game/events"
+    ]
+}

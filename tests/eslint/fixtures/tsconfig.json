@@ -1,0 +1,7 @@
+{
+    "extends": "../../../config/tools/tsconfig.game.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "../../../.cache/tsc/fixtures.tsbuildinfo"
+    },
+    "include": ["no-dom/*.ts"]
+}

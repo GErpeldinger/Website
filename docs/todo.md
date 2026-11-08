@@ -34,7 +34,8 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Unit tests for the Brain and activities, with a fake Motor, as they are written (Vitest and Stryker are in `make check`).
 - Known gap in the architecture rules: nothing yet enforces listeners attached through an `AbortController` (see [architecture.md](architecture.md), Lifecycle and memory). Write the ESLint rule with the first listener.
 - Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
-- Port the prototype's behaviours to the activity system described in [architecture.md](architecture.md).
+- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation and the physics in parallel, then the behaviour engine (Brain, one file per behaviour, lines as data, the director panel), the monkey's Motor, Look and Voice, then his behaviours and the dock.
+- Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): the cigarette arc, hanging and climbing.
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
 - The live board: site-wide action counters in SQLite on a volume, pushed to the page through FrankenPHP's Mercure hub, which the trimmed template doesn't configure yet (the `mercure` directive in the Caddyfile, its JWT keys in deploy.env, a volume in compose.prod.yaml). Nothing personal is stored.
 - Lifecycle: stop on a hidden tab, the bed after long inactivity, a full stop once the scene is still.

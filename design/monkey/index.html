@@ -178,6 +178,96 @@
         text-align: center;
     }
 
+    .transitions {
+        display: grid;
+        gap: 14px;
+    }
+    .tr-body {
+        display: grid;
+        grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+        gap: 18px;
+    }
+    @media (max-width: 680px) {
+        .tr-body {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+    .tr-stage {
+        position: relative;
+        height: 340px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 34px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .tr-stage svg {
+        width: 168px;
+        height: 216px;
+    }
+    .tr-now {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+    }
+    .tr-side {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+        min-width: 0;
+    }
+    .tr-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+    }
+    .tr-controls label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--muted);
+    }
+    .tr-list {
+        display: grid;
+        gap: 10px;
+    }
+    .tr-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .tr-row .label {
+        flex-basis: 100%;
+    }
+    .tr-btn {
+        font: 600 14px/1 var(--font);
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px 6px;
+        cursor: pointer;
+    }
+    .tr-btn:hover,
+    .tr-btn:focus-visible {
+        border-color: var(--muted);
+    }
+    .tr-btn[aria-pressed='true'] {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    #tr-random[aria-pressed='true'] {
+        border-color: var(--gold);
+        color: var(--gold);
+    }
+
     .holo {
         position: relative;
         height: 210px;
@@ -320,10 +410,9 @@
     .m[data-mood='proud'] .m-proud {
         display: block;
     }
+    /* no CSS transition: setState blends the glasses with the rest, and a transition would
+       outrank its script animations */
     .m .shades {
-        transition:
-            transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
-            opacity 160ms;
         transform-origin: 28px 19px;
     }
     .m[data-mood='scared'] .shades {
@@ -4061,6 +4150,39 @@
         </div>
     </section>
 
+    <section class="panel transitions">
+        <div class="group-head">
+            <h2>Transitions</h2>
+            <p>
+                Each switch blends every part from where it is to where the next
+                state starts.
+            </p>
+        </div>
+        <div class="tr-body">
+            <div class="tr-stage">
+                <div id="tr-fig"></div>
+                <div class="tr-now">
+                    <span class="label">Now</span> <b id="tr-name">Calm</b>
+                </div>
+            </div>
+            <div class="tr-side">
+                <div class="tr-controls">
+                    <button type="button" class="tr-btn" id="tr-random">
+                        Random sequence
+                    </button>
+                    <label
+                        ><input type="checkbox" id="tr-smooth" checked />
+                        Smooth</label
+                    >
+                    <label
+                        ><input type="checkbox" id="tr-slow" /> Slow ×5</label
+                    >
+                </div>
+                <div class="tr-list" id="tr-list"></div>
+            </div>
+        </div>
+    </section>
+
     <div id="groups" style="display: grid; gap: 28px; min-width: 0"></div>
 
     <section>
@@ -4271,6 +4393,246 @@ ${arm('l')}${arm('r')}
 <g class="zzz" font-family="Baloo 2, sans-serif" font-weight="800" fill="#bcd3dc"><text x="40" y="12" font-size="7" style="animation:zzz 2.4s linear infinite">z</text><text x="40" y="12" font-size="9" style="animation:zzz 2.4s linear infinite .8s">z</text><text x="40" y="12" font-size="11" style="animation:zzz 2.4s linear infinite 1.6s">Z</text></g>
 </g></g></g></svg>`;
 
+    /**
+     * setState(svg, classes, mood, options): switch the monkey to a state, blending into it.
+     *
+     * `classes` replace the previous state's classes (kept in data-state); `mood` sets data-mood.
+     * Every element with a class blends from where it is now (a running blend included) to where
+     * the new state starts: transform, opacity, fill and stroke, with the Web Animations API, which
+     * outranks the CSS animations. Those are held at time 0 meanwhile, then played. An element whose
+     * own display switches cross-fades in place. Animations that run on unchanged are left alone.
+     *
+     * options: smooth (default true; false, or prefers-reduced-motion, just swaps), duration (ms;
+     * by default 220 to 320 from how far the parts travel), easing, slow (a factor on the duration).
+     * Returns a promise: true once the new state's animations run, false if another call superseded it.
+     */
+    const setState = (() => {
+        const jobs = new WeakMap(); // svg -> blend in progress: { blends, held, inline }
+        const pivots = new WeakMap(); // element -> last transform-origin its CSS gave it
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+        const IDENTITY = new DOMMatrix();
+        const cssAnimations = (target, subtree) =>
+            target
+                .getAnimations({ subtree })
+                .filter((a) => a instanceof CSSAnimation);
+        const same = (m, n) =>
+            ['a', 'b', 'c', 'd', 'e', 'f'].every(
+                (k) => Math.abs(m[k] - n[k]) < 1e-4,
+            );
+        const around = (p, m) =>
+            new DOMMatrix()
+                .translate(p.x, p.y)
+                .multiply(m)
+                .translate(-p.x, -p.y);
+        // checkVisibility() reports SVG elements under display: none as visible in Chrome
+        const rendered = (el) => {
+            for (let e = el; !(e instanceof SVGSVGElement); e = e.parentElement)
+                if (getComputedStyle(e).display === 'none') return false;
+            return true;
+        };
+
+        // where an element is: its transform with the origin baked in, in its parent's user space
+        function read(el, remember) {
+            const cs = getComputedStyle(el);
+            const r = {
+                own: cs.display !== 'none',
+                shown: rendered(el),
+                opacity: +cs.opacity,
+                fill: cs.fill,
+                stroke: cs.stroke,
+            };
+            if (!r.shown) return r; // no box: the origin of a fill-box would not resolve
+            const box =
+                cs.transformBox === 'fill-box' ? el.getBBox() : { x: 0, y: 0 };
+            const [ox, oy] = cs.transformOrigin.split(' ').map(parseFloat);
+            r.origin = { x: ox + box.x, y: oy + box.y };
+            r.matrix = around(
+                r.origin,
+                cs.transform === 'none'
+                    ? IDENTITY
+                    : new DOMMatrix(cs.transform),
+            );
+            if (remember && (r.origin.x || r.origin.y))
+                pivots.set(el, r.origin);
+            return r;
+        }
+
+        // the keyframes that take an element from a to b, or null if nothing differs
+        function keyframes(el, a, b, vis) {
+            const kf = {};
+            let pivot = { x: 0, y: 0 };
+            if (!b) {
+                // leaving: it fades where it was if its own display goes, else its parent fades
+                if (!vis.own) kf.opacity = [a.opacity, 0];
+                if (!same(a.matrix, IDENTITY))
+                    kf.transform = [a.matrix, a.matrix].map(String);
+            } else if (!a.shown) {
+                // arriving: it fades in where the new state puts it
+                if (!a.own && b.opacity) kf.opacity = [0, b.opacity];
+            } else {
+                if (!same(a.matrix, b.matrix)) {
+                    // turned about its own pivot, a joint stays put; about 0,0 it would slide
+                    pivot =
+                        b.origin.x || b.origin.y
+                            ? b.origin
+                            : pivots.get(el) || pivot;
+                    const local = (m) =>
+                        new DOMMatrix()
+                            .translate(-pivot.x, -pivot.y)
+                            .multiply(m)
+                            .translate(pivot.x, pivot.y);
+                    kf.transform = [local(a.matrix), local(b.matrix)].map(
+                        String,
+                    );
+                }
+                if (Math.abs(a.opacity - b.opacity) > 1e-3)
+                    kf.opacity = [a.opacity, b.opacity];
+                for (const p of ['fill', 'stroke'])
+                    if (a[p] !== b[p] && /^rgb/.test(a[p]) && /^rgb/.test(b[p]))
+                        kf[p] = [a[p], b[p]];
+            }
+            return Object.keys(kf).length ? { kf, pivot } : null;
+        }
+
+        // the furthest a corner of a moving part travels, in user units
+        function travel(el, a, b) {
+            let box;
+            try {
+                box = el.getBBox();
+            } catch {
+                return 0;
+            }
+            let max = 0;
+            for (const [x, y] of [
+                [box.x, box.y],
+                [box.x + box.width, box.y],
+                [box.x, box.y + box.height],
+                [box.x + box.width, box.y + box.height],
+            ]) {
+                const p = a.matrix.transformPoint({ x, y });
+                const q = b.matrix.transformPoint({ x, y });
+                max = Math.max(max, Math.hypot(p.x - q.x, p.y - q.y));
+            }
+            return max;
+        }
+
+        function settle(job, play) {
+            for (const a of job.blends) a.cancel();
+            for (const [el, prop, value] of job.inline.reverse())
+                value
+                    ? el.style.setProperty(prop, value)
+                    : el.style.removeProperty(prop);
+            if (play) for (const a of job.held) a.play();
+        }
+
+        return function setState(
+            svg,
+            classes,
+            mood,
+            {
+                smooth = true,
+                duration,
+                easing = 'cubic-bezier(.4, 0, .2, 1)',
+                slow = 1,
+            } = {},
+        ) {
+            const prev = jobs.get(svg);
+            jobs.delete(svg);
+            const swap = () => {
+                const old = (svg.dataset.state || '')
+                    .split(' ')
+                    .filter(Boolean);
+                svg.classList.remove(...old);
+                svg.classList.add(...classes.split(' ').filter(Boolean));
+                svg.dataset.state = classes;
+                svg.dataset.mood = mood;
+            };
+            if (!smooth || reduced.matches) {
+                if (prev) settle(prev, true);
+                swap();
+                return Promise.resolve(true);
+            }
+
+            const els = [...svg.querySelectorAll('[class]')];
+            const inlined = new Set(prev ? prev.inline.map(([el]) => el) : []);
+            const from = els.map((el) => read(el, !inlined.has(el)));
+            const before = new Set(cssAnimations(svg, true));
+            if (prev) settle(prev, false);
+            swap();
+
+            const job = { blends: [], held: new Set(), inline: [] };
+            const inline = (el, prop, value) => {
+                job.inline.push([el, prop, el.style.getPropertyValue(prop)]);
+                el.style.setProperty(prop, value);
+            };
+            const hold = (a) => {
+                a.pause();
+                a.currentTime = 0;
+                job.held.add(a);
+            };
+            const vis = els.map((el) => ({
+                own: getComputedStyle(el).display !== 'none',
+                shown: rendered(el),
+            }));
+            // what the new state hides stays displayed while it fades
+            els.forEach((el, i) => {
+                if (from[i].shown && !vis[i].own)
+                    inline(el, 'display', 'block');
+            });
+            for (const a of cssAnimations(svg, true))
+                if (!before.has(a) || prev?.held.has(a)) hold(a);
+
+            const plans = [];
+            let far = 0;
+            els.forEach((el, i) => {
+                const a = from[i];
+                if (!a.shown && !vis[i].shown) return;
+                let b = vis[i].shown ? read(el, true) : null;
+                let plan = keyframes(el, a, b, vis[i]);
+                // an animation that ran on through the switch would drift under the blend
+                const running = cssAnimations(el, false).filter(
+                    (x) => !job.held.has(x),
+                );
+                if (plan && b && running.length) {
+                    running.forEach(hold);
+                    b = read(el, true);
+                    plan = keyframes(el, a, b, vis[i]);
+                }
+                if (!plan) return;
+                plans.push([el, plan]);
+                if (plan.kf.transform && b)
+                    far = Math.max(far, travel(el, a, b));
+            });
+
+            const ms =
+                (duration ?? 220 + Math.min(100, Math.max(0, far - 6) * 2.5)) *
+                slow;
+            for (const [el, { kf, pivot }] of plans) {
+                if (kf.transform) {
+                    inline(el, 'transform-origin', `${pivot.x}px ${pivot.y}px`);
+                    inline(el, 'transform-box', 'view-box');
+                }
+                job.blends.push(
+                    el.animate(kf, { duration: ms, easing, fill: 'forwards' }),
+                );
+            }
+            if (!job.blends.length) {
+                settle(job, true);
+                return Promise.resolve(true);
+            }
+            jobs.set(svg, job);
+            return job.blends[0].finished.then(
+                () => {
+                    if (jobs.get(svg) !== job) return false;
+                    jobs.delete(svg);
+                    settle(job, true);
+                    return true;
+                },
+                () => false,
+            );
+        };
+    })();
+
     const mount = (el, html, cls = '', mood = 'calm') => {
         el.innerHTML = html;
         const svg = el.querySelector('svg');
@@ -4278,6 +4640,7 @@ ${arm('l')}${arm('r')}
         cls.split(' ')
             .filter(Boolean)
             .forEach((c) => svg.classList.add(c));
+        svg.dataset.state = cls;
         svg.dataset.mood = mood;
         return svg;
     };
@@ -4468,6 +4831,98 @@ ${arm('l')}${arm('r')}
         host.append(g);
     }
 
+    // Transitions: one 3x monkey switched between the states above.
+    const trSvg = mount(
+        document.getElementById('tr-fig'),
+        AFTER('Monkey changing state'),
+    );
+    const trName = document.getElementById('tr-name'),
+        trRandom = document.getElementById('tr-random'),
+        trSmooth = document.getElementById('tr-smooth'),
+        trSlow = document.getElementById('tr-slow');
+    const STATES = GROUPS.flatMap(([, , , states]) => states);
+    // the special forms play in order; only their first step starts them
+    const NEXT = {
+        'hero-up no-cig': 'hero-fly no-cig',
+        'rage-up no-glasses no-cig': 'rage-charge no-glasses no-cig',
+        'rage-charge no-glasses no-cig': 'rage-beam no-glasses no-cig',
+    };
+    const followers = new Set(Object.values(NEXT));
+    // animations every state shares (breath, blinks, smoke) say nothing about a state's own cycle
+    const shared = new Set(
+        trSvg.getAnimations({ subtree: true }).map((a) => a.animationName),
+    );
+    const buttons = new Map();
+    let trCurrent = STATES[0],
+        trTimer = 0;
+    const smooth = () => trSmooth.checked;
+    function show(state) {
+        const [name, , cls, mood] = (trCurrent = state);
+        trName.textContent = name;
+        for (const [s, b] of buttons)
+            b.setAttribute('aria-pressed', s === state);
+        return setState(trSvg, cls, mood, {
+            smooth: smooth(),
+            slow: trSlow.checked ? 5 : 1,
+        });
+    }
+    // long enough to see the state's own loop at least once, and whole loops of a short one
+    function hold() {
+        const cycle = Math.max(
+            0,
+            ...trSvg
+                .getAnimations({ subtree: true })
+                .filter((a) => !shared.has(a.animationName))
+                .map((a) => a.effect.getTiming().duration),
+        );
+        return cycle >= 2400
+            ? cycle
+            : cycle
+              ? cycle * Math.ceil(2400 / cycle)
+              : 2400;
+    }
+    function stopRandom() {
+        clearTimeout(trTimer);
+        trTimer = 0;
+        trRandom.setAttribute('aria-pressed', false);
+    }
+    async function nextRandom() {
+        const pool = STATES.filter(
+            (s) => s !== trCurrent && !followers.has(s[2]),
+        );
+        const state =
+            STATES.find((s) => s[2] === NEXT[trCurrent[2]]) ||
+            pool[Math.floor(Math.random() * pool.length)];
+        if (!(await show(state)) || !trTimer) return;
+        trTimer = setTimeout(nextRandom, hold());
+    }
+    const list = document.getElementById('tr-list');
+    for (const [title, , , states] of GROUPS) {
+        const row = document.createElement('div');
+        row.className = 'tr-row';
+        row.innerHTML = `<span class="label">${title}</span>`;
+        for (const state of states) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'tr-btn';
+            b.textContent = state[0];
+            b.setAttribute('aria-pressed', state === trCurrent);
+            b.addEventListener('click', () => {
+                stopRandom();
+                show(state);
+            });
+            buttons.set(state, b);
+            row.append(b);
+        }
+        list.append(row);
+    }
+    trRandom.setAttribute('aria-pressed', false);
+    trRandom.addEventListener('click', () => {
+        if (trTimer) return stopRandom();
+        trRandom.setAttribute('aria-pressed', true);
+        trTimer = setTimeout(nextRandom, 0);
+    });
+
     // A 1x walk across the hologram, with idle moments in between.
     const holo = document.getElementById('holo'),
         walker = document.getElementById('walker');
@@ -4492,11 +4947,8 @@ ${arm('l')}${arm('r')}
         if (!still) {
             if (pause > 0) {
                 pause -= dt;
-                if (pause <= 0) {
-                    w.classList.remove(idle[0]);
-                    w.dataset.mood = 'calm';
-                    w.classList.add('walk');
-                }
+                if (pause <= 0)
+                    setState(w, 'walk', 'calm', { smooth: smooth() });
             } else {
                 x += dir * 42 * dt;
                 const max = holo.clientWidth - 70;
@@ -4507,9 +4959,9 @@ ${arm('l')}${arm('r')}
                 if (Math.random() < dt * 0.3) {
                     idle = IDLES[Math.floor(Math.random() * IDLES.length)];
                     pause = idle[1];
-                    w.classList.remove('walk');
-                    w.classList.add(idle[0]);
-                    w.dataset.mood = idle[2] || 'calm';
+                    setState(w, idle[0], idle[2] || 'calm', {
+                        smooth: smooth(),
+                    });
                 }
             }
             w.classList.toggle('left', dir < 0);

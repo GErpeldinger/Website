@@ -1,7 +1,7 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
-    <main class="l-stage" data-controller="game">
+    <main class="l-stage" data-controller="game" data-game-lines-value="{{ game_lines(app.locale) }}">
         <header class="l-stack">
             <p class="u-step-1 u-weight-medium u-text-muted" data-physics="block" data-weight="light">{{ 'home.greeting'|trans }}</p>
             <h1>{{ include('partials/letters.html.twig', {text: 'site.name'|trans}) }}</h1>

@@ -158,6 +158,130 @@ describe('visibility', () => {
     });
 });
 
+describe('sleeping with a timer pending', () => {
+    // Idle once the first frame ran.
+    const sleeper = (): Harness => {
+        let calm = false;
+        const h = setup(() => calm);
+        h.frame.wake();
+        calm = true;
+        return h;
+    };
+
+    it('sets one real timeout for the next timer, and carries the game to it', () => {
+        const h = sleeper();
+        const fired = vi.fn();
+        h.clock.after(5000, fired);
+
+        h.browser.frame(16);
+        expect(h.frame.running).toBe(false);
+        expect([...h.browser.timeouts.values()].map((t) => t.delay)).toEqual([
+            4984,
+        ]);
+
+        h.browser.fireTimeout();
+
+        expect(fired).toHaveBeenCalledTimes(1);
+        expect(h.clock.now()).toBe(5000);
+        expect(h.frame.running).toBe(true);
+        expect(h.browser.pending).toBe(true);
+    });
+
+    it('sets none without a timer', () => {
+        const h = sleeper();
+
+        h.browser.frame(16);
+
+        expect(h.browser.timeouts.size).toBe(0);
+    });
+
+    it('waits for the soonest timer, and not a negative time', () => {
+        const h = sleeper();
+        h.clock.after(300, vi.fn());
+        h.clock.after(100, vi.fn());
+
+        h.browser.frame(16);
+
+        expect([...h.browser.timeouts.values()].map((t) => t.delay)).toEqual([
+            84,
+        ]);
+    });
+
+    it('is cleared when the loop wakes for another reason', () => {
+        const h = sleeper();
+        h.clock.after(5000, vi.fn());
+        h.browser.frame(16);
+
+        h.frame.wake();
+
+        expect(h.browser.timeouts.size).toBe(0);
+        expect(h.browser.clearedTimeouts).toEqual([1]);
+    });
+
+    it('is cleared when the tab is hidden, and again set after a quiet frame', () => {
+        const h = sleeper();
+        h.clock.after(5000, vi.fn());
+        h.browser.frame(16);
+
+        h.browser.changeVisibility(true);
+
+        expect(h.browser.timeouts.size).toBe(0);
+        expect(h.browser.clearedTimeouts).toEqual([1]);
+    });
+
+    it('is cleared when the game stops', () => {
+        const h = sleeper();
+        h.clock.after(5000, vi.fn());
+        h.browser.frame(16);
+
+        h.frame.stop();
+
+        expect(h.browser.timeouts.size).toBe(0);
+        expect(h.browser.clearedTimeouts).toEqual([1]);
+    });
+
+    it('sets none when the game was stopped during the frame', () => {
+        const browser = new FakeBrowser();
+        const clock = new Clock();
+        clock.after(5000, vi.fn());
+        const holder: { frame?: Frame } = {};
+        holder.frame = new Frame({
+            clock,
+            idle: (): boolean => true,
+            environment: browser,
+            onFrame: (): void => {
+                holder.frame?.stop();
+            },
+        });
+        holder.frame.wake();
+
+        browser.frame(16);
+
+        expect(browser.timeouts.size).toBe(0);
+    });
+
+    it('wakes the loop even when a timer callback throws', () => {
+        const h = sleeper();
+        h.clock.after(100, () => {
+            throw new Error('boom');
+        });
+        h.browser.frame(16);
+
+        expect(() => {
+            h.browser.fireTimeout();
+        }).toThrow('boom');
+        expect(h.frame.running).toBe(true);
+    });
+
+    it('clears nothing when nothing sleeps', () => {
+        const h = sleeper();
+
+        h.frame.stop();
+
+        expect(h.browser.clearedTimeouts).toEqual([]);
+    });
+});
+
 describe('stop', () => {
     it('cancels the pending frame, stops watching and refuses to wake again', () => {
         const { browser, frame } = setup();
@@ -210,5 +334,18 @@ describe('browserEnvironment', () => {
         expect(listener).toHaveBeenCalledTimes(1);
 
         vi.restoreAllMocks();
+    });
+
+    it('sets and clears a real timeout', () => {
+        vi.useFakeTimers();
+        const callback = vi.fn();
+
+        const first = browserEnvironment.timeout(callback, 100);
+        browserEnvironment.timeout(callback, 100);
+        browserEnvironment.clearTimeout(first);
+        vi.advanceTimersByTime(100);
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
     });
 });

@@ -6,6 +6,9 @@ export class FakeBrowser implements FrameEnvironment {
     isHidden = false;
     requested = 0;
     cancelled: number[] = [];
+    timeouts = new Map<number, { callback: () => void; delay: number }>();
+    clearedTimeouts: number[] = [];
+    #timeoutHandle = 0;
     #callback: ((time: number) => void) | undefined;
     #handle = 0;
     #visibility: (() => void) | undefined;
@@ -23,6 +26,25 @@ export class FakeBrowser implements FrameEnvironment {
 
     now(): number {
         return this.time;
+    }
+
+    timeout(callback: () => void, delay: number): number {
+        this.timeouts.set(++this.#timeoutHandle, { callback, delay });
+        return this.#timeoutHandle;
+    }
+
+    clearTimeout(handle: number): void {
+        this.clearedTimeouts.push(handle);
+        this.timeouts.delete(handle);
+    }
+
+    // Lets the one pending timeout go off.
+    fireTimeout(): void {
+        const [handle, timeout] = [...this.timeouts][0] ?? [];
+        if (handle !== undefined && timeout) {
+            this.timeouts.delete(handle);
+            timeout.callback();
+        }
     }
 
     hidden(): boolean {

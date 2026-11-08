@@ -11,6 +11,11 @@ export type FreedBy = 'impact' | 'grab' | 'bomb' | 'tornado' | 'gravity';
 
 export type HitAgainst = 'piece' | 'bomb' | 'floor' | 'wall';
 
+export type BehaviourKind = 'reflex' | 'activity' | 'ambient' | 'line';
+
+// How a behaviour ended: it finished, a stronger one took its place, it threw, or the Brain stopped.
+export type EndedBy = 'done' | 'interrupted' | 'failed' | 'stopped';
+
 export interface GameEvents {
     // A pinned piece came loose.
     'item.freed': { id: number; kind: PieceKind; by: FreedBy };
@@ -35,4 +40,19 @@ export interface GameEvents {
     'tornado.started': { x: number };
     'tornado.ended': undefined;
     'gravity.changed': { zero: boolean };
+    // The Brain started a behaviour; `resumed` when an interrupted activity went on.
+    'behaviour.started': {
+        actor: string;
+        id: string;
+        kind: BehaviourKind;
+        resumed: boolean;
+    };
+    'behaviour.ended': {
+        actor: string;
+        id: string;
+        kind: BehaviourKind;
+        by: EndedBy;
+    };
+    // An actor says a line, already in the page's language. The Voice draws it.
+    'line.said': { actor: string; key: string; text: string };
 }

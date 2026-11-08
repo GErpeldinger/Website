@@ -268,3 +268,24 @@ describe('the read-only view', () => {
         expectTypeOf<ClockView>().not.toHaveProperty('tick');
     });
 });
+
+describe('next', () => {
+    it('is undefined with no timer', () => {
+        expect(new Clock().next()).toBeUndefined();
+    });
+
+    it('is when the soonest timer is due, and follows the clock', () => {
+        const clock = new Clock();
+        clock.tick(40);
+        clock.after(500, () => undefined);
+        const cancel = clock.after(100, () => undefined);
+        clock.after(300, () => undefined);
+
+        expect(clock.next()).toBe(140);
+        cancel();
+        expect(clock.next()).toBe(340);
+        clock.tick(250);
+        clock.tick(100);
+        expect(clock.next()).toBe(540);
+    });
+});

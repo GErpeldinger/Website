@@ -36,7 +36,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 ## Conventions
 
 - Claude manages commits here, without asking. They must be atomic. A fix to an unpushed commit is folded into it: commit it with `--fixup`, then run `make fold`. Push only once a review cycle comes back clean.
-- Every user-facing text exists in French and English.
+- Every user-facing text exists in French and English. What the characters say lives in `translations/lines+intl-icu.*.yaml`, the rest in `translations/messages.*.yaml`.
 
 ### Where words go
 

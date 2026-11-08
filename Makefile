@@ -232,4 +232,13 @@ prod-test: ## Build and probe the production image on https://localhost:8443
 	done; \
 	! echo "$$page" | grep -iq '^server:' || { echo "the page still sends a Server header" >&2; exit 1; }; \
 	echo "$$asset" | grep -iqF 'cache-control: public, max-age=31536000, immutable' || { echo "the built script is not immutable" >&2; exit 1; }; \
-	echo "security headers and asset caching present"
+	echo "security headers and asset caching present"; \
+	for marker in 'Director panel (development only)' ' did not start.' '.director{' '.director '; do \
+		found=0; $$compose exec -T php grep -rqF -- "$$marker" public/build/assets || found=$$?; \
+		case $$found in \
+			1) ;; \
+			0) echo "the development panel is in the production build: $$marker" >&2; exit 1 ;; \
+			*) echo "could not scan public/build/assets (exit $$found)" >&2; exit 1 ;; \
+		esac; \
+	done; \
+	echo "no development panel in the production build"

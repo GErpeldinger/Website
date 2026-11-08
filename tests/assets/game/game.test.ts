@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+    wait,
+    type Behaviour,
+    type Run,
+} from '../../../assets/game/brain/behaviour';
+import { Engine } from '../../../assets/game/brain/engine';
 import { EventBus } from '../../../assets/game/events/event_bus';
 import type { GameEvents } from '../../../assets/game/events/game_events';
 import { startGame, type Game } from '../../../assets/game/game';
+import type { LineBook } from '../../../assets/game/lines/speaker';
+import { FakeMotor } from '../../../assets/game/ports/fake_motor';
 import { byId, rect, select } from './dom';
 import { FakeBrowser } from './frame/fake_environment';
 
@@ -38,6 +46,8 @@ const names = [
 ] as const satisfies readonly (keyof GameEvents)[];
 
 interface Options {
+    behaviours?: Behaviour[];
+    lines?: LineBook;
     reducedMotion?: boolean;
     random?: () => number;
     width?: number;
@@ -66,6 +76,8 @@ interface Harness {
 // A page of a 1000 px width and an 800 px height, with a block at (500, 300), a locked one at
 // (200, 300), and a link at (500, 600).
 const setup = ({
+    behaviours,
+    lines = { locale: 'en', pools: {} },
     reducedMotion = false,
     random,
     width = 1000,
@@ -112,6 +124,8 @@ const setup = ({
     }
     const game = startGame(root, {
         events,
+        behaviours,
+        lines,
         random,
         reducedMotion,
         frameEnvironment: browser,
@@ -259,6 +273,27 @@ describe('grabbing and throwing', () => {
         expect(names('item.grabbed')).toHaveLength(1);
     });
 
+    it('wakes the loop for a touch press, which has a long-press timer to run', () => {
+        const { get, browser, run, names } = setup();
+        expect(browser.pending).toBe(false);
+
+        get('block').dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 500,
+                clientY: 300,
+                pointerId: 1,
+                pointerType: 'touch',
+                button: 0,
+            }),
+        );
+        expect(browser.pending).toBe(true);
+        run(60);
+
+        expect(names('item.grabbed')).toHaveLength(1);
+    });
+
     it('stops the loop once the page is still again, and starts it on the next input', () => {
         const { get, browser, run, pointer } = setup();
         pointer(get('block'), 'pointerdown', 500, 300, 0);
@@ -388,6 +423,7 @@ describe('the tornado', () => {
         events.on('tornado.started', started);
         const game = startGame(select('main'), {
             events,
+            lines: { locale: 'en', pools: {} },
             frameEnvironment: new FakeBrowser(),
         });
         games.push(game);
@@ -412,6 +448,7 @@ describe('zero gravity', () => {
         events.on('gravity.changed', changed);
         const game = startGame(select('main'), {
             events,
+            lines: { locale: 'en', pools: {} },
             reducedMotion: false,
             frameEnvironment: new FakeBrowser(),
         });
@@ -419,7 +456,7 @@ describe('zero gravity', () => {
 
         game.setZeroGravity(true);
 
-        expect(changed).toHaveBeenCalledExactlyOnceWith({ zero: true });
+        expect(changed).toHaveBeenCalledExactlyOnceWith({ zero: true }, 'game');
         expect(document.getElementById('a')?.dataset.state).toBe('loose');
     });
 
@@ -699,5 +736,190 @@ describe('an unknown piece', () => {
         s.game.events.emit('item.restored', { id: 99, kind: 'block' });
 
         expect(s.get('block').dataset.state).toBe('pinned');
+    });
+});
+
+describe('the behaviour engine', () => {
+    const bombReaction = (overrides: Partial<Behaviour> = {}): Behaviour => ({
+        id: 'monkey/flee',
+        actor: 'monkey',
+        kind: 'activity',
+        priority: 1,
+        triggers: ['bomb.placed'],
+        canStart: () => true,
+        *run(): Run {
+            yield wait(500);
+        },
+        ...overrides,
+    });
+
+    it('is the game’s, with the actors the registry found', () => {
+        const { game } = setup({ behaviours: [bombReaction()] });
+
+        expect(game.engine).toBeInstanceOf(Engine);
+        expect(game.engine.actors()).toEqual(['monkey']);
+        expect(game.engine.clock.now()).toBe(0);
+    });
+
+    it('runs an attached actor on the events of the world, on the game clock', () => {
+        const { game, run, names, browser } = setup({
+            behaviours: [bombReaction()],
+        });
+        const started = vi.fn();
+        game.events.on('behaviour.started', started);
+        game.engine.attach('monkey', new FakeMotor());
+
+        game.bomb({ x: 500, y: 330 });
+        expect(started).toHaveBeenCalledTimes(1);
+        run(10);
+        expect(browser.pending).toBe(true);
+        run();
+
+        expect(names('bomb.exploded')).toHaveLength(1);
+        expect(game.engine.brain('monkey')?.snapshot().body).toBeUndefined();
+        expect(game.engine.clock.now()).toBeGreaterThan(500);
+    });
+
+    it('starts an ambient behaviour after the idle time on a page at rest', () => {
+        const { game, run, browser } = setup({
+            behaviours: [bombReaction({ kind: 'ambient', triggers: [] })],
+        });
+        const started = vi.fn();
+        game.events.on('behaviour.started', started);
+        game.engine.attach('monkey', new FakeMotor());
+        game.events.emit('gravity.changed', { zero: false });
+        run();
+        expect(browser.pending).toBe(false);
+        expect(started).not.toHaveBeenCalled();
+
+        browser.fireTimeout();
+
+        expect(started).toHaveBeenCalledTimes(1);
+        expect(browser.pending).toBe(true);
+    });
+
+    it('keeps the loop going while an actor is busy, and lets it stop after', () => {
+        const { game, run, browser } = setup({
+            behaviours: [
+                bombReaction({
+                    triggers: ['gravity.changed'],
+                    *run(): Run {
+                        yield wait(5000);
+                    },
+                }),
+            ],
+        });
+        game.engine.attach('monkey', new FakeMotor());
+
+        game.events.emit('gravity.changed', { zero: false });
+        run(200);
+        // The page has been still for far longer than 30 steps.
+        expect(browser.pending).toBe(true);
+        expect(game.engine.busy).toBe(true);
+
+        run();
+        expect(game.engine.busy).toBe(false);
+        expect(browser.pending).toBe(false);
+    });
+
+    it('wakes a sleeping loop on any event, so a behaviour can start', () => {
+        const { game, run, browser } = setup();
+        run();
+        expect(browser.pending).toBe(false);
+
+        game.events.emit('gravity.changed', { zero: false });
+
+        expect(browser.pending).toBe(true);
+    });
+
+    it('reads the reduced motion preference as a field of the context', () => {
+        const canStart = vi.fn(() => false);
+        for (const reducedMotion of [true, false]) {
+            const { game } = setup({
+                behaviours: [bombReaction({ canStart })],
+                reducedMotion,
+            });
+            game.engine.attach('monkey', new FakeMotor());
+            canStart.mockClear();
+
+            game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+            expect(canStart).toHaveBeenCalledWith(
+                expect.objectContaining({ reducedMotion }),
+            );
+        }
+    });
+
+    it('gives an actor that speaks the lines of the page', () => {
+        const { game } = setup({
+            behaviours: [
+                bombReaction({
+                    kind: 'line',
+                    lines: ['run'],
+                    *run(_, act): Run {
+                        act.say('run');
+                        yield wait(1);
+                    },
+                }),
+            ],
+            lines: { locale: 'fr', pools: { run: ['Sauve qui peut !'] } },
+        });
+        const said = vi.fn();
+        game.events.on('line.said', said);
+        game.engine.attach('monkey', new FakeMotor(), { speaks: true });
+
+        game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+        expect(said).toHaveBeenCalledExactlyOnceWith(
+            { actor: 'monkey', key: 'run', text: 'Sauve qui peut !' },
+            'game',
+        );
+    });
+
+    it('reports a behaviour that fails, and goes on', () => {
+        const error = vi.spyOn(console, 'error').mockImplementation(() => {
+            // The report is the test's subject.
+        });
+        const failure = new Error('boom');
+        const { game } = setup({
+            behaviours: [
+                bombReaction({
+                    // eslint-disable-next-line require-yield
+                    *run(): Run {
+                        throw failure;
+                    },
+                }),
+            ],
+        });
+        game.engine.attach('monkey', new FakeMotor());
+        const ended = vi.fn();
+        game.events.on('behaviour.ended', ended);
+
+        game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+        expect(error).toHaveBeenCalledExactlyOnceWith(
+            'The behaviour engine failed in monkey/flee.',
+            failure,
+        );
+        expect(ended).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                actor: 'monkey',
+                id: 'monkey/flee',
+                by: 'failed',
+            }),
+            'game',
+        );
+    });
+
+    it('stops with the game', () => {
+        const { game } = setup({ behaviours: [bombReaction()] });
+        const started = vi.fn();
+        game.events.on('behaviour.started', started);
+        game.engine.attach('monkey', new FakeMotor());
+
+        game.stop();
+        game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+        expect(started).not.toHaveBeenCalled();
     });
 });

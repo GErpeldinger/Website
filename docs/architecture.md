@@ -1,6 +1,6 @@
 # Architecture
 
-The website is a real, readable page that doubles as a playable 2D scene. Visitors can grab, throw, bomb or blow away every element, while a monkey comments, flees, hangs on elements and rebuilds the page. The physics layer is built (below); the monkey, the dock and the rest are decided but not built yet: [todo.md](todo.md) tracks the work.
+The website is a real, readable page that doubles as a playable 2D scene. Visitors can grab, throw, bomb or blow away every element, while a monkey comments, flees, hangs on elements and rebuilds the page. The physics layer and the behaviour engine are built (below); the monkey, the dock and the rest are decided but not built yet: [todo.md](todo.md) tracks the work.
 
 ## Two layers: content, then game
 
@@ -41,14 +41,78 @@ The monkey is split into layers:
 
 - **Brain:** chooses the activity from the context and the priorities, and handles interruption and resumption.
 - **Motor:** walks, jumps, carries, hangs and climbs.
-- **Voice:** FR/EN lines with cooldowns.
+- **Voice:** draws the lines the Brain puts on the bus, in the speech bubble. Picking them (rotation, cooldown, parameters) is pure and lives in `lines/`.
 - **Look:** pose, mood and accessories.
 
-The Brain and the activities contain no DOM or physics code, so they can be unit-tested with a fake Motor.
+The Brain and the activities contain no DOM or physics code, so they can be unit-tested with a fake Motor. How they work is in [the behaviour engine](#the-behaviour-engine).
 
 The context they read covers the monkey (grounded, hanging, carrying, cigarette), the scene (danger, broken pieces, gravity), the visitor (last input, what they hold) and the environment (tab visibility, reduced motion, device tier).
 
 Systems communicate through events: `item.freed`, `bomb.placed`, `monkey.hit`, `cig.lost`, `visitor.idle` and so on. The same events go over the network in multiplayer.
+
+## The behaviour engine
+
+The engine every character's behaviour runs on is built; no character is on the page yet (the monkey's Motor, Look and Voice come next). Adding an interaction means adding files, never editing the core.
+
+- **Actors.** Each actor (the monkey, later the drone, Naïa, the birds) has its own Brain and its own behaviours. Only what two actors will really share is generic: the Brain, the Motor port, the context, the lines. Only the monkey gets a Voice.
+- **A behaviour is one file** in `assets/game/activities/<actor>/`, whose default export declares its actor, kind, priority, the events that can trigger it (`triggers`), `canStart(context)` and `run`, a generator that yields the actor's Motor requests (or `wait(ms)`, which the Brain keeps itself) and is given each outcome. Optional: `weight` (variants), `cooldown`, `resumes`, `lines` (the keys it may say). Its id is its path (`monkey/flinch`). `assets/game/registry/behaviours.ts` finds every such file with an eager `import.meta.glob` (static imports after the build), so the file is registered by existing. A subfolder is for a file's helpers.
+
+  ```ts
+  // activities/monkey/flinch.ts
+  export default defineBehaviour<MonkeyRequest>({
+    actor: 'monkey',
+    kind: 'reflex',
+    priority: 10,
+    triggers: ['item.hit'],
+    canStart: ({ trigger }) =>
+      trigger?.name === 'item.hit' && trigger.payload.against === 'piece',
+    lines: ['hurt'],
+    *run(_context, act) {
+      act.say('hurt');
+      yield { type: 'face', mood: 'scared' };
+    },
+  });
+  ```
+
+- **A pure line reaction is data**, in the same folder (`activities/monkey/comments.ts`): a list of `{ actor, on, line, where?, when?, params?, priority?, weight?, cooldown?, force? }`. `where` and `when` are conditions on the event's payload and on the context fields (a value, or a list of values; a field that is absent never matches). The most specific reaction wins by priority.
+
+  ```ts
+  export default defineReactions([
+    { actor: 'monkey', on: 'item.grabbed', line: 'grab' },
+    {
+      actor: 'monkey',
+      on: 'item.grabbed',
+      where: { kind: 'letter' },
+      line: 'letter',
+      priority: 1,
+    },
+  ]);
+  ```
+
+- **What the Brain does** (`brain/`). An event starts at most one behaviour of each kind: the highest priority among those that can start (not running, off cooldown, `canStart` true); equals are drawn by weight, which is how variants of one behaviour are written. Then by kind:
+  - a reflex runs on the Motor's overlay layer, on top of the body, and never stops the activity;
+  - a line runs beside everything and can only say (and wait);
+  - an activity takes the body if it is free or held by an ambient behaviour, interrupts a weaker activity, and otherwise waits its turn (by priority, then order; `canStart` is asked again when its turn comes);
+  - an interrupted activity that `resumes` goes on when the stronger one ends, from the request it was in (asked again), before waiting ones of lower priority; the others are dropped;
+  - an ambient behaviour fills idle time (5 s after the body frees, or on its own event when idle) and always gives way, never resumed.
+
+  A behaviour that throws, or whose Motor throws, ends as `failed` and is reported (`console.error` in the game): the game goes on. The Brain's own events are `behaviour.started` and `behaviour.ended` on the bus.
+
+- **The Motor port** (`ports/motor.ts`): `perform(request, done, layer)` returns a cancellable task; `done` is called once with `done` or `failed`. `ports/fake_motor.ts` scripts it request by request in tests (`finish`), so a behaviour is unit-tested as a sequence; with a clock it completes each request after a moment, which stands in for an actor whose Motor is not built.
+- **The context** is the world as a behaviour reads it: the actor, the game time, the trigger (event name and payload) and the fields of the _context sources_ the Brain was given (`reducedMotion` today). A source reads some fields; adding a field (time of day, patience) is a module augmentation of `ContextFields` next to the function that reads it, plus a line where the game lists its sources, and changes nothing in `brain/`. A field no source gives is absent, so a condition on it fails closed.
+- **Cooldowns and variants** are per behaviour (`cooldown`, from its start; `weight`).
+
+### Lines
+
+The lines are data: `translations/lines+intl-icu.{fr,en}.yaml`, the single source, in the `lines` translation domain (ICU MessageFormat). A key is a pool, a YAML list drawn in turn (`grab.0`, `grab.1`... once flattened) or a single string. `tests/TranslationsTest.php` checks the two languages have the same keys.
+
+- **Delivery.** `App\Game\LineBook` groups the current locale's catalogue into pools, `game_lines(app.locale)` (a Twig function) renders it as JSON in `data-game-lines-value` on the game's element, and the Stimulus controller hands it to `startGame`. The page carries its own language only, in the first response, with no request to make and nothing to build.
+- **Speaking.** `lines/speaker.ts`: one Speaker per voiced actor draws each pool in turn, never closer than 1.7 s to the previous line (`force` plays regardless), and formats the message with the parameters of the call. `lines/format.ts` reads the ICU subset the lines need: `{name}`, `{n, plural, ...}` with `#`, `{kind, select, ...}`, nested, with ICU's apostrophe rules. Anything else is refused. The Brain puts the result on the bus as `line.said`; the Voice (later) draws it.
+- **Checks.** `tests/assets/game/registry/consistency.test.ts` fails when a behaviour or reaction says a key either catalogue lacks, or listens to an event nothing in the game emits.
+
+### The director panel
+
+A development panel (`assets/game/director/`): it fires any event on the bus (a form with a sample payload per event), starts any registered behaviour of any actor (by the usual rules of priority, ignoring `canStart` and cooldown), and shows each actor's current behaviour and the last 40 events. An actor without a Motor gets a `FakeMotor` and a voice there, so the Brains can be exercised before the Motors exist. Events it fires carry the origin `director` (the second argument of `emit`, the second of a listener): the future counters and the network ignore that origin. Only the Stimulus controller loads it, behind `import.meta.env.DEV`, so a production build contains neither the panel, its style nor the fake Motor: checked on the build output.
 
 ## The physics layer
 
@@ -127,8 +191,8 @@ A device whose frame rate collapses during play is downgraded on the spot, and t
 - **Stimulus only links the page to the game code.** A controller attaches to an element and hands over to plain TypeScript. It is loaded by Vite through `@hotwired/stimulus`, not by Symfony UX's AssetMapper mode.
 - **No Turbo for now.** Pages are plain navigations. Whether the game layer survives across pages is still open: see [ideas.md](ideas.md).
 - **pnpm for the JavaScript packages.** The lockfile and the store are cached by CI and by the tools' bind-mounted `.cache/`.
-- **Game layer folders, enforced by ESLint and `tsc`.** `assets/game/` holds one folder per module: `brain`, `activities`, `motor`, `voice`, `look`, `physics`, `events`, `clock`, `frame`, `ports`, `input` (pointer events) and `page` (reading and writing the DOM), plus the entry `game.ts`. `config/tools/eslint.architecture.ts` keys its rules on these names, and `tests/eslint/architecture.ts` proves each rule can fail. Only `frame` may use raw timers, `performance`, `Date` or `queueMicrotask`; `matter-js` is importable in `physics` only (an allowlist, deep and dynamic imports included); the game never imports the Stimulus controllers or uses a dynamic `import()`, which would skip these rules. Imports are matched by their text, not resolved: it only matters if a file is named after another layer.
-- **`brain`, `activities`, `ports`, `clock` and `events` compile without the DOM lib** (`config/tools/tsconfig.game.json`), and `brain`, `activities` and `ports` import none of `physics`, `look`, `motor`, `voice` or `frame`. The compiler is the one check that cannot miss a DOM global or type, which a list of names in ESLint would. Voice is banned because it draws DOM speech bubbles: the Brain emits lines on the events bus.
+- **Game layer folders, enforced by ESLint and `tsc`.** `assets/game/` holds one folder per module: `brain`, `activities`, `motor`, `voice`, `look`, `physics`, `events`, `clock`, `frame`, `ports`, `lines`, `registry`, `director`, `input` (pointer events) and `page` (reading and writing the DOM), plus the entry `game.ts`. `config/tools/eslint.architecture.ts` keys its rules on these names, and `tests/eslint/architecture.ts` proves each rule can fail. Only `frame` may use raw timers, `performance`, `Date` or `queueMicrotask`; `matter-js` is importable in `physics` only (an allowlist, deep and dynamic imports included); the game never imports the Stimulus controllers or uses a dynamic `import()`, which would skip these rules; only `registry/behaviours.ts` calls `import.meta.glob`, and no game module imports `director`. Imports are matched by their text, not resolved: it only matters if a file is named after another layer.
+- **`brain`, `activities`, `ports`, `lines`, `clock` and `events` compile without the DOM lib** (`config/tools/tsconfig.game.json`), and `brain`, `activities`, `ports` and `lines` import none of `physics`, `look`, `motor`, `voice` or `frame`. The compiler is the one check that cannot miss a DOM global or type, which a list of names in ESLint would. Voice is banned because it draws DOM speech bubbles: the Brain emits lines on the events bus.
 - **A `ports` folder holds the interfaces the Brain and activities depend on** (the Motor's first). They cannot import `motor`, so a fake can replace it in unit tests, as above; the implementations in `motor` satisfy the ports.
 - **`clock` and `events` are pure, and import no other game module.** Every module uses them, so any import back would create a cycle. The clock advances through `tick(elapsed)` and the bus is a plain typed emitter, not an `EventTarget`, because the no-DOM project compiles everything the Brain imports.
 - **One `frame` module owns the browser's loop.** It calls `requestAnimationFrame` and `performance.now` and pushes the elapsed time into the clock. So the Brain, the activities, the clock and the bus run and test in plain Node under a fake time, and only the driver touches the browser.
@@ -143,3 +207,19 @@ A device whose frame rate collapses during play is downgraded on the spot, and t
 - **One tornado at a time, five bombs at a time.** A second tornado while one runs is ignored rather than restarted, so `tornado.started` and `tornado.ended` always pair up.
 - **Differences from the prototype.** The ceiling is the top of the page, not 500 px above it, so zero gravity keeps pieces in view. The floor's friction is not set: Matter gives a static body a friction of 1 whatever it is told, so the prototype's 0.9 never applied. A resize rebuilds the world when the width or the measured floor changed (a real resize: the scene is `100svh` high, so a phone's toolbar never moves the ground; a resize back to the built layout cancels a rebuild already scheduled); it drops what is loose, held or pending and cancels fuses with `bomb.cancelled`. Rejected: ignoring height-only resizes, which left the floor stale on orientation changes and desktop window resizes. Not ported yet: the bomb's fuse and flash, the tornado's drawing and the particles, which belong to the effects layer with the monkey.
 - **Hooks the page provides.** `data-ground` is on the ground strip in `base.html.twig`. The state styles are in `exceptions.css`: letters as inline-block (a transform ignores an inline box), `[data-state]` cursors and raised z-index when held, `touch-action: manipulation` (pinch-zoom stays), no text selection or callout once the game has set a state, and `[data-scorch]` between the ground and the content. The name's words never wrap between letters. Scorch marks are absolutely positioned children of the ground's parent (the scene, which the shake does not move), so it must sit at the page's top left. The shake is a `translate` on the game's element, decaying by game time (0.86 per 60 Hz step), which becomes the containing block of any `position: fixed` descendant while it shakes.
+- **Behaviours are files found by a glob, not a list.** `registry/behaviours.ts` reads `activities/*/*.ts` with an eager `import.meta.glob`, which Vite turns into static imports: it is not a dynamic `import()`, so the ban stands, but the pattern skips the boundary rules, so the lint rule lets only that file call `import.meta.glob` (and `tests/eslint/architecture.ts` proves it). The id is the path and the actor must be the folder's name, so ids cannot clash and a copied file cannot register under the wrong actor. Rejected: a registry array to edit (the core changes with every behaviour, the prototype's problem) and a decorator or side-effect `register()` call (order and double registration).
+- **One Brain per actor, generic only where actors share.** The Brain, the Motor port, the context and the lines are written once and instantiated per actor; the requests a Motor understands are each actor's own, so the monkey's `walkTo` is not a drone's. A voice is optional per actor. Rejected: one global Brain with a table of actors (a shared queue would make the drone wait for the monkey) and a base class per actor (nothing to share but the engine).
+- **Activities wait, interrupt or resume by priority; reflexes overlay; ambient gives way.** Equal priority waits: a running activity is never cut for an equal one. A cut activity resumes only if it says so (`resumes`), from the request it was in, which is asked again, with the generator's own state intact; the others are dropped, since an activity written as a sequence can't be told where to restart. `canStart` is asked again when a waiting activity gets its turn (the world has changed), not for a resumed one (it is the same activity).
+- **A behaviour that throws is reported, not raised.** The Brain ends it as `failed` and keeps playing: a typo in one line must not stop the physics loop. A generator cut from inside its own run (a listener of `line.said` interrupting the behaviour that said it) is closed when it next yields, since a running generator can't be closed.
+- **Variants are weights, not a concept.** Behaviours of equal priority that the same event can start are drawn by `weight`. Rejected: a `variantOf` group (a second way to say the same thing).
+- **The context is open: sources and module augmentation.** The Brain merges the fields its sources give and the fields are typed by augmenting `ContextFields`, so a time of day or a patience level is a new file and a line of wiring. Rejected: a fixed context object (every field a core change) and a string-keyed bag (untyped conditions).
+- **Conditions of a reaction are data (`where`, `when`), parameters and the rest are code.** Equality or one-of on primitive fields covers the prototype's cases (a letter, a link) with no function; a `params` function reads the context for an ICU message. Rejected: a condition mini-language (more to parse than the three conditions ever written).
+- **The lines are one catalogue in a `lines` domain, rendered by Twig.** One file per language, so the parity test and the editors' tooling apply, in the ICU domain (`lines+intl-icu`) so the messages are the same on the server and in the client. Delivered in the page as a `data-` attribute (a Stimulus value) of the game's element: no second request, no loading state, cached with the page, only the current language. Rejected: a JSON endpoint (a request after the first paint, and a state where the monkey has nothing to say), a Vite step that bundles both languages (every visitor downloads both, and the build would read the translator's files) and a third-party i18n library (the page makes no third-party request; a small own formatter is enough for `{name}`, plural and select).
+- **A small ICU formatter of our own, with a strict subset.** `formatLine` is under 200 lines and refuses what it does not know, rather than shipping a library for three constructs. The risk is the server's translator and the client reading a message differently: the subset is their common ground, and a construct outside it throws when the line is said (reported, the behaviour fails) instead of rendering wrong.
+- **Speech is rotation plus a cooldown, per speaker.** A pool is drawn in turn (the prototype's counter), a held-back line does not use its turn, and 1.7 s separates two lines of one speaker unless the line forces itself. The cooldown is the Speaker's, not the behaviour's, so every source of lines shares it.
+- **The bus carries an origin.** `emit(name, payload, origin = 'game')` and listeners get `(payload, origin)`; the director marks its events `director`. The "local only" rule of the panel (nothing counted, nothing sent) is then one check in the listeners that count or send. Rejected: a second bus for the panel (the Brain would have to listen to both) and a field in every payload.
+- **The director panel is loaded by the controller, behind `import.meta.env.DEV`.** The game can't import it (that would put it in the bundle) nor use a dynamic `import()`; the Stimulus controller is outside that ban, and the build removes the dead branch with its import, so there is nothing to strip afterwards. A lint rule keeps game modules from importing it. Checked on the production build (no panel string, no panel CSS), not only in a test.
+- **Development gives actors without a Motor a fake one.** Until the real Motors exist, the panel attaches a `FakeMotor` that finishes each request after 400 ms of game time, so every Brain can be driven from the panel; in production an actor without a Motor simply takes no part.
+- **Tests that read the repository.** The consistency test reads the translations and walks the syntax tree of `assets/game` (the development panel apart) for calls of `emit` or `#emit` with a literal name. A scan finds "nothing emits this event" without a list to maintain, and misses an event emitted under a name built at run time (none exists: `emit` takes the typed event names). Mutation testing runs the tests in a copy of the sources whose strings are instrumented, so the scan reads the real tree.
+- **The loop sleeps through game timers.** The game clock only moves with the loop, so a timer pending when the loop stops (a behaviour's idle time) would never fire. `Clock.next()` says when the next one is due; when the loop goes idle with one pending, the frame driver sets one real timeout for it, carries the clock to that time and wakes the loop. A wake for any other reason, a hidden tab or a stop clears it. A pending timer does not count as busy, so a still page costs one wake per timer, not a running loop. The trade-off: while asleep, game time follows the wall clock instead of being capped at 250 ms a step, which is the point.
+- **A cut activity's Motor task is cancelled even when the cut comes from inside `perform`.** A Motor may emit an event while starting a request; if that starts a stronger activity, the Brain cancels the task it gets back, since nothing else holds it. A request that never ends keeps the Brain busy and the loop awake: the port says so.

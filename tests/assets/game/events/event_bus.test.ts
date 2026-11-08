@@ -18,7 +18,7 @@ describe('delivery', () => {
 
         events.emit('item.freed', { id: 7 });
 
-        expect(freed).toHaveBeenCalledExactlyOnceWith({ id: 7 });
+        expect(freed).toHaveBeenCalledExactlyOnceWith({ id: 7 }, 'game');
         expect(idle).not.toHaveBeenCalled();
     });
 
@@ -38,6 +38,98 @@ describe('delivery', () => {
         expect(() => {
             bus().emit('item.freed', { id: 1 });
         }).not.toThrow();
+    });
+});
+
+describe('origin', () => {
+    it('tells the listeners where an event came from, the game by default', () => {
+        const events = bus();
+        const listener = vi.fn();
+        events.on('visitor.idle', listener);
+
+        events.emit('visitor.idle', undefined);
+        events.emit('visitor.idle', undefined, 'director');
+
+        expect(listener).toHaveBeenNthCalledWith(1, undefined, 'game');
+        expect(listener).toHaveBeenNthCalledWith(2, undefined, 'director');
+    });
+});
+
+describe('listening to everything', () => {
+    it('hears every event with its name, payload and origin, after the listeners of that event', () => {
+        const events = bus();
+        const heard: unknown[] = [];
+        events.onAny((name, payload, origin) => {
+            heard.push([name, payload, origin]);
+        });
+        events.on('item.freed', () => heard.push('specific'));
+
+        events.emit('item.freed', { id: 3 });
+        events.emit('visitor.idle', undefined, 'director');
+
+        expect(heard).toEqual([
+            'specific',
+            ['item.freed', { id: 3 }, 'game'],
+            ['visitor.idle', undefined, 'director'],
+        ]);
+    });
+
+    it('stops hearing once unsubscribed, and twice is harmless', () => {
+        const events = bus();
+        const listener = vi.fn();
+        const unsubscribe = events.onAny(listener);
+        events.onAny(vi.fn());
+
+        unsubscribe();
+        unsubscribe();
+        events.emit('visitor.idle', undefined);
+
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('counts the same listener once', () => {
+        const events = bus();
+        const listener = vi.fn();
+        events.onAny(listener);
+        events.onAny(listener);
+
+        events.emit('visitor.idle', undefined);
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not stop the others when it throws', () => {
+        const events = bus();
+        const after = vi.fn();
+        const error = new Error('boom');
+        events.onAny(() => {
+            throw error;
+        });
+        events.on('visitor.idle', after);
+
+        expect(() => {
+            events.emit('visitor.idle', undefined);
+        }).toThrow(error);
+        expect(after).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts its errors with the specific listeners in the aggregate', () => {
+        const events = bus();
+        events.onAny(() => {
+            throw new Error('any');
+        });
+        events.on('visitor.idle', () => {
+            throw new Error('specific');
+        });
+
+        let thrown: unknown;
+        try {
+            events.emit('visitor.idle', undefined);
+        } catch (error) {
+            thrown = error;
+        }
+
+        expect((thrown as AggregateError).errors).toHaveLength(2);
     });
 });
 

@@ -1,0 +1,6 @@
+# The lines the characters say, in English: each key is a pool of variants (a list), drawn in turn,
+# or a single line (a string). A message is ICU MessageFormat: {name}, {n, plural, ...},
+# {kind, select, ...}. Reactions and behaviours name a key; a test checks that it exists in both
+# languages (docs/architecture.md, The behaviour engine). A key that ends in a number is only
+# valid as a list item (`grab.0`, `grab.1`): `level.2: x` would read as a variant of `level`.
+{}

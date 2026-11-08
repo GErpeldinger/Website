@@ -129,6 +129,7 @@ The drone fetches him and lowers him back with its beam: after a rage, or when h
 
 The panel that fires any event or behaviour on demand, built for development, ships in production as an easter egg.
 
+- **Built so far:** the development version, a plain panel in development builds only (see architecture.md, The behaviour engine). The easter-egg version below comes later, on the same engine.
 - **Where:** behind a maintenance hatch on the drone, opened by clicking or tapping the small screw beside it.
 - **Found:** the monkey rushes over: "Hé hé hé, touche pas à ça, c'est pour le développement !" / "Hey hey hey, don't touch that, it's for development!" A beat later he gives up ("Bon… mais tu dis rien à personne." / "Fine… but you didn't see this.") and the panel opens.
 - **Used:** whatever the visitor fires, he reacts as if it were real, with a line now and then about cheating.

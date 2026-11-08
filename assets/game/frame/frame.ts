@@ -6,6 +6,9 @@ export interface FrameEnvironment {
     cancel(handle: number): void;
     now(): number;
     hidden(): boolean;
+    // One real timeout: the loop sleeps through the time a timer of the game waits for.
+    timeout(callback: () => void, delay: number): number;
+    clearTimeout(handle: number): void;
     watchVisibility(listener: () => void, signal: AbortSignal): void;
 }
 
@@ -16,6 +19,11 @@ export const browserEnvironment: FrameEnvironment = {
     },
     now: () => performance.now(),
     hidden: () => document.hidden,
+    timeout: (callback, delay) =>
+        setTimeout(callback, delay) as unknown as number,
+    clearTimeout: (handle) => {
+        clearTimeout(handle);
+    },
     watchVisibility: (listener, signal) => {
         document.addEventListener('visibilitychange', listener, { signal });
     },
@@ -36,6 +44,7 @@ export class Frame {
     readonly #environment: FrameEnvironment;
     readonly #abort = new AbortController();
     #handle: number | undefined;
+    #sleeping: number | undefined;
     #running = false;
     #last = 0;
 
@@ -60,8 +69,9 @@ export class Frame {
         ) {
             return;
         }
+        this.#wakeUp();
         this.#running = true;
-        // The time asleep is not game time: measure from now.
+        // Time asleep past the next timer is not game time: measure from now.
         this.#last = this.#environment.now();
         this.#schedule();
     }
@@ -77,7 +87,39 @@ export class Frame {
         });
     }
 
+    #wakeUp(): void {
+        if (this.#sleeping !== undefined) {
+            this.#environment.clearTimeout(this.#sleeping);
+            this.#sleeping = undefined;
+        }
+    }
+
+    // The loop stopped with a timer of the game pending (a behaviour's idle time): the clock only
+    // moves with the loop, so one real timeout carries the game to that timer and wakes the loop.
+    #sleep(): void {
+        const { clock } = this.#options;
+        const due = clock.next();
+        if (due === undefined || this.#abort.signal.aborted) {
+            return;
+        }
+        this.#sleeping = this.#environment.timeout(
+            () => {
+                this.#sleeping = undefined;
+                try {
+                    // A tick is capped, so a long wait takes a few.
+                    while (clock.now() < due) {
+                        clock.tick(due - clock.now());
+                    }
+                } finally {
+                    this.wake();
+                }
+            },
+            Math.max(0, due - clock.now()),
+        );
+    }
+
     #pause(): void {
+        this.#wakeUp();
         this.#running = false;
         if (this.#handle !== undefined) {
             this.#environment.cancel(this.#handle);
@@ -99,6 +141,7 @@ export class Frame {
         }
         if (this.#options.idle()) {
             this.#running = false;
+            this.#sleep();
         } else {
             this.#schedule();
         }

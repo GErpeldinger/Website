@@ -5,6 +5,7 @@ export const pureModules = [
     'brain',
     'activities',
     'ports',
+    'lines',
     'clock',
     'events',
 ] as const;

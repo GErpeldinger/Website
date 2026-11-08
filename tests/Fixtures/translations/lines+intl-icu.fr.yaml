@@ -1,0 +1,5 @@
+# Test lines, added to the real catalogue in the test environment (config/packages/translation.yaml).
+test:
+    - Une ligne de test
+    - Une autre
+single: Une seule

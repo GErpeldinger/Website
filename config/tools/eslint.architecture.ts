@@ -30,9 +30,26 @@ const dynamicImport = {
     message: 'Import statically: dynamic imports skip the boundary rules.',
 };
 
+// An eager glob is static imports in disguise: one file reads the behaviours folder with it, and
+// the pattern there is the only place a boundary rule cannot see.
+const glob = {
+    selector:
+        'CallExpression[callee.type="MemberExpression"][callee.object.type="MetaProperty"][callee.property.name="glob"]',
+    message:
+        'Only registry/behaviours.ts calls import.meta.glob: its pattern skips the boundary rules.',
+};
+
 // A game module is imported from another folder: the folder comes right after the `../`.
 const gameModule = (names: string[]): string =>
     `^(\\.\\./)+(${names.join('|')})(/|$)|/game/(${names.join('|')})(/|$)`;
+
+// The development panel is loaded by the Stimulus controller behind `import.meta.env.DEV`, so that
+// it never reaches the production bundle: no other game module may import it.
+const toTheDirector = {
+    regex: '^(\\.{1,2}/)+director(/|$)|/game/director(/|$)',
+    message:
+        'Only the Stimulus controller loads the director panel, in development builds: a game module importing it would put it in the production bundle.',
+};
 
 // A listener the game attaches is detached with the game: it passes the `signal` of an
 // AbortController. Calls are matched by the method's name, on whatever it is called.
@@ -141,13 +158,28 @@ export const architecture: Linter.Config[] = [
                     })),
                 ),
             ],
-            'no-restricted-syntax': ['error', dynamicImport],
         },
+    },
+    {
+        name: 'architecture/syntax',
+        files: [`${GAME}/${TS}`],
+        ignores: [`${GAME}/registry/${TS}`],
+        rules: { 'no-restricted-syntax': ['error', dynamicImport, glob] },
+    },
+    {
+        name: 'architecture/registry',
+        files: [`${GAME}/registry/${TS}`],
+        rules: { 'no-restricted-syntax': ['error', dynamicImport] },
     },
     {
         name: 'architecture/game',
         files: [`${GAME}/${TS}`],
-        ignores: [`${GAME}/physics/${TS}`],
+        ignores: [`${GAME}/physics/${TS}`, `${GAME}/director/${TS}`],
+        rules: imports({ patterns: [toTheController, toTheDirector] }),
+    },
+    {
+        name: 'architecture/director',
+        files: [`${GAME}/director/${TS}`],
         rules: imports({ patterns: [toTheController] }),
     },
     {
@@ -159,14 +191,12 @@ export const architecture: Linter.Config[] = [
         rules: { 'architecture/listener-signal': 'error' },
     },
     {
-        name: 'architecture/frame',
-        files: [`${GAME}/frame/${TS}`],
-        rules: { 'no-restricted-syntax': ['error', dynamicImport] },
-    },
-    {
         name: 'architecture/physics',
         files: [`${GAME}/physics/${TS}`],
-        rules: imports({ patterns: [toTheController], matterJs: false }),
+        rules: imports({
+            patterns: [toTheController, toTheDirector],
+            matterJs: false,
+        }),
     },
     {
         name: 'architecture/leaves',
@@ -183,10 +213,11 @@ export const architecture: Linter.Config[] = [
     },
     {
         name: 'architecture/brain',
-        files: [`${GAME}/{brain,activities,ports}/${TS}`],
+        files: [`${GAME}/{brain,activities,ports,lines}/${TS}`],
         rules: imports({
             patterns: [
                 toTheController,
+                toTheDirector,
                 {
                     regex: gameModule([
                         'physics',

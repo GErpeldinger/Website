@@ -61,6 +61,15 @@ export class Clock implements ClockView {
         return this.#now;
     }
 
+    // When the next timer is due, in game time, or undefined when none is pending.
+    next(): number | undefined {
+        return [...this.#timers].reduce<number | undefined>(
+            (soonest, { due }) =>
+                soonest === undefined ? due : Math.min(soonest, due),
+            undefined,
+        );
+    }
+
     after(delay: number, callback: () => void): () => void {
         assertDuration('delay', delay);
         const timer = { due: this.#now + delay, callback };

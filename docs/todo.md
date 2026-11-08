@@ -29,9 +29,11 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Game layer
 
-- Unit tests for the Brain and activities, with a fake Motor, as they are written (Vitest and Stryker are in `make check`).
+- Every behaviour and reaction comes with its Vitest test, written as a sequence on the `FakeMotor` (`ports/fake_motor.ts`), and its lines in both catalogues; `make check` fails otherwise.
 - Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
-- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation and the physics in parallel (the physics is done), then the behaviour engine (Brain, one file per behaviour, lines as data, the director panel), the monkey's Motor, Look and Voice, then his behaviours and the dock.
+- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics and the behaviour engine are done; the monkey's Motor, Look and Voice come next (`engine.attach('monkey', motor, { speaks: true })`, the Voice drawing `line.said`), then his behaviours and the dock.
+- The Brain's timers run on the game clock, which only ticks while the loop runs: when the monkey's Motor lands, decide how idle time and the bed relate (the loop stops once the scene is still, so ambient behaviours only run while something else keeps it awake).
+- Counters and the network must ignore events whose origin is `director` (the bus passes it to listeners), when the live board lands.
 - Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): the cigarette arc, hanging and climbing.
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
 - The live board: site-wide action counters in SQLite on a volume, pushed to the page through FrankenPHP's Mercure hub, which the trimmed template doesn't configure yet (the `mercure` directive in the Caddyfile, its JWT keys in deploy.env, a volume in compose.prod.yaml). Nothing personal is stored.

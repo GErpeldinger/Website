@@ -203,6 +203,9 @@ importers:
       happy-dom:
         specifier: 21.0.4
         version: 21.0.4
+      js-yaml:
+        specifier: 5.5.0
+        version: 5.5.0
       prettier:
         specifier: 3.9.10
         version: 3.9.10

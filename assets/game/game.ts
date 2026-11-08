@@ -1,8 +1,11 @@
+import type { Behaviour } from './brain/behaviour';
+import { Engine } from './brain/engine';
 import { Clock } from './clock/clock';
 import { EventBus } from './events/event_bus';
 import type { GameEvents, Point } from './events/game_events';
 import { Frame, type FrameEnvironment } from './frame/frame';
 import { Input } from './input/input';
+import type { LineBook } from './lines/speaker';
 import {
     clearPlacement,
     measureBounds,
@@ -19,10 +22,13 @@ import { Scorches } from './page/scorches';
 import { Shake } from './page/shake';
 import type { Bounds } from './physics/bodies';
 import { PhysicsWorld } from './physics/world';
+import { registered } from './registry/behaviours';
 
 // What the dock, the monkey and the Rebuild call. Positions are page coordinates.
 export interface Game {
     readonly events: EventBus<GameEvents>;
+    // The actors' Brains: whoever builds an actor's Motor attaches it here.
+    readonly engine: Engine;
     // A bomb falls from `at`, burns its fuse and blows.
     bomb(at: Point): void;
     // A tornado over `at.x`, for a few seconds. None under reduced motion.
@@ -39,6 +45,10 @@ export interface GameOptions {
     // Shared with the other systems; a new bus when omitted.
     events?: EventBus<GameEvents>;
     random?: () => number;
+    // The lines of the page's language, as the server rendered them.
+    lines: LineBook;
+    // What the registry found, unless a test brings its own.
+    behaviours?: readonly Behaviour[];
     // Read from the browser when omitted.
     reducedMotion?: boolean;
     frameEnvironment?: FrameEnvironment;
@@ -57,14 +67,23 @@ interface Scene {
 
 // Builds the physics from the page's `data-physics` elements and runs it: the loop, the pointer,
 // the effects. `stop` hands the page back as the server rendered it.
-export const startGame = (
-    root: HTMLElement,
-    options: GameOptions = {},
-): Game => {
+export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const events = options.events ?? new EventBus<GameEvents>();
     const random = options.random ?? Math.random;
     const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
     const clock = new Clock();
+    const engine = new Engine({
+        events,
+        clock,
+        random,
+        behaviours: options.behaviours ?? registered,
+        lines: options.lines,
+        sources: [(): { reducedMotion: boolean } => ({ reducedMotion })],
+        // A behaviour that fails ends there: the game goes on.
+        onError: (error, source): void => {
+            console.error(`The behaviour engine failed in ${source}.`, error);
+        },
+    });
     const abort = new AbortController();
     // Marks go where the shake doesn't reach: it moves the root, and a transform would carry
     // them along. The ground's parent is the scene, whose box starts at the page's origin.
@@ -97,7 +116,11 @@ export const startGame = (
             shake.step(elapsed);
         },
         idle: (): boolean =>
-            scene.world.resting && !input.busy && !shake.active && !resizing,
+            scene.world.resting &&
+            !input.busy &&
+            !shake.active &&
+            !resizing &&
+            !engine.busy,
     });
 
     const input = new Input({
@@ -139,6 +162,10 @@ export const startGame = (
         }
     };
     const unsubscribe = [
+        // Whatever happens may start a behaviour, which needs the clock to run.
+        events.onAny(() => {
+            frame.wake();
+        }),
         events.on('item.freed', (payload) => {
             show('loose', payload);
         }),
@@ -215,6 +242,7 @@ export const startGame = (
 
     return {
         events,
+        engine,
         bomb: (at): void => {
             live(() => {
                 scene.world.placeBomb(at);
@@ -250,6 +278,7 @@ export const startGame = (
             for (const off of unsubscribe) {
                 off();
             }
+            engine.stop();
             scene.world.dispose();
             reset();
         },

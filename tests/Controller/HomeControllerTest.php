@@ -160,3 +160,30 @@ it('marks the letters, the links and the content blocks as bodies', function ():
         ->and($crawler->filter('nav a[data-physics="link"]')->count())->toBe(2)
         ->and($crawler->filter('main [data-physics="block"]')->count())->toBe(5);
 });
+
+it('hands the game the lines of the page language, and only those', function (string $locale, array $expected): void {
+    /** @var KernelBrowser $client */
+    $client = static::createClient();
+    $crawler = $client->request('GET', "/{$locale}/");
+
+    $lines = json_decode((string) $crawler->filter('main[data-controller="game"]')->attr('data-game-lines-value'), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($lines)->toBe($expected);
+})->with([
+    'fr' => [
+        'fr', [
+            'locale' => 'fr',
+            'pools' => [
+                'test' => ['Une ligne de test', 'Une autre'],
+                'single' => ['Une seule'],
+            ],
+        ]],
+    'en' => [
+        'en', [
+            'locale' => 'en',
+            'pools' => [
+                'test' => ['A test line', 'Another'],
+                'single' => ['Just one'],
+            ],
+        ]],
+]);

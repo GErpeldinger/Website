@@ -26,10 +26,10 @@ function translationKeys(array $node, string $prefix = ''): array
 /**
  * @return list<string>
  */
-function catalogueKeys(string $locale): array
+function catalogueKeys(string $locale, string $domain = 'messages'): array
 {
     /** @var array<array-key, mixed> $catalogue */
-    $catalogue = Yaml::parseFile(__DIR__ . "/../translations/messages.{$locale}.yaml");
+    $catalogue = Yaml::parseFile(__DIR__ . "/../translations/{$domain}.{$locale}.yaml");
 
     return translationKeys($catalogue);
 }
@@ -49,10 +49,10 @@ it('has no key used by a template that a catalogue lacks', function (string $loc
     expect($tester->getStatusCode())->toBe(0, $tester->getDisplay());
 })->with(['fr', 'en']);
 
-it('has the same keys in French and English', function (): void {
-    $french = catalogueKeys('fr');
-    $english = catalogueKeys('en');
+it('has the same keys in French and English', function (string $domain): void {
+    $french = catalogueKeys('fr', $domain);
+    $english = catalogueKeys('en', $domain);
 
-    expect(array_values(array_diff($french, $english)))->toBe([], 'missing from messages.en.yaml')
-        ->and(array_values(array_diff($english, $french)))->toBe([], 'missing from messages.fr.yaml');
-});
+    expect(array_values(array_diff($french, $english)))->toBe([], "missing from {$domain}.en.yaml")
+        ->and(array_values(array_diff($english, $french)))->toBe([], "missing from {$domain}.fr.yaml");
+})->with(['messages', 'lines+intl-icu']);

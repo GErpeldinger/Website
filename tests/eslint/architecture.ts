@@ -160,6 +160,85 @@ const cases: Case[] = [
     imported('assets/game/brain/brain.ts', '../activities/rebuild'),
     imported('assets/game/ports/index.ts', './motor'),
 
+    // The lines are as pure as the Brain: no other layer.
+    ...[
+        'physics/world',
+        'motor/motor',
+        'look/pose',
+        'voice/voice',
+        'frame/driver',
+    ].map((layer) =>
+        imported('assets/game/lines/speaker.ts', `../${layer}`, importRule),
+    ),
+    imported('assets/game/lines/speaker.ts', '../clock/clock'),
+    imported('assets/game/lines/speaker.ts', './format'),
+    used(
+        'assets/game/lines/speaker.ts',
+        'export const now = Date.now();',
+        globals,
+    ),
+
+    // Only the registry reads the behaviours folder with a glob.
+    ...[
+        'assets/game/brain/brain.ts',
+        'assets/game/activities/monkey/walk.ts',
+        'assets/game/game.ts',
+        'assets/game/frame/frame.ts',
+        'assets/game/physics/world.ts',
+        'assets/game/director/director.ts',
+    ].map((path) =>
+        used(
+            path,
+            "export const found = import.meta.glob('../activities/*/*.ts', { eager: true });",
+            syntax,
+        ),
+    ),
+    used(
+        'assets/game/registry/behaviours.ts',
+        "export const found = import.meta.glob('../activities/*/*.ts', { eager: true });",
+    ),
+    used(
+        'assets/app.ts',
+        "export const found = import.meta.glob('./controllers/*.ts', { eager: true });",
+    ),
+    used(
+        'assets/game/brain/brain.ts',
+        'export const development = import.meta.env.DEV;',
+    ),
+    used(
+        'assets/game/registry/behaviours.ts',
+        "export const motor = await import('../motor/motor');",
+        syntax,
+    ),
+
+    // The director panel is development only: the Stimulus controller loads it, and no game
+    // module imports it, or it would reach the production bundle.
+    ...[
+        ['assets/game/game.ts', './director/director'],
+        ['assets/game/game.ts', './director'],
+        ['assets/game/brain/brain.ts', '../director/director'],
+        ['assets/game/lines/speaker.ts', '../director/panel'],
+        ['assets/game/registry/behaviours.ts', '../director/director'],
+        ['assets/game/physics/world.ts', '../director/director'],
+        ['assets/game/input/input.ts', '../../game/director/director'],
+    ].map(([path, from]) => imported(path ?? '', from ?? '', importRule)),
+    imported('assets/game/director/director.ts', './samples'),
+    imported('assets/game/director/director.ts', '../brain/engine'),
+    imported('assets/game/director/director.ts', '../events/event_bus'),
+    imported(
+        'assets/game/director/director.ts',
+        '../../controllers/game_controller',
+        importRule,
+    ),
+    imported(
+        'assets/controllers/game_controller.ts',
+        '../game/director/director',
+    ),
+    used(
+        'assets/controllers/game_controller.ts',
+        "export const director = await import('../game/director/director');",
+    ),
+
     // matter-js stays in the physics module, deep imports and dynamic imports included.
     ...[
         'assets/game/activities/climb.ts',

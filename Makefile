@@ -19,7 +19,7 @@ ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattribut
 	config deploy design docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests translations
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php js phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
+.PHONY: help up down check layout php js phpstan rector ecs twig tsc eslint stylelint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -56,7 +56,7 @@ vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES) $(CACHE)
 node_modules: package.json pnpm-lock.yaml $(IMAGES) | $(CACHE)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
-check: layout php js tsc eslint prettier deploy-test ## Run every check CI runs, tests and mutation testing included
+check: layout php js tsc eslint stylelint prettier deploy-test ## Run every check CI runs, tests and mutation testing included
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -169,6 +169,11 @@ tsc: node_modules
 eslint: node_modules
 	$(NODE) sh -c 'pnpm run lint && pnpm run lint:architecture'
 
+# The CUBE CSS conventions (config/tools/stylelint.config.ts), then the proof that each rule can
+# fail (tests/stylelint/rules.ts).
+stylelint: node_modules
+	$(NODE) sh -c 'pnpm run lint:css && pnpm run lint:css-rules'
+
 prettier: node_modules
 	$(NODE) $(PRETTIER) --check .
 
@@ -176,7 +181,7 @@ prettier: node_modules
 fmt: vendor node_modules ## Apply the automatic fixes
 	$(PHP) sh -c '$(WARM) && $(RECTOR) && $(ECS) --fix \
 		&& vendor/bin/twig-cs-fixer lint --fix --config $(TOOLS)/twig-cs-fixer.php'
-	$(NODE) pnpm run lint:fix
+	$(NODE) sh -c 'pnpm run lint:fix && pnpm run lint:css:fix'
 	$(NODE) $(PRETTIER) --write .
 
 hooks: ## Use the repo's git hooks

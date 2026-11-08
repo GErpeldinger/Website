@@ -1,0 +1,25 @@
+.ground {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--ground-size);
+    background: var(--ground);
+    border-top: 2px solid var(--line);
+}
+
+/* The dashed line just under the edge. */
+.ground::before {
+    content: '';
+    position: absolute;
+    top: var(--space-xs);
+    right: 0;
+    left: 0;
+    height: 4px;
+    background-image: linear-gradient(
+        90deg,
+        var(--line) 0 28px,
+        transparent 28px 56px
+    );
+    background-size: 56px 4px;
+}

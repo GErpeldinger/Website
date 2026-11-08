@@ -1,0 +1,40 @@
+/* The page's defaults, on bare elements: what a page without a class looks like. */
+html {
+    background: var(--bg);
+}
+
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: var(--step-0);
+    font-weight: var(--weight-regular);
+    line-height: 1.5;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+a {
+    color: inherit;
+}
+
+h1 {
+    color: var(--accent);
+    font-size: var(--step-name);
+    font-weight: var(--weight-heavy);
+    line-height: 0.96;
+    letter-spacing: -0.02em;
+}
+
+/* The name reads one word per line. */
+h1 > span {
+    display: block;
+}
+
+h2 {
+    font-size: var(--step-0);
+    font-weight: var(--weight-bold);
+}

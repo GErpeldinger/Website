@@ -1,0 +1,7 @@
+# Vite's default build target, 'baseline-widely-available' (docs/architecture.md, Decisions).
+# tests/stylelint/rules.ts fails when it stops matching what Vite resolves.
+chrome 111
+edge 111
+firefox 114
+safari 16.4
+ios_saf 16.4

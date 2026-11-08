@@ -1,0 +1,46 @@
+/* Baloo 2, latin subset (French and English), woff2 only: every browser of the build target reads it.
+   The files come from @fontsource/baloo-2 (SIL OFL 1.1) and Vite hashes them into /build/. */
+@font-face {
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../../node_modules/@fontsource/baloo-2/files/baloo-2-latin-400-normal.woff2')
+        format('woff2');
+}
+
+@font-face {
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../../node_modules/@fontsource/baloo-2/files/baloo-2-latin-500-normal.woff2')
+        format('woff2');
+}
+
+@font-face {
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('../../node_modules/@fontsource/baloo-2/files/baloo-2-latin-600-normal.woff2')
+        format('woff2');
+}
+
+@font-face {
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('../../node_modules/@fontsource/baloo-2/files/baloo-2-latin-700-normal.woff2')
+        format('woff2');
+}
+
+@font-face {
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('../../node_modules/@fontsource/baloo-2/files/baloo-2-latin-800-normal.woff2')
+        format('woff2');
+}

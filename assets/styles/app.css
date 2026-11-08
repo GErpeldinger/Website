@@ -1,0 +1,16 @@
+/* The cascade order is fixed here (docs/architecture.md, CUBE CSS). A file's layer is set by its import. */
+@layer reset, tokens, composition, utilities, blocks, exceptions;
+
+@import url('./fonts.css');
+@import url('./reset.css') layer(reset);
+@import url('./elements.css') layer(reset);
+@import url('./tokens.css') layer(tokens);
+@import url('./composition.css') layer(composition);
+@import url('./utilities.css') layer(utilities);
+@import url('./blocks/scene.css') layer(blocks);
+@import url('./blocks/backdrop.css') layer(blocks);
+@import url('./blocks/ground.css') layer(blocks);
+@import url('./blocks/pill.css') layer(blocks);
+@import url('./blocks/photo.css') layer(blocks);
+@import url('./blocks/card.css') layer(blocks);
+@import url('./blocks/board.css') layer(blocks);

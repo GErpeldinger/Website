@@ -17,6 +17,11 @@
         {{ vite_entry_script_tags('app') }}
     </head>
     <body>
-        {% block body %}{% endblock %}
+        <div class="scene">
+            {# The slot for the game's background, behind the content. #}
+            <div class="backdrop" aria-hidden="true"></div>
+            <div class="ground" aria-hidden="true"></div>
+            {% block body %}{% endblock %}
+        </div>
     </body>
 </html>

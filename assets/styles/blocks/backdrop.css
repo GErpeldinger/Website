@@ -1,0 +1,7 @@
+/* The slot for the game's background (the hologram): empty, behind the content, out of the way. */
+.backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}

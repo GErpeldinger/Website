@@ -6,5 +6,5 @@
         "allowImportingTsExtensions": true,
         "tsBuildInfoFile": "../../.cache/tsc/node.tsbuildinfo"
     },
-    "include": ["*.ts", "../../tests/eslint/*.ts"]
+    "include": ["*.ts", "../../tests/eslint/*.ts", "../../tests/stylelint/*.ts"]
 }

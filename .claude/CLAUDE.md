@@ -20,9 +20,9 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 `make` lists the targets. Every tool runs in Docker, so nothing is installed on the Mac:
 
 - `make up` and `make down`: the dev stack on https://localhost.
-- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), `tsc --noEmit` (with the game's pure modules compiled without the DOM), ESLint (type-aware, plus the game layer's architecture rules, proven by `tests/eslint/architecture.ts`), the Pest and Vitest tests, mutation testing (Pest, Stryker) of the PHP classes and TypeScript files changed since `origin/main`, Prettier, and the deploy script's tests (`make deploy-test`). CI runs the same, plus `make mutate-all` on all the code.
+- `make check`: `composer bump --dry-run` (constraints at the installed versions), PHPStan, Rector (dry run), ECS, the Twig checks (`lint:twig` in prod, twig-cs-fixer, TwigStan), `tsc --noEmit` (with the game's pure modules compiled without the DOM), ESLint (type-aware, plus the game layer's architecture rules, proven by `tests/eslint/architecture.ts`), Stylelint (the CUBE CSS conventions and the browser target, proven by `tests/stylelint/rules.ts`), the Pest and Vitest tests, mutation testing (Pest, Stryker) of the PHP classes and TypeScript files changed since `origin/main`, Prettier, and the deploy script's tests (`make deploy-test`). CI runs the same, plus `make mutate-all` on all the code.
 - `make test` and `make mutate`: the tests alone, and mutation testing alone, PHP then TypeScript. Locally, test impact analysis only runs the tests a change affects, except in agent worktrees, where git can't run inside the container.
-- `make fmt`: applies the Rector, ECS, twig-cs-fixer, ESLint and Prettier fixes.
+- `make fmt`: applies the Rector, ECS, twig-cs-fixer, ESLint, Stylelint and Prettier fixes.
 - `make hooks`: run once per clone. Commits then run `make check`, and their messages are checked.
 - `make prod-test`: builds and probes the production image on https://localhost:8443, next to the dev stack.
 

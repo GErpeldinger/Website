@@ -7,12 +7,16 @@
         "dev": "vite --config config/tools/vite.config.ts",
         "build": "vite build --config config/tools/vite.config.ts",
         "typecheck": "tsc --project config/tools/tsconfig.json && tsc --project config/tools/tsconfig.node.json && tsc --project config/tools/tsconfig.game.json",
-        "lint": "eslint --config config/tools/eslint.config.ts assets config/tools/*.ts tests/assets tests/eslint",
+        "lint": "eslint --config config/tools/eslint.config.ts assets config/tools/*.ts tests/assets tests/eslint tests/stylelint",
         "lint:fix": "pnpm run lint --fix",
         "test": "vitest run --config config/tools/vitest.config.ts",
-        "lint:architecture": "node tests/eslint/architecture.ts"
+        "lint:architecture": "node tests/eslint/architecture.ts",
+        "lint:css": "stylelint --config config/tools/stylelint.config.ts --cache --cache-location .cache/stylelint/ \"assets/**/*.css\"",
+        "lint:css:fix": "pnpm run lint:css --fix",
+        "lint:css-rules": "node tests/stylelint/rules.ts"
     },
     "dependencies": {
+        "@fontsource/baloo-2": "5.3.0",
         "@hotwired/stimulus": "3.2.2"
     },
     "devDependencies": {
@@ -25,6 +29,9 @@
         "eslint-config-prettier": "10.1.8",
         "happy-dom": "21.0.4",
         "prettier": "3.9.10",
+        "stylelint": "18.0.0",
+        "stylelint-config-standard": "41.0.0",
+        "stylelint-no-unsupported-browser-features": "8.1.2",
         "typescript": "6.0.3",
         "typescript-eslint": "8.72.1",
         "vite": "8.3.6",

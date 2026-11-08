@@ -1,32 +1,34 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
-    <main data-controller="game">
-        <header>
-            <p data-physics="block" data-weight="light">{{ 'home.greeting'|trans }}</p>
+    <main class="l-stage" data-controller="game">
+        <header class="l-stack">
+            <p class="u-step-1 u-weight-medium u-text-muted" data-physics="block" data-weight="light">{{ 'home.greeting'|trans }}</p>
             <h1>{{ include('partials/letters.html.twig', {text: 'site.name'|trans}) }}</h1>
-            <p data-physics="block" data-weight="light">{{ 'home.role'|trans }}</p>
+            <p class="u-step-2 u-weight-bold u-leading-tight" data-physics="block" data-weight="light">{{ 'home.role'|trans }}</p>
             <nav aria-label="{{ 'home.links'|trans }}">
-                <ul>
-                    <li><a href="https://www.linkedin.com/in/guillaumeerpeldinger/" data-physics="link">LinkedIn</a></li>
-                    <li><a href="https://github.com/GErpeldinger" data-physics="link">GitHub</a></li>
+                <ul class="l-cluster">
+                    <li><a class="pill" href="https://www.linkedin.com/in/guillaumeerpeldinger/" data-physics="link">LinkedIn</a></li>
+                    <li><a class="pill" href="https://github.com/GErpeldinger" data-physics="link">GitHub</a></li>
                 </ul>
             </nav>
         </header>
 
-        <div data-physics="block" data-breakable="true">{{ 'home.photo'|trans }}</div>
-        <p data-physics="block" data-breakable="true">{{ 'home.intro'|trans }}</p>
+        <div class="l-stack">
+            <div class="photo" data-physics="block" data-breakable="true">{{ 'home.photo'|trans }}</div>
+            <p class="card" data-physics="block" data-breakable="true">{{ 'home.intro'|trans }}</p>
 
-        <section aria-labelledby="board-title" data-physics="block" data-breakable="true">
-            <h2 id="board-title">{{ 'board.title'|trans }}</h2>
-            <dl>
-                {{ include('partials/counter.html.twig', {label: 'board.bombs'|trans}) }}
-                {{ include('partials/counter.html.twig', {label: 'board.tornadoes'|trans}) }}
-                {{ include('partials/counter.html.twig', {label: 'board.throws'|trans}) }}
-                {{ include('partials/counter.html.twig', {label: 'board.repairs'|trans}) }}
-                {{ include('partials/counter.html.twig', {label: 'board.online'|trans}) }}
-            </dl>
-            <p>{{ 'board.note'|trans }}</p>
-        </section>
+            <section class="board" aria-labelledby="board-title" data-physics="block" data-breakable="true">
+                <h2 id="board-title">{{ 'board.title'|trans }}</h2>
+                <dl>
+                    {{ include('partials/counter.html.twig', {label: 'board.bombs'|trans}) }}
+                    {{ include('partials/counter.html.twig', {label: 'board.tornadoes'|trans}) }}
+                    {{ include('partials/counter.html.twig', {label: 'board.throws'|trans}) }}
+                    {{ include('partials/counter.html.twig', {label: 'board.repairs'|trans}) }}
+                    {{ include('partials/counter.html.twig', {label: 'board.online'|trans}) }}
+                </dl>
+                <p>{{ 'board.note'|trans }}</p>
+            </section>
+        </div>
     </main>
 {% endblock %}

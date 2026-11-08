@@ -13,20 +13,17 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 ## Foundations
 
-- Self-host the fonts (subsetted woff2 through Vite) when the CSS foundation lands.
-- Keep Vite's default `baseline-widely-available` build target, and give Stylelint and the CSS checks the matching browserslist.
 - Add the licence file (MIT for the code, the illustrations excepted), and set `license` to MIT in composer.json and package.json (composer.json says `proprietary`).
 - `composer audit` and `pnpm audit` in CI: `pnpm audit --prod` with an audit level, an ignore list whose entries expire, and an explicit Composer `audit.abandoned` policy, so one unfixable advisory can't block every deploy.
 - A performance budget in CI: a first-load JavaScript size cap and a load-time target, with the numbers set from the first real build.
 - End-to-end tests with Playwright (decided earlier: the official image, against the built assets), then accessibility checks in CI: axe-core on every page (zero violations), a keyboard-only test of every game action, and contrast checked for each time-of-day palette.
-- The CSS foundation once the visual direction is chosen: the design tokens from it, the CUBE layers, and Stylelint in `make check` enforcing them (class names per layer, no IDs, state only through data attributes, colours and spacing only from the tokens).
 - Enforce "no user-facing literal in a template" with a twig-cs-fixer or TwigStan rule.
 - On the next Pest upgrade, check whether `--no-tia` now reaches the parallel workers. If it does, the Makefile can pass it in worktrees again instead of the `.git` guard in tests/Pest.php.
 
 ## Content
 
 - Launch blocker, with the allowlist removal: replace the photo and intro placeholders on the home page (`home.photo`, `home.intro` in both catalogues) with the real portrait and text, so the owner notes never ship publicly.
-- Wire the board's counters to the live values (the live board item below); they render an em dash until then, which has no accessible value. When the board lands, give each counter a spoken value: the dash `aria-hidden` plus visually hidden text, which needs the CSS foundation's visually-hidden utility.
+- Wire the board's counters to the live values (the live board item below); they render an em dash until then, which has no accessible value. When the board lands, give each counter a spoken value: the dash `aria-hidden` plus visually hidden text, with the `u-visually-hidden` utility.
 - Make the physics-hook values a single source for the engine and the test once the engine reads them, instead of the table in docs and the lists in `HomeControllerTest`.
 
 ## Game layer

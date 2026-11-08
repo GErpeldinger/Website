@@ -1,0 +1,45 @@
+/* The live counters, in a gold-bordered box. */
+.board {
+    width: 100%;
+    max-width: var(--panel-width);
+    padding: var(--space-s) var(--space-m);
+    background: var(--ground);
+    border: 2px solid var(--hat);
+    border-radius: var(--radius-s);
+}
+
+.board h2 {
+    margin-block-end: var(--space-xs);
+    color: var(--hat);
+}
+
+.board dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3xs) var(--space-m);
+}
+
+.board dl > div {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.board dt {
+    color: var(--muted);
+    font-size: var(--step-s);
+}
+
+.board dd {
+    font-size: var(--step-0);
+    font-weight: var(--weight-bold);
+    font-variant-numeric: tabular-nums;
+}
+
+.board p {
+    margin-block-start: var(--space-2xs);
+    color: var(--muted);
+    font-size: var(--step-xs);
+    line-height: 1.25;
+}

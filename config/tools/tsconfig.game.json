@@ -10,6 +10,11 @@
         "../../assets/game/activities",
         "../../assets/game/ports",
         "../../assets/game/clock",
-        "../../assets/game/events"
+        "../../assets/game/events",
+        "../../tests/assets/game/brain",
+        "../../tests/assets/game/activities",
+        "../../tests/assets/game/ports",
+        "../../tests/assets/game/clock",
+        "../../tests/assets/game/events"
     ]
 }

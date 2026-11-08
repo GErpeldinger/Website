@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { ESLint } from 'eslint';
 import tseslint from 'typescript-eslint';
+import { pureModules } from '../../config/tools/game-modules.ts';
 
 // Each architecture rule must be able to fail: a violating file is reported once, by that rule,
 // and a compliant one passes. The files are linted from memory, at the paths the rules apply to,
@@ -282,16 +283,20 @@ const config = JSON.parse(
     include?: string[];
 };
 
-for (const folder of ['brain', 'activities', 'ports', 'clock', 'events']) {
-    if (
-        !config.include?.some((entry) =>
-            entry.endsWith(`assets/game/${folder}`),
-        )
-    ) {
-        failures.push(
-            `tsconfig.game.json does not include assets/game/${folder}`,
-        );
-    }
+const expected = pureModules
+    .flatMap((folder) => [
+        `assets/game/${folder}`,
+        `tests/assets/game/${folder}`,
+    ])
+    .sort();
+const included = (config.include ?? [])
+    .map((entry) => entry.replace(/^(\.\.\/)+/, ''))
+    .sort();
+
+if (JSON.stringify(included) !== JSON.stringify(expected)) {
+    failures.push(
+        `tsconfig.game.json includes ${included.join(', ')}, not the pure modules and their tests: ${expected.join(', ')}`,
+    );
 }
 
 if (failures.length > 0) {

@@ -1,0 +1,33 @@
+{
+    "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/api/schema/stryker-core.json",
+    "testRunner": "vitest",
+    "vitest": {
+        "configFile": "config/tools/vitest.config.ts"
+    },
+    "checkers": ["typescript"],
+    "tsconfigFile": "config/tools/tsconfig.json",
+    "mutate": ["assets/**/*.ts", "!assets/app.ts"],
+    "coverageAnalysis": "perTest",
+    "incremental": true,
+    "incrementalFile": ".cache/stryker/incremental.json",
+    "tempDirName": ".cache/stryker/tmp",
+    "cleanTempDir": true,
+    "reporters": ["clear-text"],
+    "thresholds": {
+        "high": 100,
+        "low": 100,
+        "break": 100
+    },
+    "ignoreStatic": false,
+    "plugins": [
+        "@stryker-mutator/vitest-runner",
+        "@stryker-mutator/typescript-checker"
+    ],
+    "ignorePatterns": [
+        "**",
+        "!assets/**",
+        "!tests/assets/**",
+        "!config/tools/**",
+        "!package.json"
+    ]
+}

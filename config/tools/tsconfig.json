@@ -16,5 +16,5 @@
         "incremental": true,
         "tsBuildInfoFile": "../../.cache/tsc/tsbuildinfo"
     },
-    "include": ["../../assets"]
+    "include": ["../../assets", "../../tests/assets"]
 }

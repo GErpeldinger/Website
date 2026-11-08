@@ -9,13 +9,17 @@ WORKTREES := .claude/worktrees
 CACHE := .cache
 BASE ?= origin/main
 
+# Sources under assets/ without a test: the Vite entry (only wiring), and the placeholder that keeps
+# tsconfig.game.json non-empty until the first game module lands. Declaration files are exempt too.
+MIRROR_EXEMPT := assets/app.ts assets/game/ports/index.ts
+
 # Tracked root entries. A new one goes here on purpose; tool configs go in config/tools/.
 ROOT := .claude .dockerignore .editorconfig .env .env.dev .env.test .gitattributes .githooks .github .gitignore \
 	Dockerfile Makefile assets bin compose.override.yaml compose.prod.yaml compose.yaml composer.json composer.lock \
 	config deploy docs frankenphp package.json pnpm-lock.yaml public src symfony.lock templates tests
 
 .DEFAULT_GOAL := help
-.PHONY: help up down check layout php phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
+.PHONY: help up down check layout php js phpstan rector ecs twig tsc eslint test mutate mutate-all prettier fmt hooks clean-tree fold prod-test deploy-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{ printf "  %-10s %s\n", $$1, $$2 }'
@@ -52,7 +56,7 @@ vendor: composer.json composer.lock $(IMAGES) | $(WORKTREES) $(CACHE)
 node_modules: package.json pnpm-lock.yaml $(IMAGES) | $(CACHE)
 	$(NODE) sh -c 'pnpm install --frozen-lockfile && touch node_modules'
 
-check: layout php tsc eslint prettier deploy-test ## Run every check CI runs, tests and mutation testing included
+check: layout php js tsc eslint prettier deploy-test ## Run every check CI runs, tests and mutation testing included
 
 layout:
 	@extra=$$(git ls-files | cut -d/ -f1 | sort -u | grep -vxF $(addprefix -e ,$(ROOT)) || :); \
@@ -65,6 +69,13 @@ layout:
 		| while read -r test; do [ -f "$$test" ] || echo "$$test"; done); \
 	if [ -n "$$missing" ]; then \
 		echo "Every class in src/ has its test at the mirrored path. Missing: $$missing" >&2; \
+		exit 1; \
+	fi
+	@missing=$$(git ls-files 'assets/*.ts' ':!assets/*.d.ts' | grep -vxF $(addprefix -e ,$(MIRROR_EXEMPT)) \
+		| sed -e 's#^assets/#tests/assets/#' -e 's#\.ts$$#.test.ts#' \
+		| while read -r test; do [ -f "$$test" ] || echo "$$test"; done); \
+	if [ -n "$$missing" ]; then \
+		echo "Every TypeScript source in assets/ has its test at the mirrored path. Missing: $$missing" >&2; \
 		exit 1; \
 	fi
 
@@ -96,6 +107,15 @@ CHANGED_CLASSES = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
 		git ls-files --others --exclude-standard -- 'src/*.php'; } \
 	| sed -e 's|^src/||' -e 's|\.php$$||' -e 's|/|\\|g' -e 's|^|App\\|' | paste -sd, -)
 
+# The same rule for the TypeScript sources Stryker mutates. --mutate replaces the list in
+# config/tools/stryker.config.json, so the entry and the declaration files are excluded here too.
+CHANGED_TS = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
+	&& { git diff --name-only --diff-filter=ACMR --merge-base $(BASE) -- 'assets/*.ts' ':!assets/app.ts' ':!assets/*.d.ts'; \
+		git ls-files --others --exclude-standard -- 'assets/*.ts' ':!assets/app.ts' ':!assets/*.d.ts'; } \
+	| paste -sd, -)
+STRYKER := pnpm exec stryker run $(TOOLS)/stryker.config.json
+VITEST := pnpm run test
+
 # The forced command of the deploy key, against a fake docker: it only needs a shell and tar.
 deploy-test: $(IMAGES)
 	$(PHP) sh deploy/test.sh
@@ -105,6 +125,10 @@ deploy-test: $(IMAGES)
 php: vendor
 	$(PHP) sh -c '$(BUMPED) && $(WARM) && $(PHPSTAN) && $(RECTOR) --dry-run && $(ECS) \
 		&& $(TWIG) && $(PEST) $(if $(CHANGED_CLASSES),$(MUTATE) --class="$(CHANGED_CLASSES)")'
+
+# The tests, then the mutation testing of the changed TypeScript sources.
+js: node_modules
+	$(NODE) sh -c '$(VITEST)$(if $(CHANGED_TS), && $(STRYKER) --mutate "$(CHANGED_TS)")'
 
 phpstan: vendor
 	$(PHP) sh -c '$(WARM) && $(PHPSTAN)'
@@ -119,15 +143,19 @@ twig: vendor
 	$(PHP) sh -c '$(WARM) && $(TWIG)'
 
 # Locally, tests/Pest.php turns on test impact analysis: only the tests a change affects run.
-test: vendor ## Run the tests
+test: vendor node_modules ## Run the PHP and JavaScript tests
 	$(PHP) $(PEST)
+	$(NODE) $(VITEST)
 
-mutate: vendor ## Mutation-test the PHP classes changed since BASE (origin/main)
+mutate: vendor node_modules ## Mutation-test the PHP classes and TypeScript sources changed since BASE (origin/main)
 	@$(if $(CHANGED_CLASSES),$(PHP) $(PEST) $(MUTATE) --class="$(CHANGED_CLASSES)",echo "Mutation testing: no PHP class changed since $(BASE).")
+	@$(if $(CHANGED_TS),$(NODE) $(STRYKER) --mutate "$(CHANGED_TS)",echo "Mutation testing: no TypeScript source changed since $(BASE).")
 
-# On CI, every class, including any that no test declares with covers().
-mutate-all: vendor
+# On CI, every class and every TypeScript source, including any that no test declares with covers().
+# --force: Stryker's incremental results miss a change to a helper, an imported module or the config.
+mutate-all: vendor node_modules
 	$(PHP) $(PEST) $(MUTATE) --everything
+	$(NODE) $(STRYKER) --force
 
 # package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
 PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore

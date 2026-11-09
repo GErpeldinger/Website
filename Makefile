@@ -113,6 +113,9 @@ CHANGED_TS = $(shell git rev-parse --verify --quiet $(BASE) >/dev/null \
 	&& { git diff --name-only --diff-filter=ACMR --merge-base $(BASE) -- 'assets/*.ts' ':!assets/app.ts' ':!assets/*.d.ts'; \
 		git ls-files --others --exclude-standard -- 'assets/*.ts' ':!assets/app.ts' ':!assets/*.d.ts'; } \
 	| paste -sd, -)
+# Incremental mode only for mutate-all (--incremental): Stryker 10.1.1 keeps a static mutant's
+# survival after the test that kills it is written, and counts stale results of files it doesn't
+# mutate. CI saves its cache only after a green job, so no survivor gets in there.
 STRYKER := pnpm exec stryker run $(TOOLS)/stryker.config.json
 VITEST := pnpm run test
 
@@ -153,10 +156,10 @@ mutate: vendor node_modules ## Mutation-test the PHP classes and TypeScript sour
 
 # On CI, every class and every TypeScript source, including any that no test declares with covers().
 # FORCE=1 redoes every mutant: Stryker's incremental results miss a change to a helper, an imported
-# module or the config.
+# module or the config. Run it with FORCE=1 locally too: a failed run leaves survivors in the cache.
 mutate-all: vendor node_modules
 	$(PHP) $(PEST) $(MUTATE) --everything
-	$(NODE) $(STRYKER)$(if $(FORCE), --force)
+	$(NODE) $(STRYKER) --incremental$(if $(FORCE), --force)
 
 # package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
 PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore

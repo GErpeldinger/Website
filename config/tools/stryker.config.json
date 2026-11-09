@@ -8,7 +8,7 @@
     "tsconfigFile": "config/tools/tsconfig.json",
     "mutate": ["assets/**/*.ts", "!assets/app.ts"],
     "coverageAnalysis": "perTest",
-    "incremental": true,
+    "incremental": false,
     "incrementalFile": ".cache/stryker/incremental.json",
     "tempDirName": ".cache/stryker/tmp",
     "cleanTempDir": true,

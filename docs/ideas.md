@@ -17,6 +17,8 @@ Not planned work. An idea moves to [todo.md](todo.md) once decided.
 - A hammock strung between two elements as his bed.
 - Ghost monkeys for other players' cursors in multiplayer.
 - After the burnt line "That was my last cigarette.", he takes his car to go and buy cigarettes. It ties in with the planned car, and perhaps with the cigarette arc.
+- In a multiplayer session, players' screens differ in size: he can walk off a smaller screen while the player with the largest one still sees him, and comments on the small-screen player.
+- Remarks when the page size changes: the visitor resizes the window, or opens the developer tools.
 
 ## Physics
 

@@ -311,6 +311,24 @@ export class PhysicsWorld {
         );
     }
 
+    // The loose pieces he could carry home now, with where each lies: not held by the visitor,
+    // not already in his hands.
+    loose(): { id: number; x: number }[] {
+        return [...this.#pieces.values()]
+            .filter(
+                (piece) =>
+                    !piece.pinned &&
+                    !piece.taken &&
+                    this.#held?.piece !== piece,
+            )
+            .map((piece) => ({ id: piece.id, x: piece.body.position.x }));
+    }
+
+    // Every piece is back at home and pinned: none loose, held or carried.
+    allHome(): boolean {
+        return [...this.#pieces.values()].every((piece) => piece.pinned);
+    }
+
     // The monkey lifts a loose piece: it collides with nothing and goes where `carry` puts it.
     // False if it is pinned, held by the visitor or already taken.
     take(id: number): boolean {

@@ -39,3 +39,39 @@ stormTool:
 float:
     - 'Qui a coupé la gravité ?'
     - 'Remets ça. Je ne plaisante pas.'
+back:
+    - 'J’arrive ! Personne ne touche à rien.'
+    - 'Allez. C’est reparti.'
+    - 'Encore ?!'
+build:
+    - 'Une pièce à la fois…'
+    - 'Ça, ça va là.'
+    - 'Hop.'
+done:
+    - 'Voilà. Comme si de rien n’était.'
+    - 'Tu sais que je repars de zéro à chaque fois ?'
+    - 'Terminé. Et le site n’est jamais tombé.'
+    - 'Prêt pour la prochaine bêtise.'
+cancel:
+    - 'Sérieusement ?! Je venais de finir ça !'
+    - 'Mais je TRAVAILLE, là !'
+lazyBack:
+    - 'Bon… Puisque personne ne le fait.'
+    - 'Pfff. Je suppose que c’est encore pour moi.'
+    - 'Je vais ranger. Lentement.'
+lazy:
+    - 'Pfff…'
+    - 'Mon dos…'
+    - 'Une petite pause clope.'
+    - 'Qui a lancé ça si loin ?'
+    - 'Je ne suis pas payé assez pour ça.'
+    - 'Celle-là, elle peut attendre.'
+lazyStop:
+    - 'Tu vois ? C’est pour ça que je ne me presse pas.'
+    - 'Super. Je laisse comme ça, alors.'
+hurry:
+    - 'Ah, tu veux que je me dépêche ? D’accord.'
+    - 'Oui oui, j’accélère.'
+lazyDone:
+    - 'Voilà. Personne ne m’a aidé, hein.'
+    - 'Fini. Je vais m’asseoir.'

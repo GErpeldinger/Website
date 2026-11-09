@@ -23,6 +23,8 @@ export const eventSamples: { [Name in keyof GameEvents]: GameEvents[Name] } = {
     'tornado.started': { x: 500 },
     'tornado.ended': undefined,
     'gravity.changed': { zero: true },
+    'rebuild.requested': undefined,
+    'visitor.idle': undefined,
     'behaviour.started': {
         actor: 'monkey',
         id: 'monkey/example',

@@ -58,6 +58,10 @@ export interface GameEvents {
     'tornado.started': { x: number };
     'tornado.ended': undefined;
     'gravity.changed': { zero: boolean };
+    // The visitor pressed Rebuild (the dock, the director panel): the monkey tidies up in a hurry.
+    'rebuild.requested': undefined;
+    // The visitor has touched nothing for a while: the monkey may tidy up on his own.
+    'visitor.idle': undefined;
     // The Brain started a behaviour; `resumed` when an interrupted activity went on.
     'behaviour.started': {
         actor: string;

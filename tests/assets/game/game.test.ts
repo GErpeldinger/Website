@@ -12,6 +12,10 @@ import type { LineBook } from '../../../assets/game/lines/speaker';
 import { FakeMotor } from '../../../assets/game/ports/fake_motor';
 import type { MonkeyRequest } from '../../../assets/game/ports/monkey';
 import type { Motor } from '../../../assets/game/ports/motor';
+import hurry from '../../../assets/game/activities/monkey/hurry';
+import lazyStop from '../../../assets/game/activities/monkey/lazy_stop';
+import lazyRebuild from '../../../assets/game/activities/monkey/lazy_rebuild';
+import rebuild from '../../../assets/game/activities/monkey/rebuild';
 import smoke from '../../../assets/game/activities/monkey/smoke';
 import { byId, rect, select } from './dom';
 import { FakeBrowser } from './frame/fake_environment';
@@ -51,6 +55,8 @@ const names = [
     'tornado.started',
     'tornado.ended',
     'gravity.changed',
+    'rebuild.requested',
+    'visitor.idle',
 ] as const satisfies readonly (keyof GameEvents)[];
 
 interface Options {
@@ -282,7 +288,8 @@ describe('grabbing and throwing', () => {
         pointer(window, 'pointermove', 100, 100);
 
         expect(names('item.grabbed')).toEqual([]);
-        expect(browser.requested).toBe(0);
+        // A press wakes the loop once, for the silence timer: nothing more.
+        expect(browser.requested).toBe(1);
         // The browser keeps its own text selection and link drag there.
         expect(locked.defaultPrevented).toBe(false);
         expect(plain.defaultPrevented).toBe(false);
@@ -1186,7 +1193,7 @@ describe('the monkey', () => {
         pointer(window, 'pointerup', 64, 765, 40);
 
         expect(names('monkey.grabbed')).toEqual([]);
-        expect(browser.requested).toBe(0);
+        expect(browser.requested).toBe(1);
     });
 
     it('is the only thing a press on him takes, not the piece under the pointer', () => {
@@ -1296,5 +1303,228 @@ describe('the monkey', () => {
         expect(outcomes).toEqual(['done', 'done']);
         expect(get('block').dataset.state).toBe('pinned');
         expect(monkey().dataset.pose).toBe('stand');
+    });
+});
+
+describe('the rebuild', () => {
+    const pools = Object.fromEntries(
+        ['back', 'build', 'done', 'lazyBack', 'lazy', 'lazyDone', 'hurry'].map(
+            (key) => [key, [key]],
+        ),
+    );
+    const behaviours = [
+        { ...rebuild, id: 'monkey/rebuild' },
+        { ...lazyRebuild, id: 'monkey/lazy_rebuild' },
+    ];
+    const lines: LineBook = { locale: 'en', pools };
+
+    // Throws the block and the link, which come to rest on the floor, loose.
+    const breakPieces = ({
+        get,
+        run,
+        pointer,
+    }: Pick<Harness, 'get' | 'run' | 'pointer'>): void => {
+        pointer(get('block'), 'pointerdown', 500, 300, 0);
+        pointer(window, 'pointermove', 520, 300, 8);
+        pointer(window, 'pointerup', 520, 300, 400);
+        pointer(get('link'), 'pointerdown', 500, 600, 0);
+        pointer(window, 'pointermove', 520, 600, 8);
+        pointer(window, 'pointerup', 520, 600, 400);
+        run();
+    };
+
+    it('is asked for by the page, wipes the marks and brings every piece home', () => {
+        const harness = setup({ behaviours, lines });
+        const { game, get, names, run } = harness;
+        game.bomb({ x: 900, y: 100 });
+        run(100);
+        breakPieces(harness);
+        expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(1);
+
+        game.rebuild();
+
+        expect(names('rebuild.requested')).toEqual([undefined]);
+        expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(0);
+        run();
+        expect(names('item.restored')).toHaveLength(2);
+        expect(get('block').dataset.state).toBe('pinned');
+        expect(get('link').dataset.state).toBe('pinned');
+    });
+
+    it('does nothing once the game has stopped', () => {
+        const { game, names } = setup({ behaviours, lines });
+        game.stop();
+
+        game.rebuild();
+
+        expect(names('rebuild.requested')).toEqual([]);
+    });
+
+    it('wipes the marks when the last piece is home, whoever put it there', () => {
+        const { game, get, run, pointer } = setup();
+        pointer(get('block'), 'pointerdown', 500, 300, 0);
+        pointer(window, 'pointermove', 520, 300, 8);
+        pointer(window, 'pointerup', 520, 300, 400);
+        game.bomb({ x: 900, y: 100 });
+        run(100);
+        // The block is loose, and so is the link, which the throw knocked off.
+        expect(get('link').dataset.state).toBe('loose');
+        expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(1);
+
+        game.restore(0);
+        expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(1);
+        game.restore(2);
+
+        expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(0);
+    });
+
+    it('tells the visitor’s silence fifteen seconds after the last key or press', () => {
+        const { game, names, browser, run } = setup();
+
+        window.dispatchEvent(new KeyboardEvent('keydown'));
+        run();
+        // The Brain's own idle timer comes first, every 5 s: let the game time go by.
+        for (let i = 0; i < 5 && names('visitor.idle').length === 0; i++) {
+            browser.fireTimeout();
+            run();
+        }
+
+        expect(names('visitor.idle')).toEqual([undefined]);
+        expect(game.engine.clock.now()).toBeGreaterThanOrEqual(15_000);
+        expect(game.engine.clock.now()).toBeLessThan(15_100);
+    });
+
+    it('counts a press, even one the page stops from bubbling', () => {
+        const { game, get, names, browser, run, pointer } = setup();
+        get('plain').addEventListener('pointerdown', (event) => {
+            event.stopPropagation();
+        });
+
+        pointer(get('plain'), 'pointerdown', 10, 10);
+        run();
+        for (let i = 0; i < 5 && names('visitor.idle').length === 0; i++) {
+            browser.fireTimeout();
+            run();
+        }
+
+        expect(names('visitor.idle')).toEqual([undefined]);
+        expect(game.engine.clock.now()).toBeGreaterThanOrEqual(15_000);
+    });
+
+    it('does not tell the silence of a visitor who never touched anything', () => {
+        const { names, browser, run } = setup();
+
+        run();
+        for (let i = 0; i < 8; i++) {
+            browser.fireTimeout();
+            run();
+        }
+
+        expect(names('visitor.idle')).toEqual([]);
+    });
+
+    it('keeps the loop awake only while he carries, not while he rests between pieces', () => {
+        const resting: Behaviour = {
+            id: 'monkey/resting',
+            actor: 'monkey',
+            kind: 'activity',
+            priority: 40,
+            triggers: ['visitor.idle'],
+            canStart: () => true,
+            *run(): Run<MonkeyRequest> {
+                yield { type: 'carry', piece: 0 };
+                yield { type: 'place', piece: 0 };
+                yield wait(2000);
+                yield { type: 'carry', piece: 2 };
+                yield { type: 'place', piece: 2 };
+            },
+        };
+        const harness = setup({ behaviours: [resting], lines });
+        const { game, names, browser, run } = harness;
+        breakPieces(harness);
+
+        game.events.emit('visitor.idle', undefined);
+        run();
+
+        // One piece is home and he rests: a game timer is all that is left, not a frame a tick.
+        expect(names('item.restored')).toHaveLength(1);
+        expect(browser.pending).toBe(false);
+        const [rest] = [...browser.timeouts.values()];
+        expect(rest?.delay).toBeGreaterThan(0);
+        expect(rest?.delay).toBeLessThanOrEqual(2000);
+
+        browser.fireTimeout();
+        run();
+        expect(names('item.restored')).toHaveLength(2);
+        expect(browser.pending).toBe(false);
+    });
+
+    it('brings every piece home when a hurry cuts a lazy rebuild short, carrying', () => {
+        const all = [
+            ...behaviours,
+            { ...hurry, id: 'monkey/hurry' },
+            { ...lazyStop, id: 'monkey/lazy_stop' },
+        ];
+        const harness = setup({
+            behaviours: all,
+            lines: {
+                locale: 'en',
+                pools: { ...pools, lazyStop: ['lazyStop'] },
+            },
+        });
+        const { game, names, run } = harness;
+        breakPieces(harness);
+        game.events.emit('visitor.idle', undefined);
+        for (
+            let i = 0;
+            i < 2000 && document.querySelector('[data-pose="carry"]') === null;
+            i++
+        ) {
+            run(1);
+        }
+
+        game.rebuild();
+        run();
+
+        expect(names('item.restored')).toHaveLength(2);
+    });
+
+    it('measures the silence from the real time of the press, not from where a sleeping clock stood', () => {
+        const { names, browser, run } = setup();
+        run();
+        // The real time each timeout was set at, to measure the wait it asks for.
+        const setAt = new Map<number, number>();
+        const original = browser.timeout.bind(browser);
+        browser.timeout = (callback, delay): number => {
+            const handle = original(callback, delay);
+            setAt.set(handle, browser.time);
+            return handle;
+        };
+        // 4 s of real time go by while the loop sleeps, then a key.
+        browser.time += 4000;
+        const keyAt = browser.time;
+        window.dispatchEvent(new KeyboardEvent('keydown'));
+        const frames = (): void => {
+            for (let n = 0; n < 2000 && browser.pending; n++) {
+                browser.frame(browser.time + 1000 / 60);
+            }
+        };
+        frames();
+        for (let i = 0; i < 10 && names('visitor.idle').length === 0; i++) {
+            const [entry] = [...browser.timeouts];
+            if (!entry) {
+                break;
+            }
+            const [handle, timeout] = entry;
+            browser.time = Math.max(
+                browser.time,
+                (setAt.get(handle) ?? 0) + timeout.delay,
+            );
+            browser.fireTimeout();
+            frames();
+        }
+
+        expect(names('visitor.idle')).toEqual([undefined]);
+        expect(browser.time - keyAt).toBeGreaterThanOrEqual(15_000);
     });
 });

@@ -507,6 +507,40 @@ describe('a piece he takes', () => {
         expect(world.piece(1)).toMatchObject({ taken: true, held: false });
     });
 
+    it('lists the loose pieces he could carry, not those pinned, held or in his hands', () => {
+        const { world } = setup({
+            specs: [spec(1, 600, 300), spec(2, 200, 300), spec(3, 800, 300)],
+        });
+        expect(world.loose()).toEqual([]);
+
+        world.grab(1, { x: 600, y: 300 });
+        expect(world.loose()).toEqual([]);
+        world.release({ x: 0, y: 0 });
+        world.grab(2, { x: 200, y: 300 });
+        world.release({ x: 0, y: 0 });
+        world.grab(3, { x: 800, y: 300 });
+        expect(world.loose().map(({ id }) => id)).toEqual([1, 2]);
+        expect(world.loose()[1]?.x).toBeCloseTo(200, 0);
+
+        world.take(2);
+        expect(world.loose().map(({ id }) => id)).toEqual([1]);
+        world.restore(1);
+        expect(world.loose()).toEqual([]);
+    });
+
+    it('has every piece home only when none is loose, held or in his hands', () => {
+        const { world } = setup({ specs: [spec(1, 600, 300)] });
+        expect(world.allHome()).toBe(true);
+
+        world.grab(1, { x: 600, y: 300 });
+        expect(world.allHome()).toBe(false);
+        world.release({ x: 0, y: 0 });
+        world.take(1);
+        expect(world.allHome()).toBe(false);
+        world.restore(1);
+        expect(world.allHome()).toBe(true);
+    });
+
     it('can only be a loose piece, taken once', () => {
         const { world } = setup({ specs: [spec(1, 600, 300)] });
 

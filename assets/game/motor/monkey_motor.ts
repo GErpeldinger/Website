@@ -94,6 +94,11 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
         this.#options = options;
     }
 
+    // The piece in his hands, if any: a carry cut short leaves it overhead.
+    get carrying(): number | undefined {
+        return this.#carried?.id;
+    }
+
     // A request that needs a frame each time is pending: the loop must go on.
     get busy(): boolean {
         return this.#task?.poll !== undefined;

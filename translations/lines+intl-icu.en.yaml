@@ -39,3 +39,39 @@ stormTool:
 float:
     - 'Who turned off gravity?'
     - 'Put it back. I’m not joking.'
+back:
+    - 'Coming! Nobody touch anything.'
+    - 'Right. Here we go again.'
+    - 'Again?!'
+build:
+    - 'One piece at a time…'
+    - 'This goes here.'
+    - 'Hop.'
+done:
+    - 'There. As if nothing happened.'
+    - 'You know I start from scratch every time?'
+    - 'Done. And the site never went down.'
+    - 'Ready for your next bad idea.'
+cancel:
+    - 'Seriously?! I just finished that!'
+    - 'I’m WORKING here!'
+lazyBack:
+    - 'Well… since nobody else is doing it.'
+    - 'Sigh. I guess it’s on me again.'
+    - 'I’ll tidy up. Slowly.'
+lazy:
+    - 'Sigh…'
+    - 'My back…'
+    - 'Quick smoke break.'
+    - 'Who threw this so far?'
+    - 'I don’t get paid enough for this.'
+    - 'That one can wait.'
+lazyStop:
+    - 'See? That’s why I don’t rush.'
+    - 'Great. I’ll just leave it like that, then.'
+hurry:
+    - 'Oh, you want me to hurry? Fine.'
+    - 'Yes, yes, speeding up.'
+lazyDone:
+    - 'There. Nobody helped me, by the way.'
+    - 'Done. I’m going to sit down.'

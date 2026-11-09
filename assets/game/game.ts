@@ -5,6 +5,7 @@ import { EventBus } from './events/event_bus';
 import type { GameEvents, Point } from './events/game_events';
 import { Frame, type FrameEnvironment } from './frame/frame';
 import { Input } from './input/input';
+import { Quiet } from './input/quiet';
 import type { LineBook } from './lines/speaker';
 import { Monkey } from './monkey/monkey';
 import {
@@ -25,6 +26,8 @@ import { Shake } from './page/shake';
 import type { Bounds } from './physics/bodies';
 import type { MonkeyBody } from './physics/monkey_body';
 import { MONKEY, PhysicsWorld } from './physics/world';
+import { monkeyActivity } from './ports/monkey_activity';
+import { monkeyPieces } from './ports/monkey_pieces';
 import { monkeyWorld } from './ports/monkey_world';
 import { registered } from './registry/behaviours';
 
@@ -42,6 +45,9 @@ export interface Game {
     restore(id: number): void;
     // Wipes the marks bombs left, as the Rebuild does.
     clearScorches(): void;
+    // Asks the monkey to carry every broken piece home (`rebuild.requested`), or, if he is
+    // already tidying slowly, to hurry.
+    rebuild(): void;
     stop(): void;
 }
 
@@ -64,6 +70,8 @@ const MAX_SCORCHES = 12;
 const SHAKE = 16;
 // Where the monkey first stands on the ground, from the left edge.
 const SPAWN_X = 64;
+// The visitor's silence, in ms of game time, after which the monkey tidies up on his own.
+const QUIET_AFTER = 15_000;
 
 interface Scene {
     world: PhysicsWorld;
@@ -79,6 +87,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const random = options.random ?? Math.random;
     const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
     const clock = new Clock();
+    const activity = monkeyActivity(events, () => clock.now());
     const engine = new Engine({
         events,
         clock,
@@ -91,6 +100,11 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
                 pageWidth: scene.bounds.width,
                 monkeyX: scene.monkey.position.x,
             })),
+            monkeyPieces(() => ({
+                loose: scene.world.loose(),
+                carrying: monkey.motor.carrying,
+            })),
+            activity.source,
         ],
         // A behaviour that fails ends there: the game goes on.
         onError: (error, source): void => {
@@ -158,6 +172,30 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     // The Brain's idle timer is on the game clock: the loop runs once, then sleeps to that timer.
     frame.wake();
 
+    const wake = (): void => {
+        frame.wake();
+    };
+    // A silence from the visitor lets him tidy up by himself; any press or key ends it.
+    const quiet = new Quiet({
+        clock,
+        after: QUIET_AFTER,
+        onQuiet: (): void => {
+            events.emit('visitor.idle', undefined);
+        },
+    });
+    for (const type of ['pointerdown', 'keydown']) {
+        window.addEventListener(
+            type,
+            () => {
+                // The game clock stands still while the loop sleeps: catch it up first, or the
+                // silence would be measured from a stale time.
+                wake();
+                quiet.touch();
+            },
+            { capture: true, signal: abort.signal },
+        );
+    }
+
     // The scene holds the content and the monkey, so a press on either reaches the hand.
     const input = new Input({
         root: stage,
@@ -184,9 +222,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             aim: (x): void => {
                 scene.world.aim(x);
             },
-            wake: (): void => {
-                frame.wake();
-            },
+            wake,
         },
     });
 
@@ -201,6 +237,8 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         }
     };
     const unsubscribe = [
+        activity.stop,
+        quiet.stop,
         // Whatever happens may start a behaviour, which needs the clock to run.
         events.onAny(() => {
             frame.wake();
@@ -223,6 +261,13 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             if (element) {
                 clearPlacement(element);
             }
+            // The last piece home is the end of the work: the soot goes with it.
+            if (scene.world.allHome()) {
+                scorches.clear();
+            }
+        }),
+        events.on('rebuild.requested', () => {
+            scorches.clear();
         }),
         events.on('bomb.exploded', ({ at }) => {
             scorches.add(at);
@@ -240,7 +285,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         shake.stop();
     };
 
-    const rebuild = (): void => {
+    const remeasure = (): void => {
         resizing = false;
         scene.world.dispose();
         input.cancel();
@@ -266,7 +311,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             }
             cancelResize?.();
             resizing = true;
-            cancelResize = clock.after(RESIZE_DELAY, rebuild);
+            cancelResize = clock.after(RESIZE_DELAY, remeasure);
             frame.wake();
         },
         { signal: abort.signal },
@@ -309,6 +354,11 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         },
         clearScorches: (): void => {
             scorches.clear();
+        },
+        rebuild: (): void => {
+            live(() => {
+                events.emit('rebuild.requested', undefined);
+            });
         },
         // Safe to call twice: each step is.
         stop: (): void => {

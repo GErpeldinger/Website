@@ -54,7 +54,7 @@ Systems communicate through events: `item.freed`, `bomb.placed`, `monkey.hit`, `
 
 ## The behaviour engine
 
-The engine every character's behaviour runs on is built. The monkey is on the page with a Motor (`engine.attach('monkey', motor, { speaks: true })`). His behaviours so far: the line reactions (`comments.ts`), a flinch when hit, idle smoking and fleeing a bomb, which read the page's width and his position from the context (`pageWidth`, `monkeyX`, `ports/monkey_world.ts`). Adding an interaction means adding files, never editing the core.
+The engine every character's behaviour runs on is built. The monkey is on the page with a Motor (`engine.attach('monkey', motor, { speaks: true })`). His behaviours so far: the line reactions (`comments.ts`), a flinch when hit, idle smoking, fleeing a bomb, and the rebuild (below). They read the page's width and his position (`pageWidth`, `monkeyX`, `ports/monkey_world.ts`). Adding an interaction means adding files, never editing the core.
 
 - **Actors.** Each actor (the monkey, later the drone, Naïa, the birds) has its own Brain and its own behaviours. Only what two actors will really share is generic: the Brain, the Motor port, the context, the lines. Only the monkey gets a Voice.
 - **A behaviour is one file** in `assets/game/activities/<actor>/`, whose default export declares its actor, kind, priority, the events that can trigger it (`triggers`), `canStart(context)` and `run`, a generator that yields the actor's Motor requests (or `wait(ms)`, which the Brain keeps itself) and is given each outcome. Optional: `weight` (variants), `cooldown`, `resumes`, `lines` (the keys it may say). Its id is its path (`monkey/flinch`). `assets/game/registry/behaviours.ts` finds every such file with an eager `import.meta.glob` (static imports after the build), so the file is registered by existing. A subfolder is for a file's helpers.
@@ -96,6 +96,8 @@ The engine every character's behaviour runs on is built. The monkey is on the pa
   - an activity takes the body if it is free or held by an ambient behaviour, interrupts a weaker activity, and otherwise waits its turn (by priority, then order; `canStart` is asked again when its turn comes);
   - an interrupted activity that `resumes` goes on when the stronger one ends, from the request it was in (asked again), before waiting ones of lower priority; the others are dropped;
   - an ambient behaviour fills idle time (5 s after the body frees, or on its own event when idle) and always gives way, never resumed.
+
+  - **The rebuild** is four activities and a reflex, sharing `activities/monkey/rebuild/tidy.ts` (carry the broken pieces home nearest first, reading them again before each, and skip one he cannot carry or place): `rebuild` (priority 50, on `rebuild.requested`, at a run, resumes after a flee), `hurry` (the same when a lazy rebuild is on), `lazy_rebuild` (40, on `visitor.idle`, 15 s after the visitor's last press or key: walking pace, a rest and a grumble after every second piece), `lazy_stop` (60, a grab during a lazy rebuild) and `wrecked` (a reflex: a piece freed within 10 s of one put home). They read `loosePieces` (`ports/monkey_pieces.ts`) and `running` and `restoredAt` (`ports/monkey_activity.ts`) from the context; `Game.rebuild()` emits the request, and the last piece home wipes the scorch marks.
 
   A behaviour that throws, or whose Motor throws, ends as `failed` and is reported (`console.error` in the game): the game goes on. The Brain's own events are `behaviour.started` and `behaviour.ended` on the bus.
 

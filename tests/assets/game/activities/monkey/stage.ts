@@ -21,6 +21,11 @@ export interface Stage {
     advance: (ms: number) => void;
 }
 
+// A context a test changes between two requests, as the world does.
+export type LiveContext = {
+    -readonly [Key in keyof ContextFields]?: ContextFields[Key];
+};
+
 export interface StageOptions {
     context?: Partial<ContextFields>;
     random?: () => number;

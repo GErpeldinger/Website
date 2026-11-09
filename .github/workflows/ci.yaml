@@ -7,8 +7,7 @@ on:
       - main
   pull_request: ~
   workflow_dispatch: ~
-  # The full mutation run. GitHub only runs schedules from the default branch, which is still dev:
-  # until main is the default, start it by hand (workflow_dispatch).
+  # The full mutation run, also started by hand with workflow_dispatch.
   schedule:
     - cron: '0 3 * * 1'
 

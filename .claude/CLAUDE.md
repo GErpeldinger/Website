@@ -6,7 +6,7 @@ Personal website at https://www.erpeldinger.fr: a real, readable web page that d
 
 - `main`: the rebuild, an orphan branch with no shared history with `dev`.
 - `dev`: the old site (Symfony 5.1, API Platform, EasyAdmin, React 17), kept as a reference. Never merge it into `main`.
-- The GitHub default branch is still `dev`, so Dependabot only runs on `main` once it becomes the default.
+- `main` is the GitHub default branch, so Dependabot and the scheduled CI run on it.
 
 ## Stack
 

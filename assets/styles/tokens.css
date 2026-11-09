@@ -19,6 +19,7 @@
     --blast-flash: #fff0d2;
     --blast-ring: #ffe1aa;
     --blast-ember: #ffc35a;
+    --tornado: #c3cddc;
 
     /* Type */
     --font:
@@ -60,6 +61,7 @@
     --monkey-height: 72px;
     --bubble-width: 240px;
     --bomb-size: 48px;
+    --tornado-width: 500px;
 
     /* The monkey burnt by a bomb: the greys his fur, face and legs turn to. */
     --monkey-burnt-fur: #2e2a26;

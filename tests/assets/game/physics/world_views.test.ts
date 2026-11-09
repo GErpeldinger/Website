@@ -81,3 +81,27 @@ describe('bombs', () => {
         expect(world.bombs()).toEqual([]);
     });
 });
+
+describe('tornado', () => {
+    it('is absent until one starts, and once it ends', () => {
+        const { world, tickClock } = setup();
+        expect(world.tornado()).toBeUndefined();
+
+        world.startTornado(500);
+        expect(world.tornado()).toEqual({ x: 500, phase: 0 });
+
+        tickClock(5200);
+        expect(world.tornado()).toBeUndefined();
+    });
+
+    it('gives the axis and the sway as the air moves them', () => {
+        const { world, advance } = setup();
+        world.startTornado(500);
+
+        advance(10);
+
+        const view = world.tornado();
+        expect(view?.phase).toBeCloseTo(1.6);
+        expect(view?.x).not.toBe(500);
+    });
+});

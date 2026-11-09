@@ -113,3 +113,15 @@ describe('pull', () => {
         expect(Math.hypot(body.velocity.x, body.velocity.y)).toBeCloseTo(24);
     });
 });
+
+describe('phase', () => {
+    it('starts at zero and turns 0.16 a step', () => {
+        const vortex = new Vortex(500, 1000);
+        expect(vortex.phase).toBe(0);
+
+        vortex.step(undefined);
+        vortex.step(undefined);
+
+        expect(vortex.phase).toBeCloseTo(0.32);
+    });
+});

@@ -1,4 +1,4 @@
-/* What the physics does that the page must show: the bombs and their blast (docs/architecture.md,
+/* What the physics does that the page must show: the bombs, their blast and the tornado (docs/architecture.md,
    "The effects layer"). Only the game's page modules import this file, so a page without the game
    never loads it. The elements are made by the game, positioned by inline styles and moved by
    transforms and opacity, apart from the SVG strokes below. A bomb's spark is placed by the game on its fuse (--spark-x, --spark-y,
@@ -92,6 +92,47 @@
 
     [data-part='smoke'] {
         background: var(--muted);
+    }
+
+    /* The tornado's funnel: dashed ellipses, which the game sways. The dashes run by CSS, one
+       dash period every --period (set per ellipse, with its duration). */
+    [data-tornado] {
+        position: absolute;
+        z-index: 1;
+        top: 0;
+        left: 0;
+        width: var(--tornado-width);
+        overflow: visible;
+        pointer-events: none;
+        animation: tornado-in 300ms ease-out;
+    }
+
+    [data-tornado][data-ending] {
+        animation: tornado-out 300ms ease-in forwards;
+    }
+
+    [data-tornado] ellipse {
+        fill: none;
+        stroke: var(--tornado);
+        animation: tornado-spin linear infinite;
+    }
+
+    @keyframes tornado-in {
+        from {
+            opacity: 0;
+        }
+    }
+
+    @keyframes tornado-out {
+        to {
+            opacity: 0;
+        }
+    }
+
+    @keyframes tornado-spin {
+        to {
+            stroke-dashoffset: calc(var(--period) * -1);
+        }
     }
 
     @keyframes bomb-flicker {

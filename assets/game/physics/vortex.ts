@@ -17,6 +17,11 @@ export class Vortex {
         this.#width = pageWidth;
     }
 
+    // How far the air has turned: a drawing sways by it, as the pieces' swirl does.
+    get phase(): number {
+        return this.#phase;
+    }
+
     // One physics step. `aim` is where the visitor's pointer is, if it was seen.
     step(aim: number | undefined): void {
         this.#phase += 0.16;

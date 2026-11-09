@@ -538,6 +538,49 @@ describe('the tornado', () => {
         expect(browser.pending).toBe(false);
     });
 
+    it('draws a funnel in the scene while it sweeps, and takes it away after', () => {
+        const s = setup();
+        const { game, run } = s;
+        const funnels = (): NodeListOf<HTMLElement> =>
+            document.body.querySelectorAll<HTMLElement>('[data-tornado]');
+
+        game.tornado({ x: 500, y: 300 });
+        run(30);
+        expect(funnels()).toHaveLength(1);
+        expect(funnels()[0]?.parentElement?.id).toBe('scene');
+        expect(funnels()[0]?.style.transform).toMatch(/^translate\(/);
+        expect(funnels()[0]?.hasAttribute('data-ending')).toBe(false);
+
+        run(300);
+        expect(funnels()[0]?.hasAttribute('data-ending')).toBe(true);
+
+        finish(s);
+        expect(funnels()).toHaveLength(0);
+    });
+
+    it('wipes the funnel when the game stops', () => {
+        const { game, run } = setup();
+        game.tornado({ x: 500, y: 300 });
+        run(30);
+
+        game.stop();
+
+        expect(document.body.querySelectorAll('[data-tornado]')).toHaveLength(
+            0,
+        );
+    });
+
+    it('draws no funnel under reduced motion', () => {
+        const { game, run } = setup({ reducedMotion: true });
+
+        game.tornado({ x: 500, y: 300 });
+        run(30);
+
+        expect(document.body.querySelectorAll('[data-tornado]')).toHaveLength(
+            0,
+        );
+    });
+
     it('follows the pointer', () => {
         const { game, get, run, pointer } = setup();
         game.tornado({ x: 100, y: 300 });

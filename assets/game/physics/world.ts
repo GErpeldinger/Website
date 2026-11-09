@@ -81,6 +81,12 @@ export interface BombView {
     fuse: number;
 }
 
+// The tornado's axis and sway, as the effects layer draws it.
+export interface TornadoView {
+    x: number;
+    phase: number;
+}
+
 export interface WorldOptions {
     events: EventBus<GameEvents>;
     // The fuses and the tornado run on game time.
@@ -251,6 +257,12 @@ export class PhysicsWorld {
             angle: body.angle,
             fuse: Math.min(1, (now - placedAt) / FUSE),
         }));
+    }
+
+    // The running tornado, if any.
+    tornado(): TornadoView | undefined {
+        const running = this.#vortex?.vortex;
+        return running && { x: running.x, phase: running.phase };
     }
 
     // Takes hold of a piece at a point of the page, or of the monkey (`MONKEY`). Returns false if

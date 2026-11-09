@@ -36,13 +36,12 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
 - The live board: site-wide action counters in SQLite on a volume, pushed to the page through FrankenPHP's Mercure hub, which the trimmed template doesn't configure yet (the `mercure` directive in the Caddyfile, its JWT keys in deploy.env, a volume in compose.prod.yaml). Nothing personal is stored.
 - Lifecycle: the bed after long inactivity (the loop already stops on a hidden tab and once the scene is still).
-- Effects layer: the bomb, its fuse and its blast are drawn (DOM and CSS, see architecture.md). Left: the tornado.
 - WCAG 2.5.7: the dock already offers every tool and Rebuild as buttons, and Bomb and Tornado fire from the keyboard; what is missing is a way to move a piece without dragging it (the physics exposes `restore`, but nothing moves a piece elsewhere).
 - The page's side of the physics (see [architecture.md](architecture.md), Decisions, "Hooks the page provides"): check on a real touch device that a long press on a piece neither selects text nor opens the callout.
 - Measure the page again when a layout shift moves the pieces without changing the width (a late font, a loaded image): today only a new width does.
 
 - Check the monkey in a real browser (the agent that built him could not open the page): his look at 72 px next to the content, a throw, a walk from the director panel, his bubble at the viewport's edges, a touch long press on him.
-- The rebuild is missing what needs other work: the ghost outline of each piece's home (effects layer), his coming back when he is away (the tornado, hanging), and the proud mood at the end (a timed mood on the body would hold it and drop a second press).
+- The rebuild is missing what needs other work: the ghost outline of each piece's home, his coming back when he is away (the tornado, hanging), and the proud mood at the end (a timed mood on the body would hold it and drop a second press).
 - Jump and climb behaviours: measure whether a running hop that lands on a pinned piece exceeds the 9 px per step that frees it (and the 10 that counts as a hit).
 - The tornado does not take the monkey yet, and he does not flee it: add both with the tornado's behaviour.
 - A walk that fails when he is blocked leaves the behaviour to decide (go round, jump, give up): the first behaviours decide.

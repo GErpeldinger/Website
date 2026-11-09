@@ -25,6 +25,7 @@ import { Blasts } from './page/blasts';
 import { Bombs } from './page/bombs';
 import { Scorches } from './page/scorches';
 import { Shake } from './page/shake';
+import { Tornado } from './page/tornado';
 import type { Bounds } from './physics/bodies';
 import type { MonkeyBody } from './physics/monkey_body';
 import { MONKEY, PhysicsWorld } from './physics/world';
@@ -121,6 +122,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const scorches = new Scorches(stage, MAX_SCORCHES);
     const shake = new Shake(root, random);
     const bombs = new Bombs(stage, reducedMotion);
+    const tornado = new Tornado(stage, clock, () => scene.bounds.floor);
     const blasts = new Blasts({
         parent: stage,
         clock,
@@ -153,6 +155,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             scene.world.step(elapsed);
             writePlacements(scene.measured.elements, scene.world.placements());
             bombs.step(scene.world.bombs());
+            tornado.step(scene.world.tornado());
             monkey.step(elapsed);
             shake.step(elapsed);
         },
@@ -296,6 +299,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         scorches.clear();
         bombs.clear();
         blasts.clear();
+        tornado.clear();
         shake.stop();
     };
 

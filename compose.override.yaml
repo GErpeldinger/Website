@@ -39,6 +39,7 @@ services:
         watch ./src/**/*.php
         watch ./config/**/*.{php,yaml,yml}
         watch ./templates/**/*.twig
+        watch ./translations/**/*.yaml
         watch ./public/**/*.php
         watch ./.env*
         watch ./public/build/.vite/entrypoints.json

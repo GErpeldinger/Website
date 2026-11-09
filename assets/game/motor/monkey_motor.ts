@@ -180,6 +180,8 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
         const leave = (): void => {
             open = false;
             this.#task = undefined;
+            // Whatever ended it, the loose pieces collide with him again (once he is clear).
+            this.#options.body().passThrough(false);
         };
         const task: Task = {
             undo: (): void => undefined,
@@ -271,6 +273,7 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 );
                 break;
             case 'carry':
+                this.#passThrough();
                 this.#poll(
                     task,
                     this.#carry(request.piece, request.pace),
@@ -278,6 +281,7 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 );
                 break;
             case 'place':
+                this.#passThrough();
                 this.#poll(
                     task,
                     this.#place(request.piece, request.pace),
@@ -288,6 +292,12 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 // The director sends free JSON.
                 task.finish('failed');
         }
+    }
+
+    // Until the request ends, the loose pieces are no obstacle: walking at one, he would shove it
+    // about and follow it. A page measured again fails the request, and its body starts solid.
+    #passThrough(): void {
+        this.#options.body().passThrough(true);
     }
 
     // Sets a pose or a mood, for `ms` if told so, then gives it back.

@@ -588,3 +588,85 @@ describe('tumbling', () => {
         expect(monkey.tumbling).toBe(false);
     });
 });
+
+describe('passing through the loose pieces', () => {
+    const LOOSE = 8;
+    const mask = (monkey: MonkeyBody): number =>
+        monkey.body.collisionFilter.mask ?? 0;
+
+    it('collides with every kind of piece to begin with', () => {
+        expect(mask(standing()) & LOOSE).toBe(LOOSE);
+    });
+
+    it('stops colliding with the loose pieces, and only with them, once told to', () => {
+        const monkey = standing();
+
+        monkey.passThrough(true);
+
+        expect(mask(monkey)).toBe(1 | 2 | 4 | 32);
+        expect(monkey.body.collisionFilter.category).toBe(16);
+    });
+
+    it('keeps passing while the loose pieces are in the way after he is told to stop', () => {
+        const monkey = standing();
+        monkey.passThrough(true);
+        monkey.passThrough(false);
+
+        monkey.rejoin(() => true);
+        monkey.rejoin(() => true);
+
+        expect(mask(monkey) & LOOSE).toBe(0);
+    });
+
+    it('collides again at the first step nothing is in the way', () => {
+        const monkey = standing();
+        monkey.passThrough(true);
+        monkey.passThrough(false);
+        monkey.rejoin(() => true);
+
+        monkey.rejoin(() => false);
+
+        expect(monkey.body.collisionFilter).toEqual(
+            standing().body.collisionFilter,
+        );
+        // Done: nothing is looked at any more.
+        monkey.rejoin(() => {
+            throw new Error('Nothing was left to check.');
+        });
+    });
+
+    it('does not look for loose pieces while he is still told to pass', () => {
+        const monkey = standing();
+        monkey.passThrough(true);
+
+        monkey.rejoin(() => {
+            throw new Error('He is still passing.');
+        });
+
+        expect(mask(monkey) & LOOSE).toBe(0);
+    });
+
+    it('does not look for loose pieces when he never passed', () => {
+        const monkey = standing();
+
+        monkey.passThrough(false);
+        monkey.rejoin(() => {
+            throw new Error('He never passed.');
+        });
+
+        expect(mask(monkey) & LOOSE).toBe(LOOSE);
+    });
+
+    it('goes on passing when told to again before he was clear', () => {
+        const monkey = standing();
+        monkey.passThrough(true);
+        monkey.passThrough(false);
+
+        monkey.passThrough(true);
+        monkey.rejoin(() => {
+            throw new Error('He is passing again.');
+        });
+
+        expect(mask(monkey) & LOOSE).toBe(0);
+    });
+});

@@ -46,9 +46,16 @@ export const takenFilter = (): ICollisionFilter => ({
     mask: 0,
     group: 0,
 });
-const monkeyFilter = (): ICollisionFilter => ({
+export const monkeyFilter = (): ICollisionFilter => ({
     category: MONKEY,
     mask: GROUND | SIDE | PINNED | LOOSE | BOMB,
+    group: 0,
+});
+// Walking to a piece or to its home: the loose pieces are no obstacle. Matter needs both masks
+// to agree, so his alone is enough.
+export const monkeyPassingFilter = (): ICollisionFilter => ({
+    category: MONKEY,
+    mask: GROUND | SIDE | PINNED | BOMB,
     group: 0,
 });
 const bombFilter = (): ICollisionFilter => ({

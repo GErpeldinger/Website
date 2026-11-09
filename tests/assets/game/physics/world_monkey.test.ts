@@ -787,3 +787,82 @@ describe('a piece he carries, while the page goes on', () => {
         expect(world.piece(1)?.position).toEqual({ x: 400, y: 640 });
     });
 });
+
+describe('passing through the loose pieces', () => {
+    const LOOSE = 8;
+    // A loose piece lying on the floor at x = 600, 100 wide.
+    const lying = (): Harness => {
+        const harness = setup({ specs: [spec(1, 600, 680)] });
+        harness.world.grab(1, { x: 600, y: 680 });
+        harness.world.release({ x: 0, y: 0 });
+        harness.advance(60);
+        return harness;
+    };
+    const mask = (monkey: MonkeyBody): number =>
+        monkey.body.collisionFilter.mask ?? 0;
+
+    it('walks through it without moving it', () => {
+        const { world, monkey, advance } = lying();
+        const before = world.piece(1)?.position ?? { x: 0, y: 0 };
+
+        monkey.passThrough(true);
+        monkey.goTo(800, 3);
+        advance(200);
+
+        expect(monkey.position.x).toBeGreaterThan(780);
+        expect(monkey.position.y).toBeCloseTo(665, 0);
+        expect(world.piece(1)?.position.x).toBeCloseTo(before.x, 1);
+    });
+
+    it('pushes it when he does not pass', () => {
+        const { world, monkey, advance } = lying();
+        const before = world.piece(1)?.position.x ?? 0;
+
+        monkey.goTo(800, 3);
+        advance(120);
+
+        expect(
+            Math.abs((world.piece(1)?.position.x ?? 0) - before),
+        ).toBeGreaterThan(5);
+    });
+
+    it('is still stopped by the walls', () => {
+        const { monkey, advance } = lying();
+
+        monkey.passThrough(true);
+        monkey.goTo(2000, 6.5);
+        advance(300);
+
+        expect(monkey.position.x).toBeLessThanOrEqual(980.5);
+    });
+
+    it('waits until he is clear of the pieces to collide with them again', () => {
+        const { world, monkey, advance } = lying();
+        const before = world.piece(1)?.position ?? { x: 0, y: 0 };
+        monkey.passThrough(true);
+        monkey.goTo(600, 3);
+        advance(200);
+        expect(Math.abs(monkey.position.x - 600)).toBeLessThanOrEqual(10);
+
+        monkey.passThrough(false);
+        advance(30);
+
+        expect(mask(monkey) & LOOSE).toBe(0);
+        expect(world.piece(1)?.position.x).toBeCloseTo(before.x, 1);
+
+        Body.setPosition(monkey.body, { x: 300, y: 665 });
+        advance(1);
+
+        expect(mask(monkey) & LOOSE).toBe(LOOSE);
+    });
+
+    it('collides again on the next step when no piece is under him', () => {
+        const { world, monkey, advance } = lying();
+        monkey.passThrough(true);
+        monkey.passThrough(false);
+
+        advance(1);
+        expect(mask(monkey) & LOOSE).toBe(LOOSE);
+        expect(world.piece(1)?.pinned).toBe(false);
+    });
+});

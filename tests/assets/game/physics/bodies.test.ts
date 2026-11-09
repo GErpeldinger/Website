@@ -8,6 +8,8 @@ import {
     bombBody,
     looseFilter,
     monkeyBody,
+    monkeyFilter,
+    monkeyPassingFilter,
     pieceBody,
     pinnedFilter,
     takenFilter,
@@ -107,6 +109,15 @@ describe('the filters', () => {
         });
     });
 
+    it('make the monkey passing through pieces collide with all but the loose', () => {
+        expect(monkeyPassingFilter()).toEqual({
+            category: 16,
+            mask: GROUND | SIDE | 4 | 32,
+            group: 0,
+        });
+        expect(monkeyFilter()).toEqual(monkeyBody(100, 700).collisionFilter);
+    });
+
     it('make a taken piece collide with nothing', () => {
         expect(takenFilter()).toEqual({ category: 64, mask: 0, group: 0 });
     });
@@ -115,6 +126,8 @@ describe('the filters', () => {
         expect(pinnedFilter()).not.toBe(pinnedFilter());
         expect(looseFilter()).not.toBe(looseFilter());
         expect(takenFilter()).not.toBe(takenFilter());
+        expect(monkeyFilter()).not.toBe(monkeyFilter());
+        expect(monkeyPassingFilter()).not.toBe(monkeyPassingFilter());
     });
 });
 

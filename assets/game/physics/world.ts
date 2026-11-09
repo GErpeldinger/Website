@@ -4,6 +4,7 @@ import {
     Constraint,
     Engine,
     Events,
+    Query,
     Vector,
     type Pair,
 } from 'matter-js';
@@ -565,6 +566,7 @@ export class PhysicsWorld {
         this.#loosened.clear();
         this.#blow();
         const held = this.monkeyHeld;
+        this.#monkey?.rejoin(() => this.#overlapsLoose());
         this.#monkey?.beforeStep(held);
         Engine.update(this.#engine, STEP);
         this.#monkey?.support(this.#supported);
@@ -601,6 +603,14 @@ export class PhysicsWorld {
         }
         const other = bodyA === monkey ? bodyB : bodyA;
         return holdsUp(collision.normal.y, other.position.y, monkey.position.y);
+    }
+
+    #overlapsLoose(): boolean {
+        const monkey = this.#monkey?.body;
+        const loose = [...this.#pieces.values()]
+            .filter((piece) => !piece.pinned && !piece.taken)
+            .map((piece) => piece.body);
+        return monkey !== undefined && Query.collides(monkey, loose).length > 0;
     }
 
     #calm(): boolean {

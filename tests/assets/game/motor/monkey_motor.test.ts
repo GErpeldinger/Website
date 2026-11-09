@@ -1478,3 +1478,99 @@ describe('the page measured again on the frame a tween ends', () => {
         expect(carry.outcomes).toEqual(['failed']);
     });
 });
+
+describe('passing through the loose pieces', () => {
+    const LOOSE = 8;
+    const solid = (monkey: MonkeyBody): boolean =>
+        ((monkey.body.collisionFilter.mask ?? 0) & LOOSE) === LOOSE;
+
+    it('does so while a carry walks, and no longer once it is done', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        expect(solid(harness.monkey)).toBe(true);
+
+        const carry = harness.ask({ type: 'carry', piece: 1 });
+        harness.frame(5);
+        expect(solid(harness.monkey)).toBe(false);
+        harness.until(() => carry.outcomes.length > 0);
+
+        expect(carry.outcomes).toEqual(['done']);
+        harness.frame(2);
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('does so while a place walks, and no longer once it is done', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        const carry = harness.ask({ type: 'carry', piece: 1 });
+        harness.until(() => carry.outcomes.length > 0);
+
+        const place = harness.ask({ type: 'place', piece: 1 });
+        harness.frame(5);
+        expect(solid(harness.monkey)).toBe(false);
+        harness.until(() => place.outcomes.length > 0);
+
+        expect(place.outcomes).toEqual(['done']);
+        harness.frame(2);
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('keeps every collision on a plain walk', () => {
+        const harness = setup({ specs: pieces });
+
+        harness.ask({ type: 'walk', x: 600 });
+        harness.frame(5);
+
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('is given back when the request is cut short', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        const carry = harness.ask({ type: 'carry', piece: 1 });
+        harness.frame(5);
+
+        carry.task.cancel();
+        harness.frame(2);
+
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('is given back when another request replaces it', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        harness.ask({ type: 'carry', piece: 1 });
+        harness.frame(5);
+
+        harness.ask({ type: 'walk', x: 100 });
+        harness.frame(2);
+
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('is given back when the request fails', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        const carry = harness.ask({ type: 'carry', piece: 1 });
+        harness.frame(5);
+
+        harness.world.restore(1);
+        harness.frame(2);
+
+        expect(carry.outcomes).toEqual(['failed']);
+        expect(solid(harness.monkey)).toBe(true);
+    });
+
+    it('leaves the new body alone when the page is measured again on the way', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+        const carry = harness.ask({ type: 'carry', piece: 1 });
+        harness.frame(5);
+
+        harness.rebuild();
+        harness.frame(2);
+
+        expect(carry.outcomes).toEqual(['failed']);
+        expect(solid(harness.monkey)).toBe(true);
+    });
+});

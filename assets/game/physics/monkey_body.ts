@@ -1,6 +1,11 @@
 import { Body } from 'matter-js';
 import type { Point } from '../events/game_events';
-import { MONKEY_HEIGHT, monkeyBody } from './bodies';
+import {
+    MONKEY_HEIGHT,
+    monkeyBody,
+    monkeyFilter,
+    monkeyPassingFilter,
+} from './bodies';
 import { isGrounded } from './rules';
 
 // Within this of the goal he has arrived.
@@ -44,6 +49,8 @@ export class MonkeyBody {
     #standing = 0;
     #tumbling = false;
     #supported = false;
+    // Passing through the loose pieces, or told to stop and waiting to be clear of them.
+    #through: 'off' | 'on' | 'ending' = 'off';
 
     constructor(x: number, floor: number) {
         this.body = monkeyBody(x, floor);
@@ -101,6 +108,26 @@ export class MonkeyBody {
     // The world says whether a piece holds him up from under, after each step.
     support(on: boolean): void {
         this.#supported = on;
+    }
+
+    // On: the loose pieces stop colliding with him (the ground, the walls, the pinned pieces and
+    // the bombs still do). Off: they collide again once `rejoin` finds him clear of them.
+    passThrough(on: boolean): void {
+        if (on) {
+            this.#through = 'on';
+            this.body.collisionFilter = monkeyPassingFilter();
+        } else if (this.#through === 'on') {
+            this.#through = 'ending';
+        }
+    }
+
+    // Before the engine's step: gives the loose pieces their collisions back, unless he overlaps
+    // one, which the solver would push out of him in a single step.
+    rejoin(overlapsLoose: () => boolean): void {
+        if (this.#through === 'ending' && !overlapsLoose()) {
+            this.#through = 'off';
+            this.body.collisionFilter = monkeyFilter();
+        }
     }
 
     // Walks to `x` at `speed`, in pixels per step.

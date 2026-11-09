@@ -30,14 +30,14 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 - Every behaviour and reaction comes with its Vitest test, written as a sequence on the `FakeMotor` (`ports/fake_motor.ts`), and its lines in both catalogues; `make check` fails otherwise.
 - Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
-- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics, the behaviour engine and the monkey's Motor, Look and Voice and his first behaviours (idle smoking, the line reactions, the flinch, fleeing a bomb) and the rebuild (hurried, lazy, wrecked) are done; the dock comes next, with the button that calls `game.rebuild()` (and the `bombTool` and `boardGrab` lines, which wait for it and the board).
+- The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics, the behaviour engine and the monkey's Motor, Look and Voice and his first behaviours (idle smoking, the line reactions, the flinch, fleeing a bomb) the rebuild (hurried, lazy, wrecked) and the dock are done; the `boardGrab` line waits for the board.
 - Counters and the network must ignore events whose origin is `director` (the bus passes it to listeners), when the live board lands.
 - Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): the cigarette arc, hanging and climbing.
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
 - The live board: site-wide action counters in SQLite on a volume, pushed to the page through FrankenPHP's Mercure hub, which the trimmed template doesn't configure yet (the `mercure` directive in the Caddyfile, its JWT keys in deploy.env, a volume in compose.prod.yaml). Nothing personal is stored.
 - Lifecycle: the bed after long inactivity (the loop already stops on a hidden tab and once the scene is still).
 - Effects layer: draw the bomb and its fuse, the blast's flash and particles, and the tornado, which the physics only simulates. Needs a canvas or DOM layer that follows the scroll, off under reduced motion.
-- A keyboard and button alternative to dragging a piece (WCAG 2.5.7), with the dock: the physics exposes `bomb`, `tornado`, `setZeroGravity` and `restore`, but a piece can only be moved with a pointer.
+- WCAG 2.5.7: the dock already offers every tool and Rebuild as buttons, and Bomb and Tornado fire from the keyboard; what is missing is a way to move a piece without dragging it (the physics exposes `restore`, but nothing moves a piece elsewhere).
 - The page's side of the physics (see [architecture.md](architecture.md), Decisions, "Hooks the page provides"): check on a real touch device that a long press on a piece neither selects text nor opens the callout.
 - Measure the page again when a layout shift moves the pieces without changing the width (a late font, a loaded image): today only a new width does.
 

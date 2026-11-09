@@ -30,6 +30,12 @@ export default defineReactions([
     },
     { actor: 'monkey', on: 'item.thrown', line: 'drop' },
     { actor: 'monkey', on: 'monkey.grabbed', line: 'me', force: true },
+    {
+        actor: 'monkey',
+        on: 'tool.selected',
+        where: { tool: 'bomb' },
+        line: 'bombTool',
+    },
     { actor: 'monkey', on: 'tornado.started', line: 'stormTool' },
     {
         actor: 'monkey',

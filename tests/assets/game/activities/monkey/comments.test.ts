@@ -45,6 +45,12 @@ describe('the monkey comments on the visitor', () => {
         expect(said('tornado.started', { x: 300 })).toEqual(['stormTool']);
     });
 
+    it('says a line when the bomb is picked, and for no other tool', () => {
+        expect(said('tool.selected', { tool: 'bomb' })).toEqual(['bombTool']);
+        expect(said('tool.selected', { tool: 'grab' })).toEqual([]);
+        expect(said('tool.selected', { tool: 'tornado' })).toEqual([]);
+    });
+
     it('says a line when gravity goes off, not when it comes back', () => {
         expect(said('gravity.changed', { zero: true })).toEqual(['float']);
         expect(said('gravity.changed', { zero: false })).toEqual([]);

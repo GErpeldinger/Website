@@ -13,6 +13,9 @@ export interface Box {
     height: number;
 }
 
+// The tools of the dock: the one the visitor's presses use.
+export type Tool = 'grab' | 'bomb' | 'tornado';
+
 export type PieceKind = 'letter' | 'block' | 'link';
 
 export type FreedBy = 'impact' | 'grab' | 'bomb' | 'tornado' | 'gravity';
@@ -51,6 +54,8 @@ export interface GameEvents {
     'monkey.landed': { speed: number };
     // A hard collision: a loose piece or a bomb at 7 px per step or more, a fall on the floor at 10.
     'monkey.hit': { speed: number; against: HitAgainst };
+    // The visitor chose a tool in the dock (Grab included, and again on the one already chosen).
+    'tool.selected': { tool: Tool };
     'bomb.placed': { id: number; at: Point };
     // A rebuild of the page put the bomb out before it blew.
     'bomb.cancelled': { id: number };

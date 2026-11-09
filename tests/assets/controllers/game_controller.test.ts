@@ -149,6 +149,45 @@ it('stops the game when the element leaves the page', async () => {
     expect(mocks.stop).toHaveBeenCalledTimes(1);
 });
 
+it('tells the page when the game runs and when it stops', async () => {
+    const heard: string[] = [];
+    const details: unknown[] = [];
+    for (const name of ['game:started', 'game:stopped']) {
+        window.addEventListener(
+            name,
+            (event) => {
+                heard.push(name);
+                details.push((event as CustomEvent).detail);
+            },
+            { once: true },
+        );
+    }
+    const element = await connect();
+    mocks.gate.release();
+    await vi.advanceTimersByTimeAsync(100);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual(['game:started']);
+    expect(details[0]).toEqual({ game: mocks.game, root: document.body });
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(heard).toEqual(['game:started', 'game:stopped']);
+});
+
+it('never says the game stopped when it never started', async () => {
+    const stopped = vi.fn();
+    window.addEventListener('game:stopped', stopped, { once: true });
+    const element = await connect();
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(stopped).not.toHaveBeenCalled();
+    window.removeEventListener('game:stopped', stopped);
+});
+
 it('never starts the game of an element that left before the first paint', async () => {
     const element = await connect();
     mocks.gate.release();

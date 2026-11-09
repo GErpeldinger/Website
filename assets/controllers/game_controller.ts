@@ -29,8 +29,11 @@ export default class extends Controller {
         this.#abort?.abort();
         this.#unmountDirector?.();
         this.#unmountDirector = undefined;
-        this.#game?.stop();
-        this.#game = undefined;
+        if (this.#game) {
+            this.#game.stop();
+            this.#game = undefined;
+            this.dispatch('stopped', { target: window });
+        }
     }
 
     async #start(signal: AbortSignal): Promise<void> {
@@ -51,6 +54,12 @@ export default class extends Controller {
             lines: this.linesValue,
         });
         this.#game = game;
+        // The dock is its own controller, outside the shaken root: it hears of the game here.
+        // The root is the scene the hand listens on: the content and the monkey are in it.
+        this.dispatch('started', {
+            target: window,
+            detail: { game, root: this.element.parentElement ?? this.element },
+        });
         // The director panel is for development: this branch, and the import in it, are gone
         // from a production build, which is how the panel stays out of the bundle.
         if (import.meta.env.DEV) {

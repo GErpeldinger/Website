@@ -100,14 +100,37 @@ it('links to LinkedIn and GitHub from a navigation', function (string $locale): 
     /** @var KernelBrowser $client */
     $client = static::createClient();
     $crawler = $client->request('GET', "/{$locale}/");
-    $links = $crawler->filter('nav a')->each(static fn (Crawler $link): ?string => $link->attr('href'));
+    $links = $crawler->filter('main nav a')->each(static fn (Crawler $link): ?string => $link->attr('href'));
 
-    expect($crawler->filter('nav')->count())->toBe(1)
+    expect($crawler->filter('main nav')->count())->toBe(1)
         ->and($links)->toBe([
             'https://www.linkedin.com/in/guillaumeerpeldinger/',
             'https://github.com/GErpeldinger',
         ]);
 })->with(['fr', 'en']);
+
+it('offers the dock as five labelled buttons, Grab pressed first, outside the game root', function (string $locale, array $labels): void {
+    /** @var KernelBrowser $client */
+    $client = static::createClient();
+    $crawler = $client->request('GET', "/{$locale}/");
+    $dock = $crawler->filter('div.dock[role="group"]');
+    $buttons = $dock->filter('button');
+    $pressed = $buttons->each(static fn (Crawler $button): ?string => $button->attr('aria-pressed'));
+    $tools = $dock->filter('[data-dock-target="tool"]')->each(static fn (Crawler $button): ?string => $button->attr('data-dock-tool-param'));
+    $names = $dock->filter('button > .u-visually-hidden')->each(static fn (Crawler $name): string => $name->text());
+
+    expect($dock->count())->toBe(1)
+        ->and($crawler->filter('main .dock')->count())->toBe(0)
+        ->and($dock->attr('data-controller'))->toBe('dock')
+        ->and($dock->attr('aria-label'))->toBe($labels[0])
+        ->and($names)->toBe(array_slice($labels, 1))
+        ->and($pressed)->toBe(['true', 'false', 'false', 'false', null])
+        ->and($tools)->toBe(['grab', 'bomb', 'tornado'])
+        ->and($dock->filter('svg[aria-hidden="true"]')->count())->toBe(5);
+})->with([
+    'fr' => ['fr', ['Outils', 'Attraper', 'Bombe', 'Tornade', 'Apesanteur', 'Reconstruire']],
+    'en' => ['en', ['Tools', 'Grab', 'Bomb', 'Tornado', 'Zero gravity', 'Rebuild']],
+]);
 
 it('presents the live board as a titled section of five counters', function (string $locale): void {
     /** @var KernelBrowser $client */

@@ -1,0 +1,6 @@
+{# One button of the dock. `attributes` are the data and aria attributes that wire it to the dock controller. #}
+<button class="dock-tool" type="button"{% for name, value in attributes %} {{ name }}="{{ value }}"{% endfor %}>
+    {{ include('partials/icons/' ~ icon ~ '.html.twig') }}
+    <span class="u-visually-hidden">{{ label }}</span>
+    <span class="dock-label" aria-hidden="true">{{ label }}</span>
+</button>

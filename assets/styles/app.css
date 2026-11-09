@@ -14,4 +14,5 @@
 @import url('./blocks/photo.css') layer(blocks);
 @import url('./blocks/card.css') layer(blocks);
 @import url('./blocks/board.css') layer(blocks);
+@import url('./blocks/dock.css') layer(blocks);
 @import url('./exceptions.css') layer(exceptions);

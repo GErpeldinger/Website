@@ -31,4 +31,22 @@
             </section>
         </div>
     </main>
+
+    {# The visitor's remote. Outside the game's root, which shakes: a fixed box would follow its transform. #}
+    <div
+        class="dock"
+        role="group"
+        aria-label="{{ 'dock.label'|trans }}"
+        data-controller="dock"
+        data-action="game:started@window->dock#start game:stopped@window->dock#stop pointerdown@window->dock#place:capture click@window->dock#swallow:capture keydown@window->dock#escape"
+    >
+        {% set tool = {'data-dock-target': 'tool', 'data-action': 'dock#select'} %}
+        <div class="dock-tools">
+            {{ include('partials/dock_tool.html.twig', {icon: 'grab', label: 'dock.grab'|trans, attributes: tool|merge({'aria-pressed': 'true', 'data-pressed': 'true', 'data-dock-tool-param': 'grab'})}) }}
+            {{ include('partials/dock_tool.html.twig', {icon: 'bomb', label: 'dock.bomb'|trans, attributes: tool|merge({'aria-pressed': 'false', 'data-pressed': 'false', 'data-dock-tool-param': 'bomb'})}) }}
+            {{ include('partials/dock_tool.html.twig', {icon: 'tornado', label: 'dock.tornado'|trans, attributes: tool|merge({'aria-pressed': 'false', 'data-pressed': 'false', 'data-dock-tool-param': 'tornado'})}) }}
+            {{ include('partials/dock_tool.html.twig', {icon: 'gravity', label: 'dock.gravity'|trans, attributes: {'aria-pressed': 'false', 'data-pressed': 'false', 'data-dock-target': 'gravity', 'data-action': 'dock#gravity'}}) }}
+            {{ include('partials/dock_tool.html.twig', {icon: 'rebuild', label: 'dock.rebuild'|trans, attributes: {'data-emphasis': 'action', 'data-action': 'dock#rebuild'}}) }}
+        </div>
+    </div>
 {% endblock %}

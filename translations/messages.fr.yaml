@@ -15,3 +15,10 @@ board:
     online: En ligne
     empty: '—'
     note: Compteurs anonymes, partagés entre tous les visiteurs.
+dock:
+    label: Outils
+    grab: Attraper
+    bomb: Bombe
+    tornado: Tornade
+    gravity: Apesanteur
+    rebuild: Reconstruire

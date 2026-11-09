@@ -92,10 +92,17 @@ const emitted = (source: string): string[] => {
 };
 
 // The names of the events some code in the game puts on the bus: `emit('name'`, `#emit('name'`.
-// The development panel is left out: what it fires is not something the game emits.
-export const emittedEvents = (
-    directory = join(root, 'assets/game'),
-): Set<string> => {
+// The development panel is left out: what it fires is not something the game emits. The page's
+// controllers count too: the dock puts `tool.selected` on the bus.
+export const emittedEvents = (directory?: string): Set<string> =>
+    directory === undefined
+        ? new Set([
+              ...emittedIn(join(root, 'assets/game')),
+              ...emittedIn(join(root, 'assets/controllers')),
+          ])
+        : emittedIn(directory);
+
+const emittedIn = (directory: string): Set<string> => {
     const names = new Set<string>();
     for (const file of readdirSync(directory, {
         recursive: true,

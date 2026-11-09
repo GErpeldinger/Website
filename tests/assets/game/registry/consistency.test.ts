@@ -126,6 +126,8 @@ describe('emittedEvents', () => {
         // The Brain's own helper.
         expect(names.has('behaviour.started')).toBe(true);
         expect(names.has('line.said')).toBe(true);
+        // The dock's, outside the game directory.
+        expect(names.has('tool.selected')).toBe(true);
         for (const name of [
             'monkey.grabbed',
             'monkey.dropped',

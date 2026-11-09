@@ -59,7 +59,7 @@ The content is a real page, but it is never inert:
 
 ## What the visitor can do
 
-The dock is a real remote, not part of the hologram.
+The dock is a real remote, not part of the hologram. It is plain buttons, hidden until the game runs. With Bomb or Tornado chosen, a press on the scene places it there; picking either with the keyboard fires it at the middle of the screen; Escape goes back to Grab. Under reduced motion the Tornado is not offered.
 
 | Tool         | Effect                                                                               |
 | ------------ | ------------------------------------------------------------------------------------ |

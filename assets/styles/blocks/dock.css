@@ -1,0 +1,96 @@
+/* The visitor's remote: a strip fixed at the bottom, above the ground, that lets presses through. */
+.dock {
+    position: fixed;
+    inset-inline: 0;
+    bottom: calc(var(--space-m) + env(safe-area-inset-bottom, 0px));
+    z-index: 4;
+    display: flex;
+    justify-content: center;
+    padding-inline: var(--space-m);
+    pointer-events: none;
+}
+
+.dock:not([data-ready]) {
+    display: none;
+}
+
+.dock-tools {
+    display: flex;
+    gap: var(--space-xs);
+    max-width: 100%;
+    padding: var(--space-xs);
+    pointer-events: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+}
+
+.dock-tool {
+    display: flex;
+    flex: 1 1 auto;
+    gap: var(--space-xs);
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-size);
+    min-height: var(--touch-size);
+    padding: 0 var(--space-s);
+    color: var(--fg);
+    font: inherit;
+    font-size: var(--step-s);
+    font-weight: var(--weight-semibold);
+    cursor: pointer;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-s);
+    transition:
+        background 150ms,
+        color 150ms;
+}
+
+.dock-label {
+    display: none;
+}
+
+.dock-tool:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.dock-tool[data-pressed='true'] {
+    color: var(--on-accent);
+    background: var(--accent);
+}
+
+.dock-tool[data-emphasis='action'] {
+    color: var(--on-hat);
+    background: var(--hat);
+}
+
+/* Only where hovering exists: on touch, :hover sticks after a tap. */
+@media (hover: hover) {
+    .dock-tool:hover {
+        background: var(--line);
+    }
+
+    .dock-tool[data-pressed='true']:hover {
+        background: var(--accent);
+    }
+
+    .dock-tool[data-emphasis='action']:hover {
+        background: var(--fg);
+    }
+}
+
+/* The tornado does nothing under reduced motion: its button is not offered. */
+@media (prefers-reduced-motion: reduce) {
+    .dock-tool[data-dock-tool-param='tornado'] {
+        display: none;
+    }
+}
+
+/* The label is drawn from 861 px up; below, only the screen reader's copy remains. */
+@media (width > 860px) {
+    .dock-label {
+        display: inline;
+    }
+}

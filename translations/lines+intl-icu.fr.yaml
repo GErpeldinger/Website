@@ -33,6 +33,9 @@ run:
     - 'AU SECOURS !'
     - 'ÇA VA PÉTER !'
     - 'Sauve qui peut !'
+bombTool:
+    - 'C’est quoi, ça ? Non. Non non non.'
+    - 'Tu ne vas pas faire ça.'
 stormTool:
     - 'Il y a du vent, non ?'
     - 'Ça, ce n’est pas couvert par la garantie.'

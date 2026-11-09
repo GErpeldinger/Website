@@ -33,6 +33,9 @@ run:
     - 'HELP!'
     - 'IT’S GONNA BLOW!'
     - 'Run for it!'
+bombTool:
+    - 'What’s that? No. No no no.'
+    - 'You’re not going to do that.'
 stormTool:
     - 'Is it me, or is it windy?'
     - 'That’s not covered by the warranty.'

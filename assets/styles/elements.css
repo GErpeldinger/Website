@@ -3,6 +3,11 @@
 /* The ground's colour: it shows under the scene when a phone's toolbar hides. */
 html {
     background: var(--ground);
+
+    /* A focused link scrolls clear of the fixed dock (about 80px with its margin). */
+    scroll-padding-bottom: calc(
+        var(--touch-size) + var(--space-2xl) + env(safe-area-inset-bottom, 0px)
+    );
 }
 
 body {

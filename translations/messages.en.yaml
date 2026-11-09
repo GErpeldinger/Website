@@ -15,3 +15,10 @@ board:
     online: Online
     empty: '—'
     note: Anonymous counters, shared by every visitor.
+dock:
+    label: Tools
+    grab: Grab
+    bomb: Bomb
+    tornado: Tornado
+    gravity: Zero gravity
+    rebuild: Rebuild

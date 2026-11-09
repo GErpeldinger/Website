@@ -1,0 +1,7 @@
+<svg class="bomb" viewBox="-24 -24 48 48" aria-hidden="true" focusable="false">
+<circle r="15" fill="#05060a" stroke="#f5f5f5" stroke-width="2"/>
+<path d="M-9 -4a9 9 0 0 1 5-7" fill="none" stroke="#f5f5f5" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>
+<rect x="2" y="-17" width="9" height="5" rx="1.5" fill="#2a2e35" stroke="#f5f5f5" stroke-width="1.4"/>
+<path class="fuse" d="M6 -13Q11 -22 18 -20" pathLength="1" fill="none" stroke="#f5f5f5" stroke-width="2" stroke-linecap="round"/>
+<g class="spark"><circle class="flame" r="3.2" fill="#ffd166"/></g>
+</svg>

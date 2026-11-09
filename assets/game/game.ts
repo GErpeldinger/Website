@@ -21,6 +21,8 @@ import {
     writePlacements,
     type Measured,
 } from './page/page';
+import { Blasts } from './page/blasts';
+import { Bombs } from './page/bombs';
 import { Scorches } from './page/scorches';
 import { Shake } from './page/shake';
 import type { Bounds } from './physics/bodies';
@@ -118,6 +120,13 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         document.querySelector('[data-ground]')?.parentElement ?? document.body;
     const scorches = new Scorches(stage, MAX_SCORCHES);
     const shake = new Shake(root, random);
+    const bombs = new Bombs(stage, reducedMotion);
+    const blasts = new Blasts({
+        parent: stage,
+        clock,
+        random,
+        reducedMotion,
+    });
     let resizing = false;
     let cancelResize: (() => void) | undefined;
 
@@ -143,6 +152,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         onFrame: (elapsed): void => {
             scene.world.step(elapsed);
             writePlacements(scene.measured.elements, scene.world.placements());
+            bombs.step(scene.world.bombs());
             monkey.step(elapsed);
             shake.step(elapsed);
         },
@@ -269,7 +279,9 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         events.on('rebuild.requested', () => {
             scorches.clear();
         }),
-        events.on('bomb.exploded', ({ at }) => {
+        events.on('bomb.exploded', ({ id, at, radius }) => {
+            bombs.remove(id);
+            blasts.add(at, radius);
             scorches.add(at);
             if (!reducedMotion) {
                 shake.trigger(SHAKE);
@@ -282,6 +294,8 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             resetPiece(element);
         }
         scorches.clear();
+        bombs.clear();
+        blasts.clear();
         shake.stop();
     };
 

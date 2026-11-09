@@ -194,6 +194,16 @@ const setup = ({
     };
 };
 
+// Runs until the loop sleeps, then wakes it for each game timer it sleeps through (the effects
+// remove themselves on one), until none is left.
+const finish = ({ run, browser }: Pick<Harness, 'run' | 'browser'>): void => {
+    run();
+    for (let i = 0; i < 10 && browser.timeouts.size > 0; i++) {
+        browser.fireTimeout();
+        run();
+    }
+};
+
 describe('starting', () => {
     it('pins every piece and costs no frame while nothing happens', () => {
         const { get, browser } = setup();
@@ -421,6 +431,94 @@ describe('the bomb', () => {
         game.clearScorches();
 
         expect(document.body.querySelectorAll('[data-scorch]')).toHaveLength(0);
+    });
+});
+
+describe('the bomb drawn', () => {
+    const drawn = (selector: string): NodeListOf<HTMLElement> =>
+        document.body.querySelectorAll<HTMLElement>(selector);
+
+    it('shows each bomb in the scene, at its body, burning down its fuse', () => {
+        const { game, run } = setup();
+
+        game.bomb({ x: 500, y: 330 });
+        run(30);
+
+        const [bomb] = drawn('[data-bomb]');
+        expect(drawn('[data-bomb]')).toHaveLength(1);
+        expect(bomb?.parentElement?.id).toBe('scene');
+        expect(bomb?.style.transform).toMatch(/^translate\(/);
+        expect(
+            Number(bomb?.style.getPropertyValue('--fuse-left')),
+        ).toBeLessThan(0.7);
+    });
+
+    it('takes the bomb away as it blows, and shows the blast in its place', () => {
+        const { game, run } = setup();
+        game.bomb({ x: 500, y: 330 });
+
+        run(93);
+
+        expect(drawn('[data-bomb]')).toHaveLength(0);
+        expect(drawn('[data-blast]')).toHaveLength(1);
+        expect(drawn('[data-part="ring"]')).toHaveLength(1);
+        // The blast's radius is 30% of the page, 300 px here.
+        expect(drawn('[data-part="ring"]')[0]?.style.width).toBe('600px');
+        expect(drawn('[data-part="flash"]')).toHaveLength(1);
+    });
+
+    it('removes the blast once it is over, and lets the loop sleep', () => {
+        const s = setup();
+        const { game, browser } = s;
+        game.bomb({ x: 500, y: 330 });
+
+        finish(s);
+
+        expect(drawn('[data-blast]')).toHaveLength(0);
+        expect(browser.pending).toBe(false);
+    });
+
+    it('takes a bomb the rebuild put out away, without a blast', () => {
+        const { game, size, run } = setup();
+        game.bomb({ x: 900, y: 100 });
+        run(5);
+        expect(drawn('[data-bomb]')).toHaveLength(1);
+
+        size.width = 700;
+        window.dispatchEvent(new Event('resize'));
+        run();
+
+        expect(drawn('[data-bomb]')).toHaveLength(0);
+        expect(drawn('[data-blast]')).toHaveLength(0);
+    });
+
+    it('wipes the bombs and blasts when the game stops', () => {
+        const { game, run } = setup();
+        game.bomb({ x: 900, y: 100 });
+        game.bomb({ x: 800, y: 100 });
+        run(93);
+        game.bomb({ x: 700, y: 100 });
+        run(5);
+        expect(drawn('[data-blast]')).toHaveLength(2);
+
+        game.stop();
+
+        expect(drawn('[data-bomb]')).toHaveLength(0);
+        expect(drawn('[data-blast]')).toHaveLength(0);
+    });
+
+    it('draws a still spark and a lone glow under reduced motion', () => {
+        const { game, run } = setup({ reducedMotion: true });
+        game.bomb({ x: 500, y: 330 });
+        run(30);
+
+        expect(drawn('[data-bomb]')[0]?.hasAttribute('data-still')).toBe(true);
+
+        run(63);
+        expect(drawn('[data-part="fade"]')).toHaveLength(1);
+        expect(drawn('[data-part="ring"]')).toHaveLength(0);
+        expect(drawn('[data-part="flash"]')).toHaveLength(0);
+        expect(drawn('[data-part="ember"]')).toHaveLength(0);
     });
 });
 

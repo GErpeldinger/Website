@@ -72,6 +72,15 @@ export interface Placement {
     angle: number;
 }
 
+// A bomb waiting to blow, as the effects layer draws it. `fuse` is how far it has burnt, 0 to 1.
+export interface BombView {
+    id: number;
+    x: number;
+    y: number;
+    angle: number;
+    fuse: number;
+}
+
 export interface WorldOptions {
     events: EventBus<GameEvents>;
     // The fuses and the tornado run on game time.
@@ -113,6 +122,7 @@ interface Held {
 interface Bomb {
     id: number;
     body: Body;
+    placedAt: number;
     cancelFuse: () => void;
 }
 
@@ -229,6 +239,18 @@ export class PhysicsWorld {
                 dy: body.position.y - home.y,
                 angle: body.angle,
             }));
+    }
+
+    // Every bomb whose fuse is burning.
+    bombs(): BombView[] {
+        const now = this.#options.clock.now();
+        return [...this.#bombs.values()].map(({ id, body, placedAt }) => ({
+            id,
+            x: body.position.x,
+            y: body.position.y,
+            angle: body.angle,
+            fuse: Math.min(1, (now - placedAt) / FUSE),
+        }));
     }
 
     // Takes hold of a piece at a point of the page, or of the monkey (`MONKEY`). Returns false if
@@ -427,6 +449,7 @@ export class PhysicsWorld {
         const bomb: Bomb = {
             id: ++this.#bombCount,
             body,
+            placedAt: this.#options.clock.now(),
             cancelFuse: () => undefined,
         };
         bomb.cancelFuse = this.#options.clock.after(FUSE, () => {
@@ -469,6 +492,7 @@ export class PhysicsWorld {
             bomb.cancelFuse();
             this.#options.events.emit('bomb.cancelled', { id: bomb.id });
         }
+        this.#bombs.clear();
         this.#vortex?.cancelEnd();
         this.#endTornado();
         this.setZeroGravity(false);

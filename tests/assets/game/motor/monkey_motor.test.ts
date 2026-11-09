@@ -210,7 +210,7 @@ describe('what he looks like', () => {
             pose: 'stand',
             mood: 'calm',
             facing: 'right',
-            walking: false,
+            gait: undefined,
             held: false,
         });
     });
@@ -240,23 +240,36 @@ describe('what he looks like', () => {
         expect(last().pose).toBe('smoke');
     });
 
+    it('does not step a gait while he tumbles in the middle of a run', () => {
+        const { monkey, last, frame, ask } = setup();
+        ask({ type: 'walk', x: 800, pace: 'run' });
+        frame(2);
+        expect(last().gait).toBe('run');
+
+        Body.setVelocity(monkey.body, { x: 8, y: -14 });
+        frame(2);
+
+        expect(last().pose).toBe('tumble');
+        expect(last().gait).toBeUndefined();
+    });
+
     it('says when the visitor has him in hand, and then does not step', () => {
         const { world, monkey, last, frame, ask } = setup();
         ask({ type: 'walk', x: 800 });
         frame(2);
-        expect(last().walking).toBe(true);
+        expect(last().gait).toBe('walk');
 
         world.grab(MONKEY, { x: 300, y: 665 });
         frame();
 
         expect(last().held).toBe(true);
-        expect(last().walking).toBe(false);
+        expect(last().gait).toBeUndefined();
         expect(monkey.destination).toBe(800);
 
         world.release({ x: 0, y: 0 });
         frame();
         expect(last().held).toBe(false);
-        expect(last().walking).toBe(true);
+        expect(last().gait).toBe('walk');
     });
 });
 
@@ -482,15 +495,39 @@ describe('walking', () => {
 
         const walk = ask({ type: 'walk', x: 600 });
         frame(5);
-        expect(last().walking).toBe(true);
+        expect(last().gait).toBe('walk');
         expect(walk.outcomes).toEqual([]);
         until(() => walk.outcomes.length > 0);
 
         expect(walk.outcomes).toEqual(['done']);
         expect(Math.abs(monkey.position.x - 600)).toBeLessThanOrEqual(10);
         frame();
-        expect(last().walking).toBe(false);
+        expect(last().gait).toBeUndefined();
         expect(monkey.body.velocity.x).toBeCloseTo(0, 0);
+    });
+
+    it('runs his legs when the walk is a run, and walks them when it is not', () => {
+        const gait = (request: MonkeyRequest): string | undefined => {
+            const { last, ask, frame } = setup();
+            ask(request);
+            frame(5);
+            return last().gait;
+        };
+
+        expect(gait({ type: 'walk', x: 800 })).toBe('walk');
+        expect(gait({ type: 'walk', x: 800, pace: 'walk' })).toBe('walk');
+        expect(gait({ type: 'walk', x: 800, pace: 'run' })).toBe('run');
+    });
+
+    it('walks again after a run', () => {
+        const { last, ask, frame, until } = setup();
+        const run = ask({ type: 'walk', x: 500, pace: 'run' });
+        until(() => run.outcomes.length > 0);
+
+        ask({ type: 'walk', x: 100 });
+        frame(5);
+
+        expect(last().gait).toBe('walk');
     });
 
     it('walks at 3 px per step, and runs at 6.5', () => {
@@ -586,7 +623,7 @@ describe('walking', () => {
         expect(monkey.destination).toBeUndefined();
         expect(monkey.body.velocity.x).toBeCloseTo(0, 0);
         expect(motor.busy).toBe(false);
-        expect(last().walking).toBe(false);
+        expect(last().gait).toBeUndefined();
         expect(monkey.position.x).toBeLessThan(400);
     });
 
@@ -844,6 +881,16 @@ describe('carrying a piece', () => {
         harness.ask({ type: 'carry', piece: 1, pace: 'run' });
 
         expect(goTo).toHaveBeenCalledWith(expect.any(Number), 6.5);
+    });
+
+    it('runs his legs while he carries at a run', () => {
+        const harness = setup({ specs: pieces });
+        harness.loosen(1);
+
+        harness.ask({ type: 'carry', piece: 1, pace: 'run' });
+        harness.frame(3);
+
+        expect(harness.last().gait).toBe('run');
     });
 
     it('fails for a piece that is unknown, and for one that is pinned', () => {

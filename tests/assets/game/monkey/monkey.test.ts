@@ -175,7 +175,7 @@ describe('the monkey', () => {
             pose: 'stand',
             mood: 'calm',
             facing: 'right',
-            walking: false,
+            gait: undefined,
             held: false,
         });
 

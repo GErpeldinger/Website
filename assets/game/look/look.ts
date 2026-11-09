@@ -1,6 +1,6 @@
 import '../../styles/blocks/monkey.css';
 import type { Point } from '../events/game_events';
-import type { Facing, Mood, Pose } from '../ports/monkey';
+import type { Facing, Mood, Pace, Pose } from '../ports/monkey';
 import art from './monkey.svg?raw';
 
 // What the art shows, one data attribute each (docs/monkey-art.md): the CSS does the rest.
@@ -8,8 +8,8 @@ export interface Appearance {
     pose: Pose;
     mood: Mood;
     facing: Facing;
-    // His legs step, whatever the upper body does.
-    walking: boolean;
+    // How his legs step, whatever the upper body does; none when he stands.
+    gait: Pace | undefined;
     // The visitor has him in hand.
     held: boolean;
 }
@@ -43,20 +43,20 @@ export class Look {
             pose: 'stand',
             mood: 'calm',
             facing: 'right',
-            walking: false,
+            gait: undefined,
             held: false,
         });
         host.append(element);
     }
 
-    show({ pose, mood, facing, walking, held }: Appearance): void {
+    show({ pose, mood, facing, gait, held }: Appearance): void {
         const { dataset } = this.element;
         dataset.pose = pose;
         dataset.mood = mood;
         dataset.facing = facing;
         dataset.state = held ? 'held' : 'free';
-        if (walking) {
-            dataset.walking = '';
+        if (gait) {
+            dataset.walking = gait;
         } else {
             delete dataset.walking;
         }

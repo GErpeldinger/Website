@@ -21,7 +21,7 @@ const calm: Appearance = {
     pose: 'stand',
     mood: 'calm',
     facing: 'right',
-    walking: false,
+    gait: undefined,
     held: false,
 };
 
@@ -53,6 +53,7 @@ describe('the art', () => {
             '.eyes-red .iris',
             '.eyes-red .brows',
             '.shades .pupil',
+            '.flip > .speed path',
             '.cig .ember',
             '.cig-smoke .puff',
             '.exhale circle',
@@ -122,7 +123,7 @@ describe('what it shows', () => {
             pose: 'carry',
             mood: 'scared',
             facing: 'left',
-            walking: false,
+            gait: undefined,
             held: false,
         });
 
@@ -131,12 +132,14 @@ describe('what it shows', () => {
         expect(look.element.dataset.facing).toBe('left');
     });
 
-    it('says when his legs step, and when they stop', () => {
+    it('says how his legs step, and when they stop', () => {
         const { look } = mount();
 
-        look.show({ ...calm, walking: true });
-        expect(look.element.hasAttribute('data-walking')).toBe(true);
-        expect(look.element.getAttribute('data-walking')).toBe('');
+        look.show({ ...calm, gait: 'walk' });
+        expect(look.element.getAttribute('data-walking')).toBe('walk');
+
+        look.show({ ...calm, gait: 'run' });
+        expect(look.element.getAttribute('data-walking')).toBe('run');
 
         look.show(calm);
         expect(look.element.hasAttribute('data-walking')).toBe(false);

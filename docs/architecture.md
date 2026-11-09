@@ -42,7 +42,7 @@ The monkey is split into layers:
 - **Brain:** chooses the activity from the context and the priorities, and handles interruption and resumption.
 - **Motor** (`motor/`): carries out the Brain's requests on his body in the physics world, and tells the Look what to show. Built: walk, face, stand, stop, pose, mood, carry, place, drop (below). Jumping, hanging and climbing come with their behaviours.
 - **Voice** (`voice/`): draws the lines the Brain puts on the bus, in the speech bubble. Picking them (rotation, cooldown, parameters) is pure and lives in `lines/`.
-- **Look** (`look/`): the SVG, written through `data-pose`, `data-mood`, `data-facing`, `data-walking` and `data-state`; the CSS does the rest ([monkey-art.md](monkey-art.md)).
+- **Look** (`look/`): the SVG, written through `data-pose`, `data-mood`, `data-facing`, `data-walking` (`walk` or `run`, the pace of the walk the Motor drives) and `data-state`; the CSS does the rest ([monkey-art.md](monkey-art.md)).
 
 `monkey/` builds the three and wires them to the page; it is the only module that knows all of them.
 
@@ -239,7 +239,7 @@ A device whose frame rate collapses during play is downgraded on the spot, and t
 - **A cut activity's Motor task is cancelled even when the cut comes from inside `perform`.** A Motor may emit an event while starting a request; if that starts a stronger activity, the Brain cancels the task it gets back, since nothing else holds it. A request that never ends keeps the Brain busy but not the loop awake: only a Motor's frame-driven work (`busy`) does, and the Brain's timed poses, moods and `wait`s are game timers the sleeping loop wakes for.
 - **The monkey is made by the game, not by Twig.** A Twig partial would put kilobytes of SVG in every response, need a state to hide it and leave every page to include it. The game builds him from `look/monkey.svg` when it starts and removes him when it stops. Rejected: the partial.
 - **A reserved id, not a piece.** The hand names him `MONKEY` (-1) and the world holds his body apart from the pieces, with his own events: he is no `data-physics` element, and a piece's events (`item.*`) would mean pieces. Rejected: wrapping him as a piece kind.
-- **Walking is not a pose.** A carrying monkey also steps, so the legs are `data-walking` and the upper body `data-pose`. The workbench's classes became data attributes; its `.zippo` and the states v1 does not need are left for their behaviours.
+- **Walking is not a pose.** A carrying monkey also steps, so the legs are `data-walking` and the upper body `data-pose`. The value of `data-walking` is the pace (`walk` or `run`) of the walk the Motor is driving, so a flee or a hurried rebuild runs instead of playing the walk faster. The workbench's classes became data attributes; its `.zippo` and the states v1 does not need are left for their behaviours.
 - **Tumbling is the body's turn.** The workbench's tumble spun the art; in the scene the body already rotates, so only the limbs flail.
 - **Progress is getting further.** "Stuck" counts a step that did not take him further than he had been (pushed back and forth against a wall gains nothing), not a step that did not move him; a first version that reset on any movement never gave up.
 - **A request ends with its own outcome, a cut one with none.** A request that cannot be done fails at once (the first step runs inside `perform`); one cut short is not stepped again and undoes what it started (halts him, gives the pose back). `stop` and `stand` rely on that: the request they replace has halted him.

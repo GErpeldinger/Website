@@ -1,7 +1,7 @@
 /* The monkey (docs/monkey-art.md), ported from design/monkey/index.html. Only the look module
    imports this file: the game builds the SVG, so a page without the game never loads it. The state
    is five data attributes on the root, written by the Look: data-pose, data-mood, data-facing,
-   data-walking and data-state.
+   data-walking (absent when he stands, `walk` or `run` when his legs step) and data-state.
    Every length in the art is a drawing coordinate in its 56 x 72 frame, not a layout length. */
 @layer blocks {
     .monkey {
@@ -93,7 +93,8 @@
     .monkey .arms-up,
     .monkey .eyes-red,
     .monkey .cig-hand,
-    .monkey .exhale {
+    .monkey .exhale,
+    .monkey .speed {
         display: none;
     }
 
@@ -341,6 +342,51 @@
 
         .monkey[data-walking][data-pose='stand'] .pose {
             animation: monkey-walk-bob 260ms ease-in-out infinite;
+        }
+
+        /* Running, away from a bomb or in a hurry: legs wide and fast, the body leaning into it,
+           the arms pumping, the smoke left behind and a few lines of wind. These rules beat the
+           tumble's by order: the Motor never sends a gait while he tumbles. */
+        .monkey[data-walking='run'] .speed {
+            display: block;
+            animation: monkey-whoosh 0.3s linear infinite;
+        }
+
+        .monkey[data-walking='run'] .leg-a {
+            animation: monkey-run-leg 0.32s linear infinite;
+        }
+
+        .monkey[data-walking='run'] .leg-b {
+            animation: monkey-run-leg 0.32s linear infinite reverse;
+        }
+
+        .monkey[data-walking='run'] .tail {
+            animation: monkey-tail-run 0.16s ease-in-out infinite alternate;
+        }
+
+        .monkey[data-walking='run'] .puff {
+            animation-duration: 1.2s;
+        }
+
+        .monkey[data-walking='run'][data-pose='stand'] .pose {
+            transform-origin: 28px 70px;
+            animation: monkey-run-pose 0.32s ease-in-out infinite;
+        }
+
+        .monkey[data-walking='run'][data-pose='stand'] .arm-r .upper {
+            animation: monkey-pump 0.32s ease-in-out infinite;
+        }
+
+        .monkey[data-walking='run'][data-pose='stand'] .arm-l .upper {
+            animation: monkey-pump 0.32s ease-in-out infinite reverse;
+        }
+
+        .monkey[data-walking='run'][data-pose='stand'] .arm-r .fore {
+            transform: rotate(75deg);
+        }
+
+        .monkey[data-walking='run'][data-pose='stand'] .arm-l .fore {
+            transform: rotate(-75deg);
         }
     }
 
@@ -819,6 +865,58 @@
 
         to {
             transform: rotate(25deg);
+        }
+    }
+
+    @keyframes monkey-run-pose {
+        0%,
+        50%,
+        100% {
+            transform: rotate(9deg) translateY(0.6px);
+        }
+
+        25%,
+        75% {
+            transform: rotate(9deg) translateY(-2px);
+        }
+    }
+
+    @keyframes monkey-run-leg {
+        0%,
+        100% {
+            transform: rotate(-38deg);
+        }
+
+        50% {
+            transform: rotate(38deg);
+        }
+    }
+
+    @keyframes monkey-pump {
+        0%,
+        100% {
+            transform: rotate(-28deg);
+        }
+
+        50% {
+            transform: rotate(22deg);
+        }
+    }
+
+    @keyframes monkey-whoosh {
+        0% {
+            opacity: 0;
+            transform: translateX(4px);
+        }
+
+        20% {
+            opacity: 0.9;
+            transform: translateX(2.4px);
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateX(-5px);
         }
     }
 

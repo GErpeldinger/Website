@@ -85,6 +85,8 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
     #pose: ChosenPose = 'stand';
     #mood: Mood = 'calm';
     #facing: Facing = 'right';
+    // The pace of the walk he drives, which says how his legs step while he moves.
+    #pace: Pace = 'walk';
     #carried: Carried | undefined;
     #restoring: number | undefined;
     // The time the frame in progress adds, for the tweens.
@@ -342,6 +344,7 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
     // Walks to what `target` says, which may move, and ends once he is there.
     *#walkTo(target: () => number | undefined, pace: Pace): Steps {
         let goal: { body: MonkeyBody; x: number } | undefined;
+        this.#pace = pace;
         for (;;) {
             const wanted = target();
             const body = this.#options.body();
@@ -548,7 +551,10 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                       : this.#pose),
             mood: overlayMood ?? this.#mood,
             facing: this.#facing,
-            walking: !held && body.heading !== 0,
+            gait:
+                !held && !body.tumbling && body.heading !== 0
+                    ? this.#pace
+                    : undefined,
             held,
         });
     }

@@ -161,29 +161,27 @@ it('marks the letters, the links and the content blocks as bodies', function ():
         ->and($crawler->filter('main [data-physics="block"]')->count())->toBe(5);
 });
 
-it('hands the game the lines of the page language, and only those', function (string $locale, array $expected): void {
+it('hands the game the lines of the page language', function (string $locale, array $expected, string $run): void {
     /** @var KernelBrowser $client */
     $client = static::createClient();
     $crawler = $client->request('GET', "/{$locale}/");
 
+    /** @var array{locale: string, pools: array<string, list<string>>} $lines */
     $lines = json_decode((string) $crawler->filter('main[data-controller="game"]')->attr('data-game-lines-value'), true, flags: JSON_THROW_ON_ERROR);
 
-    expect($lines)->toBe($expected);
+    // The test lines come on top of the real catalogue: check them and one real pool.
+    expect($lines['locale'])->toBe($locale)
+        ->and($lines['pools'])->toMatchArray($expected)
+        ->and($lines['pools']['run'][0])->toBe($run);
 })->with([
     'fr' => [
         'fr', [
-            'locale' => 'fr',
-            'pools' => [
-                'test' => ['Une ligne de test', 'Une autre'],
-                'single' => ['Une seule'],
-            ],
-        ]],
+            'test' => ['Une ligne de test', 'Une autre'],
+            'single' => ['Une seule'],
+        ], 'AU SECOURS !'],
     'en' => [
         'en', [
-            'locale' => 'en',
-            'pools' => [
-                'test' => ['A test line', 'Another'],
-                'single' => ['Just one'],
-            ],
-        ]],
+            'test' => ['A test line', 'Another'],
+            'single' => ['Just one'],
+        ], 'HELP!'],
 ]);

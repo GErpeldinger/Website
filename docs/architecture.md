@@ -1,6 +1,6 @@
 # Architecture
 
-The website is a real, readable page that doubles as a playable 2D scene. Visitors can grab, throw, bomb or blow away every element, while a monkey comments, flees, hangs on elements and rebuilds the page. The physics layer, the behaviour engine and the monkey's body (Motor, Look, Voice) are built (below); his behaviours, the dock and the rest are decided but not built yet: [todo.md](todo.md) tracks the work.
+The website is a real, readable page that doubles as a playable 2D scene. Visitors can grab, throw, bomb or blow away every element, while a monkey comments, flees, hangs on elements and rebuilds the page. The physics layer, the behaviour engine and the monkey's body (Motor, Look, Voice) are built (below); his first behaviours are in too (below); the rebuild, the dock and the rest are decided but not built yet: [todo.md](todo.md) tracks the work.
 
 ## Two layers: content, then game
 
@@ -54,7 +54,7 @@ Systems communicate through events: `item.freed`, `bomb.placed`, `monkey.hit`, `
 
 ## The behaviour engine
 
-The engine every character's behaviour runs on is built. The monkey is on the page with a Motor (`engine.attach('monkey', motor, { speaks: true })`) and no behaviour yet. Adding an interaction means adding files, never editing the core.
+The engine every character's behaviour runs on is built. The monkey is on the page with a Motor (`engine.attach('monkey', motor, { speaks: true })`). His behaviours so far: the line reactions (`comments.ts`), a flinch when hit, idle smoking and fleeing a bomb, which read the page's width and his position from the context (`pageWidth`, `monkeyX`, `ports/monkey_world.ts`). Adding an interaction means adding files, never editing the core.
 
 - **Actors.** Each actor (the monkey, later the drone, Naïa, the birds) has its own Brain and its own behaviours. Only what two actors will really share is generic: the Brain, the Motor port, the context, the lines. Only the monkey gets a Voice.
 - **A behaviour is one file** in `assets/game/activities/<actor>/`, whose default export declares its actor, kind, priority, the events that can trigger it (`triggers`), `canStart(context)` and `run`, a generator that yields the actor's Motor requests (or `wait(ms)`, which the Brain keeps itself) and is given each outcome. Optional: `weight` (variants), `cooldown`, `resumes`, `lines` (the keys it may say). Its id is its path (`monkey/flinch`). `assets/game/registry/behaviours.ts` finds every such file with an eager `import.meta.glob` (static imports after the build), so the file is registered by existing. A subfolder is for a file's helpers.
@@ -65,13 +65,12 @@ The engine every character's behaviour runs on is built. The monkey is on the pa
     actor: 'monkey',
     kind: 'reflex',
     priority: 10,
-    triggers: ['item.hit'],
-    canStart: ({ trigger }) =>
-      trigger?.name === 'item.hit' && trigger.payload.against === 'piece',
+    triggers: ['monkey.hit'],
+    canStart: ({ trigger }) => trigger?.name === 'monkey.hit',
     lines: ['hurt'],
     *run(_context, act) {
       act.say('hurt');
-      yield { type: 'face', mood: 'scared' };
+      yield { type: 'mood', mood: 'scared', ms: 900 };
     },
   });
   ```
@@ -235,7 +234,7 @@ A device whose frame rate collapses during play is downgraded on the spot, and t
 - **Development gives actors without a Motor a fake one.** Until the real Motors exist, the panel attaches a `FakeMotor` that finishes each request after 400 ms of game time, so every Brain can be driven from the panel; in production an actor without a Motor simply takes no part.
 - **Tests that read the repository.** The consistency test reads the translations and walks the syntax tree of `assets/game` (the development panel apart) for calls of `emit` or `#emit` with a literal name. A scan finds "nothing emits this event" without a list to maintain, and misses an event emitted under a name built at run time (none exists: `emit` takes the typed event names). Mutation testing runs the tests in a copy of the sources whose strings are instrumented, so the scan reads the real tree.
 - **The loop sleeps through game timers.** The game clock only moves with the loop, so a timer pending when the loop stops (a behaviour's idle time) would never fire. `Clock.next()` says when the next one is due; when the loop goes idle with one pending, the frame driver sets one real timeout for it, carries the clock to that time and wakes the loop. A wake for any other reason, a hidden tab or a stop clears it. A pending timer does not count as busy, so a still page costs one wake per timer, not a running loop. The trade-off: while asleep, game time follows the wall clock instead of being capped at 250 ms a step, which is the point.
-- **A cut activity's Motor task is cancelled even when the cut comes from inside `perform`.** A Motor may emit an event while starting a request; if that starts a stronger activity, the Brain cancels the task it gets back, since nothing else holds it. A request that never ends keeps the Brain busy and the loop awake: the port says so.
+- **A cut activity's Motor task is cancelled even when the cut comes from inside `perform`.** A Motor may emit an event while starting a request; if that starts a stronger activity, the Brain cancels the task it gets back, since nothing else holds it. A request that never ends keeps the Brain busy but not the loop awake: only a Motor's frame-driven work (`busy`) does, and the Brain's timed poses, moods and `wait`s are game timers the sleeping loop wakes for.
 - **The monkey is made by the game, not by Twig.** A Twig partial would put kilobytes of SVG in every response, need a state to hide it and leave every page to include it. The game builds him from `look/monkey.svg` when it starts and removes him when it stops. Rejected: the partial.
 - **A reserved id, not a piece.** The hand names him `MONKEY` (-1) and the world holds his body apart from the pieces, with his own events: he is no `data-physics` element, and a piece's events (`item.*`) would mean pieces. Rejected: wrapping him as a piece kind.
 - **Walking is not a pose.** A carrying monkey also steps, so the legs are `data-walking` and the upper body `data-pose`. The workbench's classes became data attributes; its `.zippo` and the states v1 does not need are left for their behaviours.

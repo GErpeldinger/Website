@@ -3,4 +3,39 @@
 # {kind, select, ...}. Reactions and behaviours name a key; a test checks that it exists in both
 # languages (docs/architecture.md, The behaviour engine). A key that ends in a number is only
 # valid as a list item (`grab.0`, `grab.1`): `level.2: x` would read as a variant of `level`.
-{}
+grab:
+    - 'Hey! What are you doing with that?'
+    - 'Put that back.'
+    - 'That was pixel-perfect.'
+    - 'Do you know how long that took me?'
+    - 'OK. I’m taking notes.'
+letter:
+    - 'That’s a person’s name, you know!'
+    - 'There’s a letter missing now.'
+    - 'Give that letter back.'
+link:
+    - 'People need that to get in touch. Put it down.'
+    - 'We need that link.'
+drop:
+    - 'Hey, careful!'
+    - 'Are you paying for that?'
+    - 'Well done.'
+me:
+    - 'Let go of me!'
+    - 'I’m filing a complaint!'
+    - 'Put me down. Right now.'
+    - 'I’m scared of heights.'
+hurt:
+    - 'Ouch!'
+    - 'Watch the shades!'
+    - 'You almost put out my smoke.'
+run:
+    - 'HELP!'
+    - 'IT’S GONNA BLOW!'
+    - 'Run for it!'
+stormTool:
+    - 'Is it me, or is it windy?'
+    - 'That’s not covered by the warranty.'
+float:
+    - 'Who turned off gravity?'
+    - 'Put it back. I’m not joking.'

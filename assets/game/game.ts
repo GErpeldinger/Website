@@ -25,6 +25,7 @@ import { Shake } from './page/shake';
 import type { Bounds } from './physics/bodies';
 import type { MonkeyBody } from './physics/monkey_body';
 import { MONKEY, PhysicsWorld } from './physics/world';
+import { monkeyWorld } from './ports/monkey_world';
 import { registered } from './registry/behaviours';
 
 // What the dock, the monkey and the Rebuild call. Positions are page coordinates.
@@ -84,7 +85,13 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         random,
         behaviours: options.behaviours ?? registered,
         lines: options.lines,
-        sources: [(): { reducedMotion: boolean } => ({ reducedMotion })],
+        sources: [
+            (): { reducedMotion: boolean } => ({ reducedMotion }),
+            monkeyWorld(() => ({
+                pageWidth: scene.bounds.width,
+                monkeyX: scene.monkey.position.x,
+            })),
+        ],
         // A behaviour that fails ends there: the game goes on.
         onError: (error, source): void => {
             console.error(`The behaviour engine failed in ${source}.`, error);
@@ -130,7 +137,6 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             !input.busy &&
             !shake.active &&
             !resizing &&
-            !engine.busy &&
             !monkey.busy,
     });
 
@@ -149,6 +155,8 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     });
     engine.attach('monkey', monkey.motor, { speaks: true });
     monkey.step(0);
+    // The Brain's idle timer is on the game clock: the loop runs once, then sleeps to that timer.
+    frame.wake();
 
     // The scene holds the content and the monkey, so a press on either reaches the hand.
     const input = new Input({

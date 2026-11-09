@@ -3,4 +3,39 @@
 # {kind, select, ...}. Reactions and behaviours name a key; a test checks that it exists in both
 # languages (docs/architecture.md, The behaviour engine). A key that ends in a number is only
 # valid as a list item (`grab.0`, `grab.1`): `level.2: x` would read as a variant of `level`.
-{}
+grab:
+    - 'Hé ! Tu fais quoi avec ça ?'
+    - 'Repose ça.'
+    - 'C’était aligné au pixel près.'
+    - 'Tu sais combien de temps ça m’a pris ?'
+    - 'OK. Je note.'
+letter:
+    - 'C’est son nom, quand même !'
+    - 'Il manque une lettre, là.'
+    - 'Rends cette lettre.'
+link:
+    - 'Ça sert à le contacter, ça. Repose.'
+    - 'Ce lien, on en a besoin.'
+drop:
+    - 'Hé, doucement !'
+    - 'Tu paies la casse ?'
+    - 'Bravo.'
+me:
+    - 'Lâche-moi !'
+    - 'Je vais me plaindre !'
+    - 'Pose-moi. Tout de suite.'
+    - 'J’ai le vertige.'
+hurt:
+    - 'Aïe !'
+    - 'Attention aux lunettes !'
+    - 'Tu as failli éteindre ma clope.'
+run:
+    - 'AU SECOURS !'
+    - 'ÇA VA PÉTER !'
+    - 'Sauve qui peut !'
+stormTool:
+    - 'Il y a du vent, non ?'
+    - 'Ça, ce n’est pas couvert par la garantie.'
+float:
+    - 'Qui a coupé la gravité ?'
+    - 'Remets ça. Je ne plaisante pas.'

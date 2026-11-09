@@ -12,6 +12,7 @@ import type { LineBook } from '../../../assets/game/lines/speaker';
 import { FakeMotor } from '../../../assets/game/ports/fake_motor';
 import type { MonkeyRequest } from '../../../assets/game/ports/monkey';
 import type { Motor } from '../../../assets/game/ports/motor';
+import smoke from '../../../assets/game/activities/monkey/smoke';
 import { byId, rect, select } from './dom';
 import { FakeBrowser } from './frame/fake_environment';
 
@@ -58,6 +59,8 @@ interface Options {
     reducedMotion?: boolean;
     random?: () => number;
     width?: number;
+    // Lets the first frame, which every game runs once to arm the Brain's idle timer, go by.
+    settle?: boolean;
 }
 
 interface Harness {
@@ -83,11 +86,13 @@ interface Harness {
 // A page of a 1000 px width and an 800 px height, with a block at (500, 300), a locked one at
 // (200, 300), and a link at (500, 600).
 const setup = ({
-    behaviours,
+    // None by default: the registry's own behaviours say lines the test's book lacks.
+    behaviours = [],
     lines = { locale: 'en', pools: {} },
     reducedMotion = false,
     random,
     width = 1000,
+    settle = true,
 }: Options = {}): Harness => {
     document.body.innerHTML = `<div id="scene">
         <div id="ground" data-ground></div>
@@ -140,6 +145,11 @@ const setup = ({
     games.push(game);
 
     let time = 0;
+    if (settle) {
+        time += 1000 / 60;
+        browser.frame(time);
+        browser.requested = 0;
+    }
     return {
         game,
         root,
@@ -187,6 +197,29 @@ describe('starting', () => {
         expect(get('link').dataset.state).toBe('pinned');
         expect(get('plain').hasAttribute('data-state')).toBe(false);
         expect(browser.requested).toBe(0);
+    });
+
+    it('runs one frame, then sleeps until the Brain’s idle timer, so he can smoke on a still page', () => {
+        const { get, browser, game } = setup({
+            settle: false,
+            behaviours: [{ ...smoke, id: 'monkey/smoke' }],
+        });
+        const pose = (): string | undefined =>
+            select('[data-pose]').dataset.pose;
+
+        expect(browser.pending).toBe(true);
+        browser.frame(16);
+        expect(browser.pending).toBe(false);
+        expect([...browser.timeouts.values()].map((t) => t.delay)).toEqual([
+            5000 - 16,
+        ]);
+        expect(pose()).not.toBe('smoke');
+
+        browser.fireTimeout();
+
+        expect(game.engine.clock.now()).toBe(5000);
+        expect(pose()).toBe('smoke');
+        expect(get('block').dataset.state).toBe('pinned');
     });
 });
 
@@ -430,6 +463,7 @@ describe('the tornado', () => {
         events.on('tornado.started', started);
         const game = startGame(select('main'), {
             events,
+            behaviours: [],
             lines: { locale: 'en', pools: {} },
             frameEnvironment: new FakeBrowser(),
         });
@@ -455,6 +489,7 @@ describe('zero gravity', () => {
         events.on('gravity.changed', changed);
         const game = startGame(select('main'), {
             events,
+            behaviours: [],
             lines: { locale: 'en', pools: {} },
             reducedMotion: false,
             frameEnvironment: new FakeBrowser(),
@@ -765,7 +800,10 @@ describe('the behaviour engine', () => {
     });
 
     it('is the game’s, with the actors the registry found', () => {
-        const { game } = setup({ behaviours: [bombReaction()] });
+        const { game } = setup({
+            behaviours: [bombReaction()],
+            settle: false,
+        });
 
         expect(game.engine).toBeInstanceOf(Engine);
         // The monkey has a body from the start, and no behaviour yet.
@@ -795,6 +833,7 @@ describe('the behaviour engine', () => {
     it('starts an ambient behaviour after the idle time on a page at rest', () => {
         const { game, run, browser } = setup({
             behaviours: [bombReaction({ kind: 'ambient', triggers: [] })],
+            settle: false,
         });
         const started = vi.fn();
         game.events.on('behaviour.started', started);
@@ -810,7 +849,7 @@ describe('the behaviour engine', () => {
         expect(browser.pending).toBe(true);
     });
 
-    it('keeps the loop going while an actor is busy, and lets it stop after', () => {
+    it('sleeps through a behaviour’s wait, which is a game timer, and wakes for it', () => {
         const { game, run, browser } = setup({
             behaviours: [
                 bombReaction({
@@ -825,12 +864,25 @@ describe('the behaviour engine', () => {
 
         game.events.emit('gravity.changed', { zero: false });
         run(200);
-        // The page has been still for far longer than 30 steps.
-        expect(browser.pending).toBe(true);
         expect(game.engine.busy).toBe(true);
+        expect(browser.pending).toBe(false);
 
+        browser.fireTimeout();
         run();
         expect(game.engine.busy).toBe(false);
+    });
+
+    it('lets the loop sleep through the smoke pose', () => {
+        const { game, browser } = setup({
+            settle: false,
+            behaviours: [{ ...smoke, id: 'monkey/smoke' }],
+        });
+        browser.frame(16);
+        browser.fireTimeout();
+        // The timer woke the loop; its next frame sees nothing moving and lets it sleep again.
+        browser.frame(5100);
+
+        expect(game.engine.busy).toBe(true);
         expect(browser.pending).toBe(false);
     });
 
@@ -860,6 +912,25 @@ describe('the behaviour engine', () => {
                 expect.objectContaining({ reducedMotion }),
             );
         }
+    });
+
+    it('tells the behaviours the page’s width and where the monkey stands', () => {
+        const canStart = vi.fn(() => false);
+        const { game } = setup({
+            behaviours: [bombReaction({ canStart })],
+            width: 900,
+        });
+        game.engine.attach('drone', new FakeMotor());
+        canStart.mockClear();
+
+        game.events.emit('bomb.placed', { id: 1, at: { x: 0, y: 0 } });
+
+        expect(canStart).toHaveBeenCalledWith(
+            expect.objectContaining({
+                pageWidth: 900,
+                monkeyX: expect.closeTo(64, 0) as number,
+            }),
+        );
     });
 
     it('gives an actor that speaks the lines of the page', () => {
@@ -956,7 +1027,7 @@ describe('the monkey', () => {
     });
 
     it('stands on the ground in the scene, hidden from assistive technology', () => {
-        const { get } = setup();
+        const { get } = setup({ settle: false });
 
         expect(monkey().parentElement).toBe(get('ground').parentElement);
         expect(monkey().getAttribute('aria-hidden')).toBe('true');
@@ -970,6 +1041,7 @@ describe('the monkey', () => {
     it('stands on the body of the page when it has no ground strip', () => {
         document.body.innerHTML = '<main><p data-physics="block">x</p></main>';
         const game = startGame(select('main'), {
+            behaviours: [],
             lines: { locale: 'en', pools: {} },
             frameEnvironment: new FakeBrowser(),
         });
@@ -1167,7 +1239,7 @@ describe('the monkey', () => {
     });
 
     it('looks at the pointer', () => {
-        const { pointer } = setup();
+        const { pointer } = setup({ settle: false });
 
         pointer(window, 'pointermove', 900, 761);
 

@@ -3,7 +3,7 @@
 // the legs, whatever the upper body does.
 export type Pose = 'stand' | 'smoke' | 'talk' | 'carry' | 'tumble';
 export type ChosenPose = Extract<Pose, 'stand' | 'smoke' | 'talk'>;
-export type Mood = 'calm' | 'scared' | 'cross' | 'proud';
+export type Mood = 'calm' | 'scared' | 'cross' | 'proud' | 'burnt';
 export type Facing = 'left' | 'right';
 export type Pace = 'walk' | 'run';
 

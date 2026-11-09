@@ -17,7 +17,7 @@ describe('the monkey requests', () => {
             'stand' | 'smoke' | 'talk' | 'carry' | 'tumble'
         >();
         expectTypeOf<Mood>().toEqualTypeOf<
-            'calm' | 'scared' | 'cross' | 'proud'
+            'calm' | 'scared' | 'cross' | 'proud' | 'burnt'
         >();
         expectTypeOf<Facing>().toEqualTypeOf<'left' | 'right'>();
         expectTypeOf<Pace>().toEqualTypeOf<'walk' | 'run'>();

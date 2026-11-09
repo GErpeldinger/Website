@@ -46,6 +46,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Jump and climb behaviours: measure whether a running hop that lands on a pinned piece exceeds the 9 px per step that frees it (and the 10 that counts as a hit).
 - The tornado does not take the monkey yet, and he does not flee it: add both with the tornado's behaviour.
 - A walk that fails when he is blocked leaves the behaviour to decide (go round, jump, give up): the first behaviours decide.
+- Overlay moods and reflex retrigger: the last mood overlay pushed shows, so `wrecked` or `lazy_stop` replaces the burnt look, and a second blast during burnt is dropped (an active behaviour is not restarted), so its floor hit flinches once burnt has ended. Give burnt precedence over the other overlay moods while it lasts, and let a reflex restart on retrigger.
 
 ## Multiplayer
 

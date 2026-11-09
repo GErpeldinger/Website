@@ -29,6 +29,9 @@ hurt:
     - 'Aïe !'
     - 'Attention aux lunettes !'
     - 'Tu as failli éteindre ma clope.'
+burnt:
+    - '*tousse* C’était ma dernière clope.'
+    - 'Super. On dirait que mon briquet m’a explosé à la figure.'
 run:
     - 'AU SECOURS !'
     - 'ÇA VA PÉTER !'

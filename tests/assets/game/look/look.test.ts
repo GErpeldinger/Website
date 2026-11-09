@@ -60,6 +60,20 @@ describe('the art', () => {
             '.arm-l .upper .fore',
             '.arm-r .upper .fore .cig-hand',
         ];
+        // What burns: the fur, ears, face, beard, hair, a lens, the hoodie and the cigarette.
+        const burnable = [
+            '.head > .ear',
+            '.head > .fur',
+            '.head > .hair',
+            '.head > .hair-frizz',
+            '.head > .face',
+            '.head > .beard',
+            '.head .shades .crack',
+            '.head > .stub',
+            '.head > .smoulder .puff',
+            '.breath > .smudge',
+        ];
+        parts.push(...burnable);
 
         for (const part of parts) {
             expect(look.element.querySelector(part), part).not.toBeNull();
@@ -68,20 +82,26 @@ describe('the art', () => {
             3,
         );
         expect(look.element.querySelectorAll('.exhale circle')).toHaveLength(4);
+        expect(look.element.querySelectorAll('.head > .ear')).toHaveLength(2);
+        expect(look.element.querySelectorAll('.smoulder .puff')).toHaveLength(
+            3,
+        );
     });
 
     it('has a mouth for each mood, and the one for talking', () => {
         const { look } = mount();
-        const moods = {
-            calm: 0,
-            scared: 0,
-            cross: 0,
-            proud: 0,
-        } satisfies Record<Mood, number>;
+        // The burnt monkey's mouth is the cross one.
+        const mouths = {
+            calm: 'calm',
+            scared: 'scared',
+            cross: 'cross',
+            proud: 'proud',
+            burnt: 'cross',
+        } satisfies Record<Mood, string>;
 
-        for (const mood of Object.keys(moods)) {
+        for (const [mood, mouth] of Object.entries(mouths)) {
             expect(
-                look.element.querySelector(`.mouth-${mood}`),
+                look.element.querySelector(`.mouth-${mouth}`),
                 mood,
             ).not.toBeNull();
         }

@@ -1119,7 +1119,7 @@ describe('the poses tab', () => {
             ),
         ).toEqual([
             ['Poses', 3],
-            ['Moods', 4],
+            ['Moods', 5],
             ['Walks', 4],
         ]);
     });

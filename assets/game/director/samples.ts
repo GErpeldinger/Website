@@ -17,6 +17,7 @@ export const eventSamples: { [Name in keyof GameEvents]: GameEvents[Name] } = {
     'monkey.thrown': { speed: 12 },
     'monkey.landed': { speed: 8 },
     'monkey.hit': { speed: 9, against: 'piece' },
+    'monkey.blasted': { bomb: 1 },
     'tool.selected': { tool: 'bomb' },
     'bomb.placed': { id: 1, at: { x: 500, y: 300 } },
     'bomb.cancelled': { id: 1 },

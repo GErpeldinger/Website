@@ -29,6 +29,9 @@ hurt:
     - 'Ouch!'
     - 'Watch the shades!'
     - 'You almost put out my smoke.'
+burnt:
+    - '*cough* That was my last cigarette.'
+    - 'Nice. Now it looks like my lighter blew up in my face.'
 run:
     - 'HELP!'
     - 'IT’S GONNA BLOW!'

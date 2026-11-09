@@ -54,6 +54,15 @@
     --monkey-width: 56px;
     --monkey-height: 72px;
     --bubble-width: 240px;
+
+    /* The monkey burnt by a bomb: the greys his fur, face and legs turn to. */
+    --monkey-burnt-fur: #2e2a26;
+    --monkey-burnt-ear: #3a3530;
+    --monkey-burnt-face: #7d7166;
+    --monkey-burnt-beard: #4a443e;
+    --monkey-burnt-leg-a: #4a4540;
+    --monkey-burnt-leg-b: #3d3934;
+    --monkey-burnt-tail: #2a2724;
 }
 
 @media (width <= 860px) {

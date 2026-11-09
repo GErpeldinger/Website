@@ -12,7 +12,7 @@ describe('the pose buttons', () => {
             poseGroups.map(({ buttons }) => buttons.map(({ label }) => label)),
         ).toEqual([
             ['Stand', 'Smoke', 'Talk'],
-            ['Calm', 'Scared', 'Cross', 'Proud'],
+            ['Calm', 'Scared', 'Cross', 'Proud', 'Burnt'],
             ['Walk left', 'Walk right', 'Run left', 'Run right'],
         ]);
     });
@@ -30,6 +30,11 @@ describe('the pose buttons', () => {
         expect(requests).toContainEqual({
             type: 'mood',
             mood: 'proud',
+            ms: 3000,
+        });
+        expect(requests).toContainEqual({
+            type: 'mood',
+            mood: 'burnt',
             ms: 3000,
         });
         expect(requests).toContainEqual({ type: 'walk', x: 80, pace: 'run' });

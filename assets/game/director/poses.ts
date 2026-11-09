@@ -34,6 +34,7 @@ const moods: Record<Mood, string> = {
     scared: 'Scared',
     cross: 'Cross',
     proud: 'Proud',
+    burnt: 'Burnt',
 };
 const paces: Record<Pace, string> = { walk: 'Walk', run: 'Run' };
 const sides: Record<Facing, (pageWidth: number) => number> = {

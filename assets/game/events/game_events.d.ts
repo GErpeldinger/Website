@@ -54,6 +54,9 @@ export interface GameEvents {
     'monkey.landed': { speed: number };
     // A hard collision: a loose piece or a bomb at 7 px per step or more, a fall on the floor at 10.
     'monkey.hit': { speed: number; against: HitAgainst };
+    // A bomb's blast reached him, a bit further than it reaches a piece; `bomb` is its id. Said
+    // right after `bomb.exploded`.
+    'monkey.blasted': { bomb: number };
     // The visitor chose a tool in the dock (Grab included, and again on the one already chosen).
     'tool.selected': { tool: Tool };
     'bomb.placed': { id: number; at: Point };

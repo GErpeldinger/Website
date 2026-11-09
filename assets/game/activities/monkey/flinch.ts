@@ -1,5 +1,6 @@
 import { defineBehaviour } from '../../brain/behaviour';
 import type { MonkeyRequest } from '../../ports/monkey';
+import { BURNT } from './burnt';
 
 // The prototype's hurt face lasted 900 ms.
 const SCARED_MS = 900;
@@ -9,7 +10,9 @@ export default defineBehaviour<MonkeyRequest>({
     kind: 'reflex',
     priority: 10,
     triggers: ['monkey.hit'],
-    canStart: ({ trigger }) => trigger?.name === 'monkey.hit',
+    // The blast that burnt him also throws him into the floor: that hit is part of it.
+    canStart: ({ trigger, running }) =>
+        trigger?.name === 'monkey.hit' && !running?.includes(BURNT),
     lines: ['hurt'],
     *run(_context, act) {
         act.say('hurt');

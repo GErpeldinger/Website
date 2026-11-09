@@ -752,6 +752,9 @@ export class PhysicsWorld {
             radius,
             freed,
         });
+        if (monkey && reached) {
+            this.#options.events.emit('monkey.blasted', { bomb: bomb.id });
+        }
     }
 
     // The push a blast gives a body, or undefined when it is out of reach. A body right on the

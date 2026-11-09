@@ -26,6 +26,7 @@ const names = [
     'monkey.thrown',
     'monkey.landed',
     'monkey.hit',
+    'monkey.blasted',
     'bomb.exploded',
 ] as const satisfies readonly (keyof GameEvents)[];
 
@@ -457,6 +458,27 @@ describe('a bomb going off near him', () => {
         expect(monkey.body.velocity.y).toBeLessThan(0);
     });
 
+    it('says the blast caught him, after the explosion, with the bomb’s id', () => {
+        const world = setup();
+        const id = world.world.placeBomb({ x: 400, y: 680 });
+
+        world.advance(91);
+
+        expect(world.events('monkey.blasted')).toEqual([{ bomb: id }]);
+        expect(
+            world.log
+                .map(({ name }) => name)
+                .filter(
+                    (name) =>
+                        name.startsWith('monkey.b') || name === 'bomb.exploded',
+                ),
+        ).toEqual(['bomb.exploded', 'monkey.blasted']);
+    });
+
+    it('says it at the edge of his reach, a bit past a piece’s', () => {
+        expect(blast(630).events('monkey.blasted')).toHaveLength(1);
+    });
+
     it('throws him by at least a weak blast’s share: never gently, within reach', () => {
         const { monkey } = blast(630);
 
@@ -469,6 +491,10 @@ describe('a bomb going off near him', () => {
 
         expect(events('bomb.exploded')).toHaveLength(1);
         expect(Math.abs(monkey.body.velocity.x)).toBeLessThan(0.5);
+    });
+
+    it('does not say it when the blast is out of his reach', () => {
+        expect(blast(646).events('monkey.blasted')).toEqual([]);
     });
 });
 

@@ -16,6 +16,7 @@ Not planned work. An idea moves to [todo.md](todo.md) once decided.
 - Idle life: smoke rings, polishing his sunglasses, sitting on a word with his legs dangling, watching the cursor, straightening a slightly crooked letter, checking the time.
 - A hammock strung between two elements as his bed.
 - Ghost monkeys for other players' cursors in multiplayer.
+- After the burnt line "That was my last cigarette.", he takes his car to go and buy cigarettes. It ties in with the planned car, and perhaps with the cigarette arc.
 
 ## Physics
 

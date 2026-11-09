@@ -1,22 +1,55 @@
-/* The development panel (docs/architecture.md, The behaviour engine). Only the director module
-   imports this file, so it never reaches the production CSS: the layer is named here for that. */
+/* The development panel (docs/architecture.md, The director panel). Only the director module
+   imports this file, so it never reaches the production CSS: the layer is named here for that.
+   The toggle sits bottom left, above the dock's row; the panel opens above it. */
 @layer blocks {
+    .director-toggle,
     .director {
         position: fixed;
-        inset-block-end: var(--space-m);
-        inset-inline-end: var(--space-m);
+        inset-inline-start: var(--space-m);
         z-index: 10;
-        display: grid;
-        gap: var(--space-xs);
-        width: var(--panel-width);
-        max-height: 70svh;
-        padding: var(--space-s);
-        overflow: auto;
         color: var(--fg);
         font-size: var(--step-xs);
+    }
+
+    .director-toggle {
+        inset-block-end: calc(
+            var(--space-m) + var(--touch-size) + var(--space-xl)
+        );
+        min-height: var(--touch-size);
+        padding: 0 var(--space-m);
+        font: inherit;
         background: var(--panel);
         border: 1px solid var(--accent);
         border-radius: var(--radius-s);
+    }
+
+    .director-toggle[data-open='true'] {
+        color: var(--accent);
+    }
+
+    .director {
+        inset-block-end: calc(
+            var(--space-m) + 2 * var(--touch-size) + var(--space-xl) +
+                var(--space-xs)
+        );
+        width: min(var(--panel-width), calc(100vw - 2 * var(--space-m)));
+        max-height: 60svh;
+        padding: var(--space-s);
+        overflow: auto;
+        background: var(--panel);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-s);
+    }
+
+    .director > * + * {
+        margin-block-start: var(--space-xs);
+    }
+
+    .director header {
+        display: flex;
+        gap: var(--space-xs);
+        align-items: center;
+        justify-content: space-between;
     }
 
     .director h2 {
@@ -25,9 +58,20 @@
     }
 
     .director h3,
-    .director output {
-        display: inline;
+    .director output,
+    .director p {
         font-size: var(--step-xs);
+    }
+
+    .director [data-tablist] {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2xs);
+    }
+
+    .director [data-selected='true'] {
+        color: var(--accent);
+        border-color: var(--accent);
     }
 
     .director form {
@@ -38,12 +82,17 @@
     .director select,
     .director textarea,
     .director button {
-        padding: var(--space-3xs) var(--space-2xs);
+        min-height: var(--touch-size);
+        padding: var(--space-3xs) var(--space-xs);
         color: inherit;
         font: inherit;
         background: var(--bg);
         border: 1px solid var(--line);
         border-radius: var(--radius-s);
+    }
+
+    .director textarea {
+        min-height: 0;
     }
 
     .director ul {
@@ -54,6 +103,11 @@
         list-style: none;
     }
 
+    .director small {
+        margin-inline-start: var(--space-2xs);
+        opacity: 0.6;
+    }
+
     .director ol {
         max-height: 20svh;
         padding: 0;
@@ -62,10 +116,7 @@
         list-style: none;
     }
 
-    .director li[data-origin='director'] {
-        color: var(--hat);
-    }
-
+    .director li[data-origin='director'],
     .director [data-error] {
         color: var(--hat);
     }

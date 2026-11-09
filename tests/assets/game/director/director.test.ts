@@ -6,7 +6,10 @@ import {
 } from '../../../../assets/game/brain/behaviour';
 import { Engine } from '../../../../assets/game/brain/engine';
 import { Clock } from '../../../../assets/game/clock/clock';
-import { mountDirector } from '../../../../assets/game/director/director';
+import {
+    mountDirector,
+    type DirectedGame,
+} from '../../../../assets/game/director/director';
 import {
     eventSamples,
     requestSamples,
@@ -54,10 +57,18 @@ const hover: Behaviour = {
     },
 };
 
+// The game's actions are spies: the panel only has to call them.
+const actions = (): Omit<DirectedGame, 'events' | 'engine'> => ({
+    bomb: vi.fn(),
+    tornado: vi.fn(),
+    setZeroGravity: vi.fn(),
+    rebuild: vi.fn(),
+});
+
 const setup = (
     behaviours: Behaviour[] = [flee, flinch, hover],
 ): {
-    game: { events: EventBus<GameEvents>; engine: Engine };
+    game: DirectedGame;
     clock: Clock;
     unmount: () => void;
 } => {
@@ -73,7 +84,7 @@ const setup = (
             throw error as Error;
         },
     });
-    const game = { events, engine };
+    const game = { events, engine, ...actions() };
     return { game, clock, unmount: mountDirector(game) };
 };
 
@@ -127,7 +138,7 @@ describe('mounting', () => {
             onError: (): void => undefined,
         });
 
-        mountDirector({ events, engine }, host);
+        mountDirector({ events, engine, ...actions() }, host);
 
         expect(host.querySelector('[data-director]')).not.toBeNull();
     });
@@ -157,17 +168,22 @@ describe('the actors', () => {
         const actors = [...document.querySelectorAll('[data-actor]')].map(
             (actor) => actor.getAttribute('data-actor'),
         );
+        const sections = [
+            ...document.querySelectorAll('[data-behaviours]'),
+        ].map((section) => section.querySelector('h3')?.textContent);
         const buttons = [...document.querySelectorAll('button[data-start]')];
 
         expect(actors).toEqual(['monkey', 'drone']);
+        expect(sections).toEqual(['monkey', 'drone']);
         expect(
             buttons.map((button) => button.getAttribute('data-start')),
         ).toEqual(['monkey/flee', 'monkey/flinch', 'drone/hover']);
-        expect(buttons.map((button) => button.textContent)).toEqual([
-            'flee (activity, 5)',
-            'flinch (reflex, 1)',
-            'hover (ambient, 0)',
-        ]);
+        expect(buttons.map((button) => button.firstChild?.textContent)).toEqual(
+            ['flee', 'flinch', 'hover'],
+        );
+        expect(
+            buttons.map((button) => button.querySelector('small')?.textContent),
+        ).toEqual([' (activity, 5)', ' (reflex, 1)', ' (ambient, 0)']);
     });
 
     it('gives a body to an actor that has none, and keeps the one it has', () => {
@@ -183,7 +199,7 @@ describe('the actors', () => {
         const motor = new FakeMotor();
         const own = engine.attach('monkey', motor);
 
-        mountDirector({ events, engine });
+        mountDirector({ events, engine, ...actions() });
 
         expect(engine.brain('monkey')).toBe(own);
         expect(engine.brain('drone')).toBeDefined();
@@ -433,7 +449,9 @@ describe('its markup', () => {
                 'data-current',
             ),
         ).toBe('');
-        expect(select('[data-actor="monkey"] h3').textContent).toBe('monkey: ');
+        expect(select('[data-actor="monkey"] strong').textContent).toBe(
+            'monkey: ',
+        );
         expect(select('[data-start="monkey/flee"]').getAttribute('type')).toBe(
             'button',
         );
@@ -443,7 +461,7 @@ describe('its markup', () => {
         setup();
 
         const containers = panel().querySelectorAll(
-            'aside, div, section, ul, ol, li, form',
+            'aside, header, div, section, span, ul, ol, li, form, details',
         );
         const strays = [panel(), ...containers].flatMap((container) =>
             [...container.childNodes].filter((node) => node.nodeType === 3),
@@ -553,7 +571,7 @@ describe('the motor console', () => {
         });
         const motor = new FakeMotor();
         engine.attach('monkey', motor);
-        const unmount = mountDirector({ events, engine });
+        const unmount = mountDirector({ events, engine, ...actions() });
         return { events, engine, motor, unmount };
     };
     const consoleOf = (actor: string): HTMLFormElement =>
@@ -734,5 +752,431 @@ describe('the motor console', () => {
         expect(after).toBe(before);
         expect(motor.requests).toEqual([]);
         expect(document.querySelector('form[data-motor]')).toBeNull();
+    });
+});
+
+describe('the toggle', () => {
+    const toggle = (): HTMLButtonElement =>
+        select('.director-toggle') as HTMLButtonElement;
+    const key = (target: Element, name: string): void => {
+        target.dispatchEvent(
+            new KeyboardEvent('keydown', { key: name, bubbles: true }),
+        );
+    };
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        localStorage.clear();
+    });
+
+    it('is a button called Director, which controls the panel', () => {
+        setup();
+
+        expect(toggle().tagName).toBe('BUTTON');
+        expect(toggle().getAttribute('type')).toBe('button');
+        expect(toggle().textContent).toBe('Director');
+        expect(toggle().getAttribute('aria-controls')).toBe(panel().id);
+        expect(panel().id).toBe('director');
+    });
+
+    it('comes before the panel, so Tab reaches the panel after opening it', () => {
+        setup();
+
+        expect(
+            toggle().compareDocumentPosition(panel()) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
+    it('starts closed', () => {
+        setup();
+
+        expect(panel().hidden).toBe(true);
+        expect(toggle().getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('opens and closes the panel, and remembers it', () => {
+        setup();
+
+        toggle().click();
+        expect(panel().hidden).toBe(false);
+        expect(toggle().getAttribute('aria-expanded')).toBe('true');
+        expect(toggle().dataset.open).toBe('true');
+        expect(localStorage.getItem('director.open')).toBe('1');
+
+        toggle().click();
+        expect(panel().hidden).toBe(true);
+        expect(toggle().getAttribute('aria-expanded')).toBe('false');
+        expect(toggle().dataset.open).toBe('false');
+        expect(localStorage.getItem('director.open')).toBe('0');
+    });
+
+    it('starts open when it was left open', () => {
+        localStorage.setItem('director.open', '1');
+
+        setup();
+
+        expect(panel().hidden).toBe(false);
+        expect(toggle().getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('starts closed when it was left closed, or never opened', () => {
+        localStorage.setItem('director.open', '0');
+
+        setup();
+
+        expect(panel().hidden).toBe(true);
+    });
+
+    it('starts closed, and still works, when the storage is refused', () => {
+        const refuse = (): never => {
+            throw new Error('blocked');
+        };
+        vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse });
+        setup();
+        expect(panel().hidden).toBe(true);
+
+        toggle().click();
+
+        expect(panel().hidden).toBe(false);
+    });
+
+    it('closes on its ✕ button, and gives the focus back to the toggle', () => {
+        setup();
+        toggle().click();
+        const closer = select('[data-close]');
+        closer.focus();
+
+        closer.click();
+
+        expect(closer.getAttribute('data-close')).toBe('');
+        expect(closer.getAttribute('aria-label')).toBe('Close the director');
+        expect(closer.textContent).toBe('✕');
+        expect(panel().hidden).toBe(true);
+        expect(toggle().getAttribute('aria-expanded')).toBe('false');
+        expect(localStorage.getItem('director.open')).toBe('0');
+        expect(document.activeElement).toBe(toggle());
+    });
+
+    it('closes on Escape from inside the panel, not on another key', () => {
+        setup();
+        toggle().click();
+        const inside = select('[role="tab"]');
+        inside.focus();
+
+        key(inside, 'a');
+        expect(panel().hidden).toBe(false);
+        key(inside, 'Escape');
+
+        expect(panel().hidden).toBe(true);
+        expect(localStorage.getItem('director.open')).toBe('0');
+        expect(document.activeElement).toBe(toggle());
+    });
+
+    it('is not closed by Escape from elsewhere', () => {
+        setup();
+        toggle().click();
+
+        key(document.body, 'Escape');
+
+        expect(panel().hidden).toBe(false);
+    });
+
+    it('goes with the panel, and stops listening', () => {
+        const { unmount } = setup();
+        toggle().click();
+        const button = toggle();
+        const closePanel = panel();
+        const inside = select('[role="tab"]');
+        unmount();
+        localStorage.clear();
+
+        button.click();
+        key(inside, 'Escape');
+
+        expect(document.querySelector('.director-toggle')).toBeNull();
+        expect(closePanel.hidden).toBe(false);
+        expect(localStorage.getItem('director.open')).toBeNull();
+    });
+});
+
+describe('the header and the tabs', () => {
+    const tabLabels = (): string[] =>
+        [...document.querySelectorAll('[role="tab"]')].map(
+            (tab) => tab.textContent,
+        );
+    const visible = (): (string | undefined)[] =>
+        [...document.querySelectorAll<HTMLElement>('[data-tab]')]
+            .filter((tab) => !tab.hidden)
+            .map((tab) => tab.dataset.tab);
+
+    it('keeps the status of the actors above the tabs', () => {
+        setup();
+
+        expect(
+            panel().firstElementChild?.querySelector('h2')?.textContent,
+        ).toBe('Director');
+        expect(select('[data-actor="monkey"]').parentElement).toBe(
+            panel().children[1],
+        );
+        expect(select('[role="tablist"]').previousElementSibling).toBe(error());
+    });
+
+    it('has four tabs, on the scenarios first', () => {
+        setup();
+
+        expect(tabLabels()).toEqual([
+            'Scenarios',
+            'Poses',
+            'Behaviours',
+            'Raw',
+        ]);
+        expect(visible()).toEqual(['scenarios']);
+        expect(
+            [...document.querySelectorAll('[role="tab"]')].map((tab) => tab.id),
+        ).toEqual([
+            'director-tab-scenarios',
+            'director-tab-poses',
+            'director-tab-behaviours',
+            'director-tab-raw',
+        ]);
+    });
+
+    it('shows the panel of the tab pressed', () => {
+        setup();
+
+        for (const [index, id] of [
+            'scenarios',
+            'poses',
+            'behaviours',
+            'raw',
+        ].entries()) {
+            (
+                document.querySelectorAll('[role="tab"]')[index] as HTMLElement
+            ).click();
+            expect(visible()).toEqual([id]);
+        }
+    });
+
+    it('keeps the event log folded under the tabs', () => {
+        setup();
+        const log = select('details') as HTMLDetailsElement;
+
+        expect(log.open).toBe(false);
+        expect(log.querySelector('summary')?.textContent).toBe('Event log');
+        expect(log.contains(select('[data-ticker]'))).toBe(true);
+        expect(log.previousElementSibling).toBe(select('[data-tab="raw"]'));
+    });
+
+    it('holds the event form and the Motor forms in the Raw tab', () => {
+        setup();
+
+        expect(select('[data-tab="raw"]').contains(form())).toBe(true);
+        expect(
+            select('[data-tab="raw"]').contains(
+                select('form[data-motor="monkey"]'),
+            ),
+        ).toBe(true);
+    });
+});
+
+describe('the scenarios tab', () => {
+    const scenario = (label: string): HTMLElement => {
+        const found = [
+            ...document.querySelectorAll<HTMLElement>(
+                '[data-tab="scenarios"] button',
+            ),
+        ].find((button) => button.textContent === label);
+        if (!found) {
+            throw new Error(`No scenario ${label}.`);
+        }
+        return found;
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('has a button for each scenario, with its note', () => {
+        setup();
+
+        const items = [
+            ...document.querySelectorAll('[data-tab="scenarios"] li'),
+        ].map((item) => [
+            item.querySelector('button')?.textContent,
+            item.querySelector('small')?.textContent,
+        ]);
+
+        expect(items).toHaveLength(9);
+        expect(items[0]).toEqual(['Bomb on him', undefined]);
+        expect(items[5]).toEqual([
+            'Wreck the page',
+            'Zero gravity off, on, then off: every piece is freed and falls.',
+        ]);
+        expect(items[7]).toEqual([
+            'Lazy rebuild now',
+            'Fires visitor.idle instead of waiting 15 s.',
+        ]);
+        expect(
+            document.querySelectorAll(
+                '[data-tab="scenarios"] button[type="button"]',
+            ),
+        ).toHaveLength(9);
+    });
+
+    it('plays the scenario on the game', () => {
+        const { game } = setup();
+
+        scenario('Rebuild').click();
+
+        expect(game.rebuild).toHaveBeenCalledOnce();
+    });
+
+    it('fires its events as the director’s, so the Brain hears them', () => {
+        const { game } = setup();
+
+        scenario('Piece hits him').click();
+
+        expect(ticker()[0]).toBe(
+            '0.0s monkey.hit {"speed":9,"against":"piece"} (director)',
+        );
+        expect(game.events).toBeDefined();
+    });
+
+    it('says what a scenario could not do, then forgets it on the next success', () => {
+        const { game } = setup();
+
+        scenario('Bomb on him').click();
+        expect(error().textContent).toBe('The monkey is not on the page.');
+        expect(error().hidden).toBe(false);
+
+        scenario('Rebuild').click();
+        expect(error().hidden).toBe(true);
+        expect(game.bomb).not.toHaveBeenCalled();
+    });
+
+    it('says what a scenario that throws throws', () => {
+        const { game } = setup();
+        vi.mocked(game.rebuild).mockImplementation(() => {
+            throw new Error('boom');
+        });
+
+        scenario('Rebuild').click();
+
+        expect(error().textContent).toBe('Error: boom');
+    });
+});
+
+describe('the poses tab', () => {
+    const pick = (label: string): HTMLElement => {
+        const found = [
+            ...document.querySelectorAll<HTMLElement>(
+                '[data-tab="poses"] button',
+            ),
+        ].find((button) => button.textContent === label);
+        if (!found) {
+            throw new Error(`No button ${label}.`);
+        }
+        return found;
+    };
+
+    const monkeyWithBody = (): {
+        motor: FakeMotor;
+        engine: Engine;
+        unmount: () => void;
+    } => {
+        const events = new EventBus<GameEvents>();
+        const engine = new Engine({
+            events,
+            clock: new Clock({ maxStep: 100_000 }),
+            random: (): number => 0,
+            lines: { locale: 'en', pools: {} },
+            behaviours: [],
+            onError: (failure): void => {
+                throw failure as Error;
+            },
+        });
+        const motor = new FakeMotor();
+        engine.attach('monkey', motor);
+        const unmount = mountDirector({ events, engine, ...actions() });
+        return { motor, engine, unmount };
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('groups a button for each pose, mood and walk', () => {
+        setup();
+
+        expect(
+            [...document.querySelectorAll('[data-tab="poses"] section')].map(
+                (section) => [
+                    section.querySelector('h3')?.textContent,
+                    section.querySelectorAll('button').length,
+                ],
+            ),
+        ).toEqual([
+            ['Poses', 3],
+            ['Moods', 4],
+            ['Walks', 4],
+        ]);
+    });
+
+    it('sends the request straight to the Motor, on the body layer, and says how it ended', () => {
+        const { motor } = monkeyWithBody();
+
+        pick('Smoke').click();
+
+        expect(motor.requests).toEqual([
+            { type: 'pose', pose: 'smoke', ms: 3000 },
+        ]);
+        expect(motor.layers).toEqual(['body']);
+        expect(error().hidden).toBe(true);
+        motor.finish('done');
+        expect(error().textContent).toBe('monkey pose: done');
+    });
+
+    it('sends walks near the edges of the page, as wide as it is', () => {
+        vi.spyOn(
+            document.documentElement,
+            'clientWidth',
+            'get',
+        ).mockReturnValue(1000);
+        const { motor } = monkeyWithBody();
+
+        pick('Run right').click();
+
+        expect(motor.requests).toEqual([{ type: 'walk', x: 920, pace: 'run' }]);
+    });
+
+    it('says when the monkey has no body', () => {
+        setup([hover]);
+
+        pick('Smoke').click();
+
+        expect(error().textContent).toBe('Error: The monkey has no body.');
+    });
+
+    it('says what a Motor that refuses a request throws', () => {
+        const { motor } = monkeyWithBody();
+        vi.spyOn(motor, 'perform').mockImplementation(() => {
+            throw new Error('No body.');
+        });
+
+        pick('Smoke').click();
+
+        expect(error().textContent).toBe('Error: No body.');
+    });
+
+    it('stops sending once removed', () => {
+        const { motor, unmount } = monkeyWithBody();
+        const button = pick('Smoke');
+        unmount();
+
+        button.click();
+
+        expect(motor.requests).toEqual([]);
     });
 });

@@ -1,20 +1,19 @@
 /* The development panel (docs/architecture.md, The director panel). Only the director module
    imports this file, so it never reaches the production CSS: the layer is named here for that.
-   The toggle sits bottom left, above the dock's row; the panel opens above it. */
+   The toggle sits top right, where neither the dock nor the monkey on the ground can be under
+   it; the panel opens below it. */
 @layer blocks {
     .director-toggle,
     .director {
         position: fixed;
-        inset-inline-start: var(--space-m);
+        inset-inline-end: var(--space-m);
         z-index: 10;
         color: var(--fg);
         font-size: var(--step-xs);
     }
 
     .director-toggle {
-        inset-block-end: calc(
-            var(--space-m) + var(--touch-size) + var(--space-xl)
-        );
+        inset-block-start: var(--space-m);
         min-height: var(--touch-size);
         padding: 0 var(--space-m);
         font: inherit;
@@ -28,9 +27,8 @@
     }
 
     .director {
-        inset-block-end: calc(
-            var(--space-m) + 2 * var(--touch-size) + var(--space-xl) +
-                var(--space-xs)
+        inset-block-start: calc(
+            var(--space-m) + var(--touch-size) + var(--space-xs)
         );
         width: min(var(--panel-width), calc(100vw - 2 * var(--space-m)));
         max-height: 60svh;

@@ -26,6 +26,7 @@ it('has a request for each of the monkey’s, that survives a trip through JSON'
     expect(Object.keys(requests).sort()).toEqual([
         'carry',
         'drop',
+        'enter',
         'face',
         'mood',
         'place',

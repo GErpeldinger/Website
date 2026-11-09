@@ -44,6 +44,57 @@ const nearHim =
         return undefined;
     };
 
+// A real pointer moves once per browser frame, and the hand reads its speed from their times: the
+// game clock cannot pace this, and the panel is development only.
+const nextFrame = (callback: () => void): void => {
+    // eslint-disable-next-line no-restricted-globals -- see above
+    requestAnimationFrame(callback);
+};
+
+// Throws him with the hand, as the visitor's pointer would: a press on him, `moves` moves of
+// (dx, dy), one per animation frame, then a release. The hand takes him whatever tool is chosen.
+const fling =
+    (direction: () => Point, moves: number) => (): string | undefined => {
+        const element = document.querySelector('svg[data-pose]');
+        const box = element?.getBoundingClientRect();
+        if (!element || !box) {
+            return NOT_FOUND;
+        }
+        const { x: dx, y: dy } = direction();
+        let x = box.left + box.width / 2;
+        let y = box.top + box.height / 2;
+        const fire = (target: EventTarget, type: string): void => {
+            target.dispatchEvent(
+                new PointerEvent(type, {
+                    bubbles: true,
+                    pointerId: 1,
+                    pointerType: 'mouse',
+                    button: 0,
+                    clientX: x,
+                    clientY: y,
+                }),
+            );
+        };
+        fire(element, 'pointerdown');
+        let done = 0;
+        const step = (): void => {
+            if (done === moves) {
+                fire(window, 'pointerup');
+                return;
+            }
+            done++;
+            x += dx;
+            y += dy;
+            fire(window, 'pointermove');
+            nextFrame(step);
+        };
+        nextFrame(step);
+        return undefined;
+    };
+
+const UP: Point = { x: 0, y: -70 };
+const SIDEWAYS = 140;
+
 export const scenarios: readonly Scenario[] = [
     {
         label: 'Bomb on him',
@@ -60,6 +111,22 @@ export const scenarios: readonly Scenario[] = [
                 y: at.y,
             });
         }),
+    },
+    {
+        label: 'Fling him off the top',
+        note: 'Real throw with the hand: eight moves up, then a release.',
+        run: fling(() => UP, 8),
+    },
+    {
+        label: 'Fling him off a side',
+        note: 'Real throw with the hand towards the nearer edge: ten moves, then a release.',
+        run: fling(() => {
+            const at = monkeyAt();
+            const left =
+                at !== undefined &&
+                at.x < document.documentElement.clientWidth / 2;
+            return { x: left ? -SIDEWAYS : SIDEWAYS, y: 0 };
+        }, 10),
     },
     {
         label: 'Tornado over him',

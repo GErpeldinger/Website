@@ -1,7 +1,7 @@
 import type { ClockView } from '../clock/clock';
-import type { Point } from '../events/game_events';
+import type { ExitSide, Point } from '../events/game_events';
 import type { Appearance } from '../look/look';
-import { MONKEY_WIDTH } from '../physics/bodies';
+import { MONKEY_HEIGHT, MONKEY_WIDTH } from '../physics/bodies';
 import type { MonkeyBody } from '../physics/monkey_body';
 import type { PhysicsWorld } from '../physics/world';
 import type {
@@ -29,6 +29,8 @@ export interface MonkeyMotorOptions {
 const SPEEDS: Record<Pace, number> = { walk: 3, run: 6.5 };
 // He cannot reach a spot nearer a wall than his half width.
 const WALL_MARGIN = MONKEY_WIDTH / 2;
+// How far inside the page he is put back: under the top, or from the edge, for a side.
+const ENTRY_GAP = 10;
 // A target that moves this far makes him turn to the new spot.
 const RETARGET = 8;
 
@@ -240,6 +242,10 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 this.#drop();
                 task.finish('done');
                 break;
+            case 'enter':
+                this.#enter(request.from);
+                task.finish('done');
+                break;
             case 'pose':
                 this.#set(
                     task,
@@ -294,6 +300,25 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 // The director sends free JSON.
                 task.finish('failed');
         }
+    }
+
+    // Back in the page: under the top at his x for the top, on the floor inside the edge otherwise.
+    #enter(from: ExitSide): void {
+        const { width, floor } = this.#options.world().bounds;
+        const body = this.#options.body();
+        const inset = WALL_MARGIN + ENTRY_GAP;
+        const x = {
+            top: Math.max(inset, Math.min(width - inset, body.position.x)),
+            left: inset,
+            right: width - inset,
+        }[from];
+        body.placeAt({
+            x,
+            y:
+                from === 'top'
+                    ? MONKEY_HEIGHT / 2 + ENTRY_GAP
+                    : floor - MONKEY_HEIGHT / 2,
+        });
     }
 
     // Until the request ends, the loose pieces are no obstacle: walking at one, he would shove it

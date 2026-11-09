@@ -27,7 +27,7 @@ describe('the monkey requests', () => {
         expectTypeOf<ChosenPose>().toEqualTypeOf<'stand' | 'smoke' | 'talk'>();
     });
 
-    it('are the nine the Motor understands', () => {
+    it('are the ten the Motor understands', () => {
         expectTypeOf<MonkeyRequestType>().toEqualTypeOf<
             | 'walk'
             | 'face'
@@ -38,6 +38,7 @@ describe('the monkey requests', () => {
             | 'carry'
             | 'place'
             | 'drop'
+            | 'enter'
         >();
     });
 

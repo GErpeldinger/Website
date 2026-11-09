@@ -22,6 +22,9 @@ export type FreedBy = 'impact' | 'grab' | 'bomb' | 'tornado' | 'gravity';
 
 export type HitAgainst = 'piece' | 'bomb' | 'floor' | 'wall' | 'monkey';
 
+// Where the monkey left the page: over its top, or past one of its sides.
+export type ExitSide = 'top' | 'left' | 'right';
+
 export type BehaviourKind = 'reflex' | 'activity' | 'ambient' | 'line';
 
 // How a behaviour ended: it finished, a stronger one took its place, it threw, or the Brain stopped.
@@ -53,7 +56,11 @@ export interface GameEvents {
     // Back on his feet after a fall; `speed` is how fast he came down, in pixels per step.
     'monkey.landed': { speed: number };
     // A hard collision: a loose piece or a bomb at 7 px per step or more, a fall on the floor at 10.
+    // The walls are no obstacle to him, so `against` is never 'wall'.
     'monkey.hit': { speed: number; against: HitAgainst };
+    // He has been out of the page (his whole body past an edge) for 1.5 s, not held by the
+    // visitor. Said again every 1.5 s while he is still out: who heard it may have been busy.
+    'monkey.left': { side: ExitSide };
     // A bomb's blast reached him, a bit further than it reaches a piece; `bomb` is its id. Said
     // right after `bomb.exploded`.
     'monkey.blasted': { bomb: number };

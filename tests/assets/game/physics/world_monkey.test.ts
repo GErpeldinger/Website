@@ -27,6 +27,7 @@ const names = [
     'monkey.landed',
     'monkey.hit',
     'monkey.blasted',
+    'monkey.left',
     'bomb.exploded',
 ] as const satisfies readonly (keyof GameEvents)[];
 
@@ -293,14 +294,27 @@ describe('falling and being hit', () => {
         expect(events('monkey.landed')).toHaveLength(1);
     });
 
-    it('stands on the floor and the walls: nothing lets him through', () => {
+    it('stands on the floor, but the side walls let him through', () => {
         const { monkey, advance } = setup({ monkeyAt: 600 });
         Body.setPosition(monkey.body, { x: 995, y: 665 });
+        Body.setVelocity(monkey.body, { x: 6, y: 0 });
 
         advance(30);
 
-        expect(monkey.position.x).toBeLessThanOrEqual(980.5);
-        expect(monkey.position.y).toBeLessThanOrEqual(665.5);
+        expect(monkey.position.x).toBeGreaterThan(1010);
+        expect(monkey.position.y).toBeCloseTo(665, 0);
+    });
+
+    it('goes through the ceiling when thrown up, with no hit on the way', () => {
+        const { world, monkey, advance, events } = setup();
+        world.grab(MONKEY, { x: 300, y: 665 });
+        world.release({ x: 0, y: -26 });
+
+        advance(60);
+
+        // The ceiling would have stopped his centre 35 px below the top.
+        expect(monkey.position.y).toBeLessThan(0);
+        expect(events('monkey.hit')).toEqual([]);
     });
 
     it('is hit by a piece thrown at him at 7 px per step or more, and by the floor only from 10', () => {
@@ -852,14 +866,14 @@ describe('passing through the loose pieces', () => {
         ).toBeGreaterThan(5);
     });
 
-    it('is still stopped by the walls', () => {
+    it('goes out of the page by a side like any walk, the walls being no obstacle to him', () => {
         const { monkey, advance } = lying();
 
         monkey.passThrough(true);
         monkey.goTo(2000, 6.5);
         advance(300);
 
-        expect(monkey.position.x).toBeLessThanOrEqual(980.5);
+        expect(monkey.position.x).toBeGreaterThan(1010);
     });
 
     it('waits until he is clear of the pieces to collide with them again', () => {
@@ -890,5 +904,246 @@ describe('passing through the loose pieces', () => {
         advance(1);
         expect(mask(monkey) & LOOSE).toBe(LOOSE);
         expect(world.piece(1)?.pinned).toBe(false);
+    });
+});
+
+// Out of the page by the top or a side, he is said to have left once he has been out for 1.5 s of
+// game time and the visitor does not hold him.
+describe('leaving the page', () => {
+    // High enough that he is still falling back after the 1.5 s wait.
+    const above = { x: 400, y: -5000 };
+    const placeAt = (harness: Harness, at: { x: number; y: number }): void => {
+        Body.setPosition(harness.monkey.body, at);
+        Body.setVelocity(harness.monkey.body, { x: 0, y: 0 });
+    };
+
+    it('says so once he has been out for 1.5 s, by the top', () => {
+        const harness = setup();
+        placeAt(harness, above);
+
+        harness.advance(85);
+        expect(harness.events('monkey.left')).toEqual([]);
+
+        harness.advance(10);
+        expect(harness.events('monkey.left')).toEqual([{ side: 'top' }]);
+    });
+
+    it('says the side he went by, on the floor that goes on beyond the page or past its end', () => {
+        const left = setup();
+        placeAt(left, { x: -100, y: 665 });
+        left.advance(100);
+        expect(left.events('monkey.left')).toEqual([{ side: 'left' }]);
+
+        const right = setup();
+        placeAt(right, { x: 1100, y: 665 });
+        right.advance(100);
+        expect(right.events('monkey.left')).toEqual([{ side: 'right' }]);
+
+        const beyond = setup();
+        placeAt(beyond, { x: 1500, y: 2000 });
+        beyond.advance(100);
+        expect(beyond.events('monkey.left')).toEqual([{ side: 'right' }]);
+    });
+
+    it('says it again every 1.5 s while he is still out, as who heard it may have been busy', () => {
+        const harness = setup();
+        placeAt(harness, above);
+
+        harness.advance(200);
+
+        expect(harness.events('monkey.left')).toHaveLength(2);
+    });
+
+    it('says nothing once he is back inside, and starts again for the next exit', () => {
+        const harness = setup();
+        placeAt(harness, above);
+        harness.advance(100);
+        expect(harness.events('monkey.left')).toHaveLength(1);
+
+        placeAt(harness, { x: 300, y: 665 });
+        harness.advance(150);
+        expect(harness.events('monkey.left')).toHaveLength(1);
+
+        placeAt(harness, above);
+        harness.advance(100);
+        expect(harness.events('monkey.left')).toHaveLength(2);
+    });
+
+    it('does not count him out while any of him is inside, set down on the edge', () => {
+        const harness = setup();
+        placeAt(harness, { x: -19, y: 665 });
+
+        harness.advance(200);
+
+        expect(harness.events('monkey.left')).toEqual([]);
+    });
+
+    it('says nothing when he is back inside before the wait is over, and counts again from the next exit', () => {
+        const harness = setup();
+        placeAt(harness, above);
+        harness.advance(60);
+        placeAt(harness, { x: 300, y: 665 });
+        harness.advance(100);
+        expect(harness.events('monkey.left')).toEqual([]);
+
+        placeAt(harness, above);
+        harness.advance(60);
+        expect(harness.events('monkey.left')).toEqual([]);
+        harness.advance(40);
+        expect(harness.events('monkey.left')).toHaveLength(1);
+    });
+
+    it('counts the 1.5 s from the latest exit, not from one he came back from', () => {
+        const harness = setup();
+        placeAt(harness, above);
+        harness.advance(60);
+        placeAt(harness, { x: 300, y: 665 });
+        harness.advance(5);
+
+        placeAt(harness, above);
+        harness.advance(50);
+
+        expect(harness.events('monkey.left')).toEqual([]);
+        harness.advance(45);
+        expect(harness.events('monkey.left')).toHaveLength(1);
+    });
+
+    it('says nothing while the visitor holds him, and waits again from the moment he lets go', () => {
+        const harness = setup();
+        placeAt(harness, above);
+        harness.advance(30);
+        harness.world.grab(MONKEY, above);
+
+        harness.advance(200);
+        expect(harness.events('monkey.left')).toEqual([]);
+
+        harness.world.release({ x: 0, y: 0 });
+        harness.advance(80);
+        expect(harness.events('monkey.left')).toEqual([]);
+        harness.advance(20);
+        expect(harness.events('monkey.left')).toHaveLength(1);
+    });
+
+    it('does not say it for a timer that fires when he is back inside or taken, before a step noticed', () => {
+        const back = setup();
+        placeAt(back, above);
+        back.advance(1);
+        placeAt(back, { x: 300, y: 300 });
+        for (let i = 0; i < 7; i++) {
+            back.clock.tick(250);
+        }
+        expect(back.events('monkey.left')).toEqual([]);
+
+        const held = setup();
+        placeAt(held, above);
+        held.advance(1);
+        held.world.grab(MONKEY, above);
+        for (let i = 0; i < 7; i++) {
+            held.clock.tick(250);
+        }
+        expect(held.events('monkey.left')).toEqual([]);
+    });
+
+    it('puts a wait on the game clock, which the sleeping loop wakes for', () => {
+        const harness = setup();
+        expect(harness.clock.next()).toBeUndefined();
+
+        placeAt(harness, above);
+        harness.advance(1);
+
+        expect(harness.clock.next()).toBeDefined();
+    });
+
+    it('drops the wait when the page is measured again', () => {
+        const harness = setup();
+        placeAt(harness, above);
+        harness.advance(1);
+
+        harness.world.dispose();
+
+        expect(harness.clock.next()).toBeUndefined();
+    });
+
+    it('has no one to watch before he is added', () => {
+        const { world, advance, events } = bare();
+
+        advance(100);
+
+        expect(world.monkey).toBeUndefined();
+        expect(events('monkey.left')).toEqual([]);
+    });
+});
+
+// In zero gravity everything floats in view: the ceiling and the side walls close on him too.
+describe('the walls in zero gravity', () => {
+    const sideBit = (monkey: MonkeyBody): number =>
+        (monkey.body.collisionFilter.mask ?? 0) & 2;
+
+    it('keep him under the ceiling, where he floats, with no exit', () => {
+        const { world, monkey, advance, events } = setup();
+        world.setZeroGravity(true);
+        Body.setVelocity(monkey.body, { x: 0, y: -8 });
+
+        advance(300);
+
+        expect(monkey.position.y).toBeGreaterThan(30);
+        expect(events('monkey.left')).toEqual([]);
+    });
+
+    it('close on him once the gravity is off and his whole body is inside, and open when it is back', () => {
+        const { world, monkey, advance } = setup();
+        expect(sideBit(monkey)).toBe(0);
+
+        world.setZeroGravity(true);
+        advance(1);
+        expect(sideBit(monkey)).toBe(2);
+
+        world.setZeroGravity(false);
+        advance(1);
+        expect(sideBit(monkey)).toBe(0);
+    });
+
+    it('wait for him to be in when the gravity goes off while he is out, then close', () => {
+        const { world, monkey, advance } = setup();
+        Body.setPosition(monkey.body, { x: 400, y: -5000 });
+        Body.setVelocity(monkey.body, { x: 0, y: 0 });
+
+        world.setZeroGravity(true);
+        advance(5);
+        expect(sideBit(monkey)).toBe(0);
+
+        Body.setPosition(monkey.body, { x: 400, y: 300 });
+        advance(1);
+        expect(sideBit(monkey)).toBe(2);
+    });
+
+    it.each([
+        ['his left side just on the wall', 20, 300],
+        ['his right side just on the wall', 980, 300],
+        ['his head just under the ceiling', 400, 35],
+    ])('close while %s', (_name, x, y) => {
+        const { world, monkey, advance } = setup();
+        world.setZeroGravity(true);
+        Body.setPosition(monkey.body, { x, y });
+        Body.setVelocity(monkey.body, { x: 0, y: 0 });
+
+        advance(1);
+
+        expect(sideBit(monkey)).toBe(2);
+    });
+
+    it.each([
+        ['his left side', 19, 300],
+        ['his right side', 981, 300],
+        ['his head', 400, 34],
+    ])('do not close while %s is past them', (_name, x, y) => {
+        const { world, monkey, advance } = setup();
+        world.setZeroGravity(true);
+        Body.setPosition(monkey.body, { x, y });
+        Body.setVelocity(monkey.body, { x: 0, y: 0 });
+
+        advance(1);
+
+        expect(sideBit(monkey)).toBe(0);
     });
 });

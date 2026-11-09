@@ -195,6 +195,74 @@ describe('walking', () => {
     });
 });
 
+describe('the walls closing on him', () => {
+    const sideMask = (monkey: MonkeyBody): number =>
+        (monkey.body.collisionFilter.mask ?? 0) & 2;
+
+    it('only once they are wanted and he is inside, and they stay while they are wanted', () => {
+        const monkey = standing();
+
+        monkey.closeIn(true, false);
+        expect(sideMask(monkey)).toBe(0);
+        monkey.closeIn(false, true);
+        expect(sideMask(monkey)).toBe(0);
+
+        monkey.closeIn(true, true);
+        expect(sideMask(monkey)).toBe(2);
+        monkey.closeIn(true, false);
+        expect(sideMask(monkey)).toBe(2);
+
+        monkey.closeIn(false, true);
+        expect(sideMask(monkey)).toBe(0);
+    });
+
+    it('leaves his filter alone when nothing changes', () => {
+        const monkey = standing();
+        const filter = monkey.body.collisionFilter;
+
+        monkey.closeIn(false, true);
+        expect(monkey.body.collisionFilter).toBe(filter);
+        monkey.closeIn(true, true);
+        const closed = monkey.body.collisionFilter;
+        monkey.closeIn(true, true);
+
+        expect(monkey.body.collisionFilter).toBe(closed);
+    });
+
+    it('go with the loose pieces’ passing: the mask follows both', () => {
+        const monkey = standing();
+        monkey.passThrough(true);
+        monkey.closeIn(true, true);
+        expect(monkey.body.collisionFilter.mask).toBe(1 | 2 | 4 | 32);
+
+        monkey.passThrough(false);
+        expect(monkey.body.collisionFilter.mask).toBe(1 | 2 | 4 | 32);
+        monkey.rejoin(() => false);
+        expect(monkey.body.collisionFilter.mask).toBe(1 | 2 | 4 | 8 | 32);
+
+        monkey.closeIn(false, true);
+        expect(monkey.body.collisionFilter.mask).toBe(1 | 4 | 8 | 32);
+    });
+});
+
+describe('being put somewhere', () => {
+    it('stands him upright and still at the point, with nothing left to walk to', () => {
+        const monkey = standing();
+        monkey.goTo(500, 3);
+        Body.setAngle(monkey.body, 1);
+        Body.setVelocity(monkey.body, { x: 5, y: 7 });
+        Body.setAngularVelocity(monkey.body, 0.4);
+
+        monkey.placeAt({ x: 120, y: 45 });
+
+        expect(monkey.position).toEqual({ x: 120, y: 45 });
+        expect(monkey.angle).toBe(0);
+        expect(monkey.body.velocity).toEqual({ x: 0, y: 0 });
+        expect(monkey.body.angularVelocity).toBe(0);
+        expect(monkey.destination).toBeUndefined();
+    });
+});
+
 // What he does when something is in the way: his step gets him nowhere, so after 22 of them in a
 // row he hops, and after three hops that got him nowhere the way is blocked.
 describe('being stuck', () => {
@@ -603,7 +671,7 @@ describe('passing through the loose pieces', () => {
 
         monkey.passThrough(true);
 
-        expect(mask(monkey)).toBe(1 | 2 | 4 | 32);
+        expect(mask(monkey)).toBe(1 | 4 | 32);
         expect(monkey.body.collisionFilter.category).toBe(16);
     });
 

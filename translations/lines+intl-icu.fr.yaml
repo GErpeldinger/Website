@@ -32,6 +32,12 @@ hurt:
 burnt:
     - '*tousse* C’était ma dernière clope.'
     - 'Super. On dirait que mon briquet m’a explosé à la figure.'
+backTop:
+    - 'J’ai vu le soleil de près. Il fume moins que moi.'
+    - 'Joli panorama. Aucun bureau de tabac, par contre.'
+backSide:
+    - 'Pas de sortie par là. J’ai vérifié.'
+    - 'Je suis revenu. Pas pour toi, pour la page.'
 run:
     - 'AU SECOURS !'
     - 'ÇA VA PÉTER !'

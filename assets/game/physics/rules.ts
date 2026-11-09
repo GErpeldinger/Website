@@ -1,4 +1,24 @@
+import type { ExitSide, Point } from '../events/game_events';
+import { MONKEY_HEIGHT, MONKEY_WIDTH } from './bodies';
+
 // The physics feel, from the prototype. Speeds are in pixels per 60 Hz step, Matter's own unit.
+
+// How long, in ms of game time, the monkey stays out of the page before he is said to have left.
+export const LEFT_AFTER = 1500;
+
+// The side the monkey is out of the page by, or undefined while any of him is inside: one set
+// down on the edge is no exit. A side wins over the top, as he falls past the end of the floor.
+export const exitSide = (
+    { x, y }: Point,
+    width: number,
+): ExitSide | undefined =>
+    x < -MONKEY_WIDTH / 2
+        ? 'left'
+        : x > width + MONKEY_WIDTH / 2
+          ? 'right'
+          : y < -MONKEY_HEIGHT / 2
+            ? 'top'
+            : undefined;
 
 // A pinned piece struck by a body this fast comes loose. The monkey standing on one is no
 // impact: only a hard fall (9 px per step) knocks a piece off its place, a loose body 2.2.

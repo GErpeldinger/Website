@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     blastRadius,
+    exitSide,
+    LEFT_AFTER,
     isCalm,
     holdsUp,
     hurtsMonkey,
@@ -143,5 +145,29 @@ describe('blastRadius', () => {
         expect(blastRadius(1000)).toBe(300);
         expect(blastRadius(1134)).toBe(340);
         expect(blastRadius(3000)).toBe(340);
+    });
+});
+
+describe('exitSide', () => {
+    it('is undefined while any of him is inside the page, edges included', () => {
+        expect(exitSide({ x: 500, y: 300 }, 1000)).toBeUndefined();
+        expect(exitSide({ x: -20, y: 300 }, 1000)).toBeUndefined();
+        expect(exitSide({ x: 1020, y: 300 }, 1000)).toBeUndefined();
+        expect(exitSide({ x: 500, y: -35 }, 1000)).toBeUndefined();
+    });
+
+    it('is the side his whole body went past', () => {
+        expect(exitSide({ x: -20.1, y: 300 }, 1000)).toBe('left');
+        expect(exitSide({ x: 1020.1, y: 300 }, 1000)).toBe('right');
+        expect(exitSide({ x: 500, y: -35.1 }, 1000)).toBe('top');
+    });
+
+    it('prefers a side to the top, as he falls beyond the floor’s end', () => {
+        expect(exitSide({ x: -25, y: -50 }, 1000)).toBe('left');
+        expect(exitSide({ x: 1025, y: -50 }, 1000)).toBe('right');
+    });
+
+    it('waits 1.5 s of game time before he is said to have left', () => {
+        expect(LEFT_AFTER).toBe(1500);
     });
 });

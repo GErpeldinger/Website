@@ -46,16 +46,17 @@ export const takenFilter = (): ICollisionFilter => ({
     mask: 0,
     group: 0,
 });
-export const monkeyFilter = (): ICollisionFilter => ({
+// Unless `walled` (zero gravity), the ceiling and the side walls (SIDE) are no obstacle to him: he
+// can leave the page. Matter needs both masks to agree, so his alone is enough.
+export const monkeyFilter = (walled = false): ICollisionFilter => ({
     category: MONKEY,
-    mask: GROUND | SIDE | PINNED | LOOSE | BOMB,
+    mask: GROUND | PINNED | LOOSE | BOMB | (walled ? SIDE : 0),
     group: 0,
 });
-// Walking to a piece or to its home: the loose pieces are no obstacle. Matter needs both masks
-// to agree, so his alone is enough.
-export const monkeyPassingFilter = (): ICollisionFilter => ({
+// Walking to a piece or to its home: the loose pieces are no obstacle either.
+export const monkeyPassingFilter = (walled = false): ICollisionFilter => ({
     category: MONKEY,
-    mask: GROUND | SIDE | PINNED | BOMB,
+    mask: GROUND | PINNED | BOMB | (walled ? SIDE : 0),
     group: 0,
 });
 const bombFilter = (): ICollisionFilter => ({

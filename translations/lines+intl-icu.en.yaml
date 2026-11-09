@@ -32,6 +32,12 @@ hurt:
 burnt:
     - '*cough* That was my last cigarette.'
     - 'Nice. Now it looks like my lighter blew up in my face.'
+backTop:
+    - 'I’ve seen the sun up close. It smokes less than I do.'
+    - 'Nice view up there. Not a single tobacco shop, though.'
+backSide:
+    - 'No way out over there. I checked.'
+    - 'I’m back. Not for you, for the page.'
 run:
     - 'HELP!'
     - 'IT’S GONNA BLOW!'

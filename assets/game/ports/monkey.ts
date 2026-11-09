@@ -1,3 +1,5 @@
+import type { ExitSide } from '../events/game_events';
+
 // How the monkey looks, written by the Motor onto the art (`look`) as data attributes. `carry`
 // and `tumble` follow the body; a behaviour chooses the others. Walking is not a pose: it is
 // the legs, whatever the upper body does.
@@ -27,6 +29,9 @@ export type MonkeyRequest =
     // free, before the piece is restored and `item.restored` is heard: it is still taken then.
     | { type: 'place'; piece: number; pace?: Pace }
     // Lets the carried piece fall.
-    | { type: 'drop' };
+    | { type: 'drop' }
+    // Puts him back in the page after he left it by `from`: just under the top for the top, on the
+    // floor just inside the edge for a side. Answers `done` at once; he falls or floats from there.
+    | { type: 'enter'; from: ExitSide };
 
 export type MonkeyRequestType = MonkeyRequest['type'];

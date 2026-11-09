@@ -101,21 +101,26 @@ describe('the filters', () => {
         });
     });
 
-    it('make the monkey stand on the ground, the walls and every piece, and be pushed by bombs', () => {
+    it('make the monkey stand on the ground and every piece, and be pushed by bombs, but leave the ceiling and the side walls out of his way', () => {
         expect(monkeyBody(100, 700).collisionFilter).toEqual({
             category: 16,
-            mask: GROUND | SIDE | 4 | 8 | 32,
+            mask: GROUND | 4 | 8 | 32,
             group: 0,
         });
     });
 
-    it('make the monkey passing through pieces collide with all but the loose', () => {
+    it('make the monkey passing through pieces collide with all but the loose and the walls', () => {
         expect(monkeyPassingFilter()).toEqual({
             category: 16,
-            mask: GROUND | SIDE | 4 | 32,
+            mask: GROUND | 4 | 32,
             group: 0,
         });
         expect(monkeyFilter()).toEqual(monkeyBody(100, 700).collisionFilter);
+    });
+
+    it('close the ceiling and the side walls on the monkey when asked', () => {
+        expect(monkeyFilter(true).mask).toBe(GROUND | SIDE | 4 | 8 | 32);
+        expect(monkeyPassingFilter(true).mask).toBe(GROUND | SIDE | 4 | 32);
     });
 
     it('make a taken piece collide with nothing', () => {

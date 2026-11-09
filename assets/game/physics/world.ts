@@ -11,6 +11,7 @@ import {
 import type { ClockView } from '../clock/clock';
 import type { EventBus } from '../events/event_bus';
 import type {
+    ExitSide,
     FreedBy,
     GameEvents,
     HitAgainst,
@@ -33,8 +34,10 @@ import type { Traits } from './kinds';
 import { MonkeyBody } from './monkey_body';
 import { capSpeed, kick } from './motion';
 import {
+    LEFT_AFTER,
     Stillness,
     blastRadius,
+    exitSide,
     holdsUp,
     hurtsMonkey,
     isCalm,
@@ -172,6 +175,8 @@ export class PhysicsWorld {
     #held: Held | undefined;
     #vortex: { vortex: Vortex; cancelEnd: () => void } | undefined;
     #aim: number | undefined;
+    // Cancels the wait that ends in `monkey.left`, while he is out of the page and not held.
+    #leaving: (() => void) | undefined;
     #zero = false;
     #bombCount = 0;
     #backlog = 0;
@@ -510,6 +515,8 @@ export class PhysicsWorld {
             this.#options.events.emit('bomb.cancelled', { id: bomb.id });
         }
         this.#bombs.clear();
+        this.#leaving?.();
+        this.#leaving = undefined;
         this.#vortex?.cancelEnd();
         this.#endTornado();
         this.setZeroGravity(false);
@@ -607,6 +614,7 @@ export class PhysicsWorld {
         this.#loosened.clear();
         this.#blow();
         const held = this.monkeyHeld;
+        this.#monkey?.closeIn(this.#zero, this.#monkeyFits());
         this.#monkey?.rejoin(() => this.#overlapsLoose());
         this.#monkey?.beforeStep(held);
         Engine.update(this.#engine, STEP);
@@ -632,6 +640,47 @@ export class PhysicsWorld {
         }
         if (landing) {
             events.emit('monkey.landed', landing);
+        }
+        this.#watchExit();
+    }
+
+    // Starts the wait for `monkey.left` when he is out of the page and free, and drops it when he
+    // is back in or taken, and again each time it ends with him still out. The clock runs it, so
+    // the sleeping loop wakes for it.
+    #watchExit(): void {
+        if (this.#outside() !== undefined && !this.monkeyHeld) {
+            this.#leaving ??= this.#options.clock.after(LEFT_AFTER, () => {
+                this.#leaving = undefined;
+                // The next step starts the wait again if he is still out: whoever heard it may
+                // have been busy.
+                this.#sayLeft();
+            });
+        } else {
+            this.#leaving?.();
+            this.#leaving = undefined;
+        }
+    }
+
+    // His whole body is inside the page: the walls can close on him without pushing him anywhere.
+    #monkeyFits(): boolean {
+        const monkey = this.#monkey;
+        return (
+            monkey !== undefined &&
+            monkey.body.bounds.min.x >= 0 &&
+            monkey.body.bounds.max.x <= this.#bounds.width &&
+            monkey.body.bounds.min.y >= 0
+        );
+    }
+
+    #outside(): ExitSide | undefined {
+        const monkey = this.#monkey;
+        return monkey && exitSide(monkey.position, this.#bounds.width);
+    }
+
+    #sayLeft(): void {
+        const side = this.#outside();
+        if (side !== undefined && !this.monkeyHeld) {
+            this.#options.events.emit('monkey.left', { side });
         }
     }
 

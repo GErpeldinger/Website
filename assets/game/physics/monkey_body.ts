@@ -51,6 +51,8 @@ export class MonkeyBody {
     #supported = false;
     // Passing through the loose pieces, or told to stop and waiting to be clear of them.
     #through: 'off' | 'on' | 'ending' = 'off';
+    // The ceiling and the side walls collide with him.
+    #walled = false;
 
     constructor(x: number, floor: number) {
         this.body = monkeyBody(x, floor);
@@ -110,12 +112,12 @@ export class MonkeyBody {
         this.#supported = on;
     }
 
-    // On: the loose pieces stop colliding with him (the ground, the walls, the pinned pieces and
-    // the bombs still do). Off: they collide again once `rejoin` finds him clear of them.
+    // On: the loose pieces stop colliding with him (the ground, the pinned pieces and the bombs
+    // still do). Off: they collide again once `rejoin` finds him clear of them.
     passThrough(on: boolean): void {
         if (on) {
             this.#through = 'on';
-            this.body.collisionFilter = monkeyPassingFilter();
+            this.#filter();
         } else if (this.#through === 'on') {
             this.#through = 'ending';
         }
@@ -126,8 +128,25 @@ export class MonkeyBody {
     rejoin(overlapsLoose: () => boolean): void {
         if (this.#through === 'ending' && !overlapsLoose()) {
             this.#through = 'off';
-            this.body.collisionFilter = monkeyFilter();
+            this.#filter();
         }
+    }
+
+    // Before `rejoin`. The ceiling and the side walls close on him while `wanted` (zero gravity),
+    // but only once he is `inside`: closed on a body past them, they would throw it about.
+    closeIn(wanted: boolean, inside: boolean): void {
+        const walled = wanted && (this.#walled || inside);
+        if (walled !== this.#walled) {
+            this.#walled = walled;
+            this.#filter();
+        }
+    }
+
+    #filter(): void {
+        this.body.collisionFilter =
+            this.#through !== 'off'
+                ? monkeyPassingFilter(this.#walled)
+                : monkeyFilter(this.#walled);
     }
 
     // Walks to `x` at `speed`, in pixels per step.
@@ -137,6 +156,15 @@ export class MonkeyBody {
         this.#reach = this.#direction * this.body.position.x;
         this.#stuck = 0;
         this.#hops = 0;
+    }
+
+    // Puts him upright and still at a point, as if he had just arrived there.
+    placeAt(at: Point): void {
+        this.halt();
+        Body.setPosition(this.body, at);
+        Body.setVelocity(this.body, { x: 0, y: 0 });
+        Body.setAngle(this.body, 0);
+        Body.setAngularVelocity(this.body, 0);
     }
 
     // Stops walking where he is.

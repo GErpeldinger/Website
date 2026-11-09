@@ -109,17 +109,98 @@ describe('the scenarios that place something by him', () => {
         });
     });
 
-    it.each(['Bomb on him', 'Bomb far from him', 'Tornado over him'])(
-        'says so, and does nothing, when %s cannot find him',
-        (label) => {
-            const { game } = setup();
+    // Plays the scenario with the frames run by hand: the press on his picture, then what the
+    // window gets, as [type, clientX, clientY].
+    const thrown = (
+        label: string,
+    ): { press: [number, number][]; rest: [string, number, number][] } => {
+        const { game } = setup();
+        const frames: (() => void)[] = [];
+        vi.stubGlobal('requestAnimationFrame', (callback: () => void) =>
+            frames.push(callback),
+        );
+        const stop = new AbortController();
+        const press: [number, number][] = [];
+        const rest: [string, number, number][] = [];
+        document.querySelector('svg')?.addEventListener(
+            'pointerdown',
+            (event) => {
+                expect(event.bubbles).toBe(true);
+                // A touch would wait for a long press: the hand has to see a mouse.
+                expect(event.pointerType).toBe('mouse');
+                press.push([event.clientX, event.clientY]);
+            },
+            { signal: stop.signal },
+        );
+        for (const type of ['pointermove', 'pointerup']) {
+            window.addEventListener(
+                type,
+                (event) => {
+                    rest.push([
+                        type,
+                        (event as PointerEvent).clientX,
+                        (event as PointerEvent).clientY,
+                    ]);
+                },
+                { signal: stop.signal },
+            );
+        }
 
-            expect(run(label, game)).toBe('The monkey is not on the page.');
+        expect(run(label, game)).toBeUndefined();
+        expect(rest).toEqual([]);
+        while (frames.length > 0) {
+            frames.shift()?.();
+        }
+        stop.abort();
+        return { press, rest };
+    };
 
-            expect(game.bomb).not.toHaveBeenCalled();
-            expect(game.tornado).not.toHaveBeenCalled();
-        },
-    );
+    it('throws him up with the hand: a press on him, eight moves of 70 px, a release', () => {
+        monkeyAtCentre(300, 650);
+
+        const { press, rest } = thrown('Fling him off the top');
+
+        expect(press).toEqual([[300, 650]]);
+        expect(rest).toEqual([
+            ...Array.from({ length: 8 }, (_, i): [string, number, number] => [
+                'pointermove',
+                300,
+                650 - 70 * (i + 1),
+            ]),
+            ['pointerup', 300, 90],
+        ]);
+    });
+
+    it('throws him sideways towards the nearer edge: ten moves of 140 px', () => {
+        pageWidth(1000);
+        monkeyAtCentre(499, 650);
+        const left = thrown('Fling him off a side');
+        expect(left.press).toEqual([[499, 650]]);
+        expect(left.rest).toHaveLength(11);
+        expect(left.rest[0]).toEqual(['pointermove', 499 - 140, 650]);
+        expect(left.rest.at(-1)).toEqual(['pointerup', 499 - 1400, 650]);
+
+        document.body.innerHTML = '';
+        monkeyAtCentre(500, 650);
+        const right = thrown('Fling him off a side');
+        expect(right.rest[0]).toEqual(['pointermove', 640, 650]);
+        expect(right.rest.at(-1)).toEqual(['pointerup', 1900, 650]);
+    });
+
+    it.each([
+        'Bomb on him',
+        'Bomb far from him',
+        'Fling him off the top',
+        'Fling him off a side',
+        'Tornado over him',
+    ])('says so, and does nothing, when %s cannot find him', (label) => {
+        const { game } = setup();
+
+        expect(run(label, game)).toBe('The monkey is not on the page.');
+
+        expect(game.bomb).not.toHaveBeenCalled();
+        expect(game.tornado).not.toHaveBeenCalled();
+    });
 });
 
 describe('the scenarios that act on the world', () => {
@@ -186,6 +267,8 @@ describe('the list', () => {
         ).toEqual([
             ['Bomb on him', false],
             ['Bomb far from him', false],
+            ['Fling him off the top', true],
+            ['Fling him off a side', true],
             ['Tornado over him', false],
             ['Zero gravity on', false],
             ['Zero gravity off', false],
@@ -195,6 +278,8 @@ describe('the list', () => {
             ['Piece hits him', true],
         ]);
         expect(scenarios.flatMap(({ note }) => (note ? [note] : []))).toEqual([
+            'Real throw with the hand: eight moves up, then a release.',
+            'Real throw with the hand towards the nearer edge: ten moves, then a release.',
             'Zero gravity off, on, then off: every piece is freed and falls.',
             'Fires visitor.idle instead of waiting 15 s.',
             'Stand-in: fires monkey.hit, there is no way to throw a piece at him.',

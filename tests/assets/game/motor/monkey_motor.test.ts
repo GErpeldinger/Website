@@ -1171,6 +1171,78 @@ describe('dropping a piece', () => {
     });
 });
 
+describe('coming back into the page', () => {
+    const where = (harness: Harness): { x: number; y: number } =>
+        harness.monkey.position;
+
+    it('puts him under the top at his own x, clamped into the page, upright and still', () => {
+        const harness = setup();
+        Body.setPosition(harness.monkey.body, { x: 400, y: -300 });
+        Body.setVelocity(harness.monkey.body, { x: 4, y: -20 });
+        Body.setAngle(harness.monkey.body, 1);
+
+        const enter = harness.ask({ type: 'enter', from: 'top' });
+
+        expect(enter.outcomes).toEqual(['done']);
+        expect(where(harness)).toEqual({ x: 400, y: 45 });
+        expect(harness.monkey.body.velocity).toEqual({ x: 0, y: 0 });
+        expect(harness.monkey.angle).toBe(0);
+
+        Body.setPosition(harness.monkey.body, { x: -500, y: -300 });
+        harness.ask({ type: 'enter', from: 'top' });
+        expect(where(harness).x).toBe(30);
+
+        Body.setPosition(harness.monkey.body, { x: 1500, y: -300 });
+        harness.ask({ type: 'enter', from: 'top' });
+        expect(where(harness).x).toBe(970);
+    });
+
+    it('leaves his x alone at the very limit of the clamp', () => {
+        const harness = setup();
+        Body.setPosition(harness.monkey.body, { x: 30, y: -300 });
+        harness.ask({ type: 'enter', from: 'top' });
+        expect(where(harness).x).toBe(30);
+
+        Body.setPosition(harness.monkey.body, { x: 970, y: -300 });
+        harness.ask({ type: 'enter', from: 'top' });
+        expect(where(harness).x).toBe(970);
+    });
+
+    it('puts him on the floor just inside the edge he went by', () => {
+        const harness = setup();
+        Body.setPosition(harness.monkey.body, { x: -500, y: 900 });
+
+        harness.ask({ type: 'enter', from: 'left' });
+        expect(where(harness)).toEqual({ x: 30, y: 665 });
+
+        harness.ask({ type: 'enter', from: 'right' });
+        expect(where(harness)).toEqual({ x: 970, y: 665 });
+    });
+
+    it('falls in from the top and lands on his feet', () => {
+        const harness = setup();
+        Body.setPosition(harness.monkey.body, { x: 400, y: -300 });
+        harness.ask({ type: 'enter', from: 'top' });
+
+        harness.until(() => harness.monkey.grounded, 600);
+
+        expect(harness.monkey.grounded).toBe(true);
+        expect(where(harness).y).toBeGreaterThan(655);
+    });
+
+    it('cuts a walk and stops it', () => {
+        const harness = setup();
+        const walk = harness.ask({ type: 'walk', x: 800 });
+        harness.frame(5);
+
+        const enter = harness.ask({ type: 'enter', from: 'right' });
+
+        expect(walk.outcomes).toEqual(['failed']);
+        expect(enter.outcomes).toEqual(['done']);
+        expect(harness.monkey.destination).toBeUndefined();
+    });
+});
+
 describe('a request that comes while another is pending', () => {
     it('replaces it, whatever the two are', () => {
         const { ask, until, monkey } = setup();

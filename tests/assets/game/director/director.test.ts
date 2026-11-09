@@ -624,6 +624,7 @@ describe('the motor console', () => {
         ).toEqual([
             'carry',
             'drop',
+            'enter',
             'face',
             'mood',
             'place',
@@ -1008,13 +1009,13 @@ describe('the scenarios tab', () => {
             item.querySelector('small')?.textContent,
         ]);
 
-        expect(items).toHaveLength(9);
+        expect(items).toHaveLength(11);
         expect(items[0]).toEqual(['Bomb on him', undefined]);
-        expect(items[5]).toEqual([
+        expect(items[7]).toEqual([
             'Wreck the page',
             'Zero gravity off, on, then off: every piece is freed and falls.',
         ]);
-        expect(items[7]).toEqual([
+        expect(items[9]).toEqual([
             'Lazy rebuild now',
             'Fires visitor.idle instead of waiting 15 s.',
         ]);
@@ -1022,7 +1023,7 @@ describe('the scenarios tab', () => {
             document.querySelectorAll(
                 '[data-tab="scenarios"] button[type="button"]',
             ),
-        ).toHaveLength(9);
+        ).toHaveLength(11);
     });
 
     it('plays the scenario on the game', () => {

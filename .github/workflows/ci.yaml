@@ -7,6 +7,10 @@ on:
       - main
   pull_request: ~
   workflow_dispatch: ~
+  # The full mutation run. GitHub only runs schedules from the default branch, which is still dev:
+  # until main is the default, start it by hand (workflow_dispatch).
+  schedule:
+    - cron: '0 3 * * 1'
 
 permissions:
   contents: read
@@ -23,56 +27,17 @@ concurrency:
 jobs:
   tests:
     name: Tests
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The tools' caches (config/tools/, compose.override.yaml). Caches are scoped to a ref: a pull
-      # request reads main's but never writes to it. A cache is never saved again under a key that
-      # hit, so the downloads are keyed on what they hold, and the results (which change with
-      # every commit) on the run: each run restores the latest and saves its own.
-      - name: Restore the downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Start the dev stack
+        uses: ./.github/actions/dev-stack
         with:
-          path: |
-            .cache/composer
-            .cache/pnpm-store
-            .cache/corepack
-          key: tools-downloads-${{ runner.os }}-${{ hashFiles('composer.lock', 'pnpm-lock.yaml', 'package.json') }}
-          restore-keys: tools-downloads-${{ runner.os }}-
-      - name: Restore the analysis results
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            .cache/phpstan
-            .cache/rector
-            .cache/ecs
-            .cache/prettier
-            .cache/tsc
-            .cache/vitest
-            .cache/stryker
-            .cache/phpunit
-          key: tools-results-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: tools-results-${{ runner.os }}-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build Docker images
-        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
-        with:
-          pull: true
-          load: true
-          source: .
-          files: |
-            compose.yaml
-            compose.override.yaml
-          set: |
-            *.cache-from=type=gha,scope=${{github.ref}}
-            *.cache-from=type=gha,scope=refs/heads/main
-            *.cache-to=type=gha,scope=${{github.ref}},mode=max
-      - name: Start services
-        run: docker compose up --wait --no-build
+          results: tools-results
       - name: Check that Symfony answers
         run: |
           status=$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' https://localhost)
@@ -80,7 +45,28 @@ jobs:
           test "$status" -lt 500
       - name: Run the checks
         run: make check
+
+  # Its own job, so that the image and the deploy don't wait for it: the commit hook already
+  # mutation-tested the changed files. A survivor still turns the run red.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Start the dev stack
+        uses: ./.github/actions/dev-stack
+        with:
+          # Stryker's incremental results don't see a change to the tools: a new one redoes every mutant.
+          results: mutation-results-${{ hashFiles('config/tools/stryker.config.json', 'config/tools/vitest.config.ts', 'config/tools/tsconfig*.json', 'pnpm-lock.yaml') }}
+      # A push reuses Stryker's incremental results, which can miss an indirect change (a helper,
+      # an imported module, the config): the weekly and manual runs redo every mutant.
       - name: Run mutation testing on every class
+        env:
+          FORCE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '1' || '' }}
         run: make mutate-all
 
   image:

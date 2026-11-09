@@ -1,0 +1,56 @@
+---
+name: Start the dev stack
+description: Restores the tools' caches, builds the dev images and starts the services.
+
+inputs:
+  results:
+    description: The prefix of the analysis results' cache key, one per job, so that two jobs of a run never save under the same key.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Caches are scoped to a ref (a pull request reads main's, never writes it) and never saved again
+    # under a key that hit: the downloads are keyed on what they hold, the results on the run, so
+    # each run restores the latest results and saves its own.
+    - name: Restore the downloads
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .cache/composer
+          .cache/pnpm-store
+          .cache/corepack
+        key: tools-downloads-${{ runner.os }}-${{ hashFiles('composer.lock', 'pnpm-lock.yaml', 'package.json') }}
+        restore-keys: tools-downloads-${{ runner.os }}-
+    - name: Restore the analysis results
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .cache/phpstan
+          .cache/rector
+          .cache/ecs
+          .cache/prettier
+          .cache/tsc
+          .cache/vitest
+          .cache/stryker
+          .cache/phpunit
+        key: ${{ inputs.results }}-${{ runner.os }}-${{ github.run_id }}
+        restore-keys: ${{ inputs.results }}-${{ runner.os }}-
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Build Docker images
+      uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+      with:
+        pull: true
+        load: true
+        source: .
+        files: |
+          compose.yaml
+          compose.override.yaml
+        set: |
+          *.cache-from=type=gha,scope=${{github.ref}}
+          *.cache-from=type=gha,scope=refs/heads/main
+          *.cache-to=type=gha,scope=${{github.ref}},mode=max
+    - name: Start services
+      shell: bash
+      run: docker compose up --wait --no-build

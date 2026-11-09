@@ -152,10 +152,11 @@ mutate: vendor node_modules ## Mutation-test the PHP classes and TypeScript sour
 	@$(if $(CHANGED_TS),$(NODE) $(STRYKER) --mutate "$(CHANGED_TS)",echo "Mutation testing: no TypeScript source changed since $(BASE).")
 
 # On CI, every class and every TypeScript source, including any that no test declares with covers().
-# --force: Stryker's incremental results miss a change to a helper, an imported module or the config.
+# FORCE=1 redoes every mutant: Stryker's incremental results miss a change to a helper, an imported
+# module or the config.
 mutate-all: vendor node_modules
 	$(PHP) $(PEST) $(MUTATE) --everything
-	$(NODE) $(STRYKER) --force
+	$(NODE) $(STRYKER)$(if $(FORCE), --force)
 
 # package.json points Prettier (and editors) to $(TOOLS)/prettier.json.
 PRETTIER := node_modules/.bin/prettier --cache --cache-location $(CACHE)/prettier --ignore-path .gitignore --ignore-path $(TOOLS)/prettierignore

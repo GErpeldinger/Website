@@ -326,6 +326,29 @@ describe('grab', () => {
         expect(placement.dy).toBeLessThan(45);
     });
 
+    it.each([
+        ['left', { x: -400, y: 300 }],
+        ['right', { x: 1400, y: 300 }],
+        ['top', { x: 500, y: -400 }],
+        ['bottom', { x: 500, y: 1100 }],
+    ])(
+        'keeps the piece in the page when the pointer leaves it by the %s',
+        (_side, to) => {
+            const { world, advance } = setup();
+            world.grab(1, { x: 500, y: 300 });
+
+            world.drag(to);
+            advance(120);
+
+            const { dx, dy } = place(world, 1);
+            const at = { x: 500 + dx, y: 300 + dy };
+            expect(at.x).toBeGreaterThan(0);
+            expect(at.x).toBeLessThan(1000);
+            expect(at.y).toBeGreaterThan(0);
+            expect(at.y).toBeLessThan(700);
+        },
+    );
+
     it('ignores a drag when nothing is held', () => {
         const { world, advance } = setup();
 

@@ -285,10 +285,15 @@ export class PhysicsWorld {
         return true;
     }
 
-    // The pointer moved: the held piece follows through a spring, so it lags and swings.
+    // The pointer moved: the held piece follows through a spring, so it lags and swings. The
+    // pointer can leave the page; a spring aimed past a wall would pull the body through it.
     drag(to: Point): void {
         if (this.#held) {
-            this.#held.constraint.pointA = { x: to.x, y: to.y };
+            const { width, floor } = this.#bounds;
+            this.#held.constraint.pointA = {
+                x: Math.max(0, Math.min(width, to.x)),
+                y: Math.max(0, Math.min(floor, to.y)),
+            };
         }
     }
 

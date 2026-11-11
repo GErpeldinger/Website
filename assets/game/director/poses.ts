@@ -28,6 +28,7 @@ const poses: Record<ChosenPose, string> = {
     stand: 'Stand',
     smoke: 'Smoke',
     talk: 'Talk',
+    light: 'Light',
 };
 const moods: Record<Mood, string> = {
     calm: 'Calm',

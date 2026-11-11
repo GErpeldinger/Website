@@ -177,6 +177,7 @@ describe('the monkey', () => {
             facing: 'right',
             gait: undefined,
             held: false,
+            cigarette: 'lit',
         });
 
         monkey.step(STEP);

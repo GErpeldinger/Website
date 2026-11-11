@@ -4,19 +4,30 @@ import {
     scenarios,
     type ScenarioGame,
 } from '../../../../assets/game/director/scenarios';
+import type { Engine } from '../../../../assets/game/brain/engine';
 import { EventBus } from '../../../../assets/game/events/event_bus';
 import type { GameEvents } from '../../../../assets/game/events/game_events';
 import { rect } from '../dom';
 
-const setup = (): {
+// The Brain of the monkey, which the scenarios start behaviours on; `starts` is what it answers.
+const setup = (
+    starts = true,
+): {
     game: ScenarioGame;
     events: EventBus<GameEvents>;
+    start: ReturnType<typeof vi.fn>;
 } => {
     const events = new EventBus<GameEvents>();
+    const start = vi.fn(() => starts);
     return {
         events,
+        start,
         game: {
             events,
+            engine: {
+                brain: (actor: string) =>
+                    actor === 'monkey' ? { start } : undefined,
+            } as unknown as Engine,
             bomb: vi.fn(),
             tornado: vi.fn(),
             setZeroGravity: vi.fn(),
@@ -260,6 +271,116 @@ describe('the scenarios that fire an event', () => {
     });
 });
 
+describe('the cigarette scenarios', () => {
+    it('knocks his cigarette off by starting the reflex on his Brain', () => {
+        const { game, start } = setup();
+
+        expect(run('Knock his cigarette off', game)).toBeUndefined();
+
+        expect(start).toHaveBeenCalledExactlyOnceWith('monkey/lose_cig');
+    });
+
+    it('says when the reflex did not start', () => {
+        const { game } = setup(false);
+
+        expect(run('Knock his cigarette off', game)).toBe(
+            'He has no Brain, or the reflex is already running.',
+        );
+    });
+
+    it('says when he has no Brain at all', () => {
+        const { game } = setup();
+        const lonely = {
+            ...game,
+            engine: { brain: () => undefined } as unknown as Engine,
+        };
+
+        expect(run('Knock his cigarette off', lonely)).toBe(
+            'He has no Brain, or the reflex is already running.',
+        );
+    });
+
+    it('says he has no lit cigarette to lose, and starts nothing, when his picture says so', () => {
+        for (const state of ['lost', 'unlit']) {
+            const { game, start } = setup();
+            monkeyAtCentre(300, 650);
+            document
+                .querySelector('svg')
+                ?.setAttribute('data-cigarette', state);
+
+            expect(run('Knock his cigarette off', game)).toBe(
+                'He has no lit cigarette to lose.',
+            );
+
+            expect(start).not.toHaveBeenCalled();
+            document.body.innerHTML = '';
+        }
+    });
+
+    it('raises no tornado for the cigarette up high when he has none to lose', () => {
+        const { game } = setup();
+        monkeyAtCentre(300, 650);
+        document.querySelector('svg')?.setAttribute('data-cigarette', 'lost');
+
+        expect(run('Cigarette up high', game)).toBe(
+            'He has no lit cigarette to lose.',
+        );
+
+        expect(game.tornado).not.toHaveBeenCalled();
+    });
+
+    it('sneezes by starting the ambient behaviour, which only fills idle time', () => {
+        const { game, start } = setup();
+
+        expect(run('Sneeze now', game)).toBeUndefined();
+
+        expect(start).toHaveBeenCalledExactlyOnceWith('monkey/sneeze');
+    });
+
+    it('says he is busy when the sneeze did not start', () => {
+        const { game } = setup(false);
+
+        expect(run('Sneeze now', game)).toBe(
+            'He is busy: a sneeze only comes in idle time.',
+        );
+    });
+
+    it('sweeps the cigarette up with a tornado over him once it has fallen', () => {
+        const { game, start } = setup();
+        monkeyAtCentre(300, 650);
+
+        expect(run('Cigarette up high', game)).toBeUndefined();
+
+        expect(start).toHaveBeenCalledExactlyOnceWith('monkey/lose_cig');
+        expect(game.tornado).toHaveBeenCalledExactlyOnceWith({
+            x: 300,
+            y: 650,
+        });
+    });
+
+    it('raises no tornado when the cigarette did not fall', () => {
+        const { game } = setup(false);
+        monkeyAtCentre(300, 650);
+
+        expect(run('Cigarette up high', game)).toBe(
+            'He has no Brain, or the reflex is already running.',
+        );
+
+        expect(game.tornado).not.toHaveBeenCalled();
+    });
+
+    it('says when he is not on the page, and does nothing', () => {
+        const { game, start } = setup();
+
+        expect(run('Cigarette up high', game)).toBe(
+            'The monkey is not on the page.',
+        );
+
+        expect(start).not.toHaveBeenCalled();
+        expect(game.tornado).not.toHaveBeenCalled();
+    });
+});
+
 describe('the list', () => {
     it('labels every scenario, and says which are not what they seem', () => {
         expect(
@@ -275,6 +396,9 @@ describe('the list', () => {
             ['Wreck the page', true],
             ['Rebuild', false],
             ['Lazy rebuild now', true],
+            ['Knock his cigarette off', true],
+            ['Sneeze now', true],
+            ['Cigarette up high', true],
             ['Piece hits him', true],
         ]);
         expect(scenarios.flatMap(({ note }) => (note ? [note] : []))).toEqual([
@@ -282,6 +406,9 @@ describe('the list', () => {
             'Real throw with the hand towards the nearer edge: ten moves, then a release.',
             'Zero gravity off, on, then off: every piece is freed and falls.',
             'Fires visitor.idle instead of waiting 15 s.',
+            'Starts the reflex that makes it fall, ignoring the dice and the conditions.',
+            'Starts the sneeze: it only fills idle time, so he must be doing nothing.',
+            'Knocks it off, then a tornado over him sweeps it up for 5 s, so he jumps for it while it flies. The pieces fly too.',
             'Stand-in: fires monkey.hit, there is no way to throw a piece at him.',
         ]);
     });

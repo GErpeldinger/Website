@@ -87,3 +87,24 @@ hurry:
 lazyDone:
     - 'There. Nobody helped me, by the way.'
     - 'Done. I’m going to sit down.'
+lostCig:
+    - 'My smoke!'
+    - 'Hey! My cigarette!'
+    - 'No, not my smoke…'
+sneeze: 'Achoo! … My smoke!'
+search:
+    - 'Where did it go?'
+    - 'Has anyone seen my smoke?'
+    - 'It was right here, I swear.'
+found:
+    - 'Ah, there it is.'
+    - 'Found it.'
+lit:
+    - 'Nothing like it.'
+    - 'Ah… that’s better.'
+    - 'Right. Where were we?'
+jump:
+    - 'Hup!'
+    - 'Gimme!'
+    - 'Almost…'
+giveUp: 'Forget it, it’s gone out. I’ve got more.'

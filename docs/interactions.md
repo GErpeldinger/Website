@@ -10,10 +10,10 @@ This page is the target. The first version is the prototype's game in the real c
 
 - **Look:** the prototype's dark page, two columns, the ground strip and the dock. The scene keeps an empty background layer for the hologram.
 - **Visitor:** grab and throw any content piece (a long press on touch), bomb, tornado, zero gravity, Rebuild.
-- **Monkey:** walks, smokes in idle time, comments on grabs, drops and hits (French and English lines), flinches when hit, flees a bomb and is burnt when it catches him, and puts every piece back on Rebuild.
+- **Monkey:** walks, smokes in idle time, comments on grabs, drops and hits (French and English lines), flinches when hit, flees a bomb and is burnt when it catches him, loses his cigarette (a hit, a hard fall, a sneeze), searches for it and relights it, and puts every piece back on Rebuild.
 - **Development:** the director panel, in development builds only.
 
-Next, each as new behaviour files on the same engine: the prototype's cigarette arc and hanging and climbing, then the hologram and the drone, Naïa, the sky, the car, the time of day, patience and the first-visit tutorial.
+Next, each as new behaviour files on the same engine: the rest of the cigarette arc (the visitor holding it) and hanging and climbing, then the hologram and the drone, Naïa, the sky, the car, the time of day, patience and the first-visit tutorial.
 
 ## Cast
 
@@ -74,7 +74,7 @@ The dock is a real remote, not part of the hologram. It is plain buttons, hidden
 | The visitor…                     | Monkey                                                                                                                                                                                                           | Drone and background                                                                                                                                              | Counter   |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | grabs a content piece            | Line ("Repose ça." / "Put that back."), with special lines for a letter of the name, a link, the board. Walks under the held piece.                                                                              | —                                                                                                                                                                 | Throws    |
-| throws a piece at the monkey     | Reflex: flinch, "Aïe !" / "Ouch!". May lose his cigarette.                                                                                                                                                       | —                                                                                                                                                                 | —         |
+| throws a piece at the monkey     | Reflex: flinch, "Aïe !" / "Ouch!". Half the time, from 7 px per step, he loses his cigarette instead (see the cigarette arc).                                                                                    | —                                                                                                                                                                 | —         |
 | grabs the monkey                 | Line ("Lâche-moi !" / "Let go of me!"). Grabs the edge of any element he is dragged past; a hard pull frees it; let go, he climbs on it and perches.                                                             | —                                                                                                                                                                 | —         |
 | grabs the drone                  | If asleep in the house, falls with the bed, lands and comes to the front to tell the visitor off ("Je DORMAIS !" / "I was SLEEPING!").                                                                           | Startled eyes. The background follows its cone and shears; dragged far or shaken, it goes out. Released, the drone drifts back and re-projects with a scan sweep. | —         |
 | tries to grab Naïa               | "Hé ! Joue pas avec mon chat !" / "Hey! Don't play with my cat!"                                                                                                                                                 | —                                                                                                                                                                 | —         |
@@ -99,14 +99,16 @@ Ambient behaviours, all giving way to anything the visitor does:
 
 - **Monkey:** smokes, watches the cursor, polishes his sunglasses, does his chores on the content. Now and then he sneezes his cigarette out, which starts the cigarette arc.
 - **Naïa:** roams both planes, falls asleep on a content piece (that piece cannot be grabbed while she is on it), pushes a letter off the page now and then, and sometimes takes the monkey's bed.
-- **Birds:** land on a letter, the drone or the sleeping monkey's head. The monkey shoos them off the content; Naïa stalks them and never catches one. The magpie goes for shiny things: it can make off with his Zippo, and he chases it.
+- **Birds:** land on a letter, the drone or the sleeping monkey's head. The monkey shoos them off the content; Naïa stalks them and never catches one. The magpie goes for shiny things: it can make off with his lighter, and he chases it.
 - **Airliners:** cross the sky now and then, high and slow. Sometimes the monkey looks up and follows one.
 - **Fighter jets:** by day only, rare, at most once every few minutes. A low pass with a rumble: the content trembles and a crooked piece may fall, the drone wobbles, the birds scatter, the monkey ducks and covers his ears (and may drop his cigarette). Naïa does not even look up.
 - **Bedtime:** after a long quiet, the monkey walks into the background, into the house, and goes to sleep. Once the scene is still, the loop stops (see architecture.md, Lifecycle).
 
 ### The cigarette
 
-He loses it (a hit, a hard fall, a sneeze), notices, looks the wrong way first, then walks or jumps to it and relights it with his Zippo. If the visitor holds it, he chases the cursor and snatches it back when he gets close. Kept from him too long, he turns super-monkey: angry, no cigarette, and flies at the cursor to take it back.
+**Built (part 1).** He loses it to a loose piece faster than 7 px per step (one time in two), to a fall onto the floor faster than 10 (six times in ten), or to a sneeze while he is idle (every 45 to 75 s, never in the first interval), and never while he rebuilds, is out of the page or is held. A blast does not make him lose it: it leaves him a burnt stub. The cigarette falls on the page, a small stick with an ember and a wisp of smoke that a bomb nudges and a tornado sweeps up. He cries out, scared for 1.6 s, stands still for 0.7 s (0.9 after a sneeze), looks about for 1.5 s turning every 0.4 s, looks the wrong way first, then walks to it and, if it is over his head, jumps for it. Reached, he says so, lights it with his gold lighter for 1.9 s, and is proud for 1.8 s. A flee or a trip out of the page only delays the search, which goes on afterwards; after 12 s without reaching it (too high, say) he gives up in a puff of smoke and lights another. Measuring the page again gives him his cigarette back.
+
+**Part 2, to come.** If the visitor holds it, he chases the cursor and snatches it back when he gets close. Kept from him too long, he turns super-monkey: angry, no cigarette, and flies at the cursor to take it back.
 
 ### Patience
 
@@ -144,7 +146,7 @@ The panel that fires any event or behaviour on demand, built for development, sh
 - Patience as the backbone of the escalation, as above?
 - Pure sandbox, or something to discover (hidden reactions counted somewhere)? Proposed: sandbox.
 - After the rage beam: does he rebuild, or does the drone fetch him and the visitor rebuild?
-- The cigarette: super-monkey replaces the prototype's "gives up after 12 s and lights a new one"?
+- The cigarette: part 1 gives up after 12 s and lights a new one, as the prototype did for a cigarette nobody holds. Does super-monkey replace that for a cigarette the visitor keeps?
 - Does Naïa ever "speak" (a "Mrrp" bubble), or stay silent like the drone?
 
 ## Decisions

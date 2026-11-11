@@ -23,13 +23,16 @@ import {
 } from './page/page';
 import { Blasts } from './page/blasts';
 import { Bombs } from './page/bombs';
+import { LostCigarette } from './page/lost_cigarette';
 import { Scorches } from './page/scorches';
 import { Shake } from './page/shake';
 import { Tornado } from './page/tornado';
 import type { Bounds } from './physics/bodies';
 import type { MonkeyBody } from './physics/monkey_body';
 import { MONKEY, PhysicsWorld } from './physics/world';
+import { chance } from './ports/chance';
 import { monkeyActivity } from './ports/monkey_activity';
+import { monkeyCigarette } from './ports/monkey_cigarette';
 import { monkeyPieces } from './ports/monkey_pieces';
 import { monkeyWorld } from './ports/monkey_world';
 import { registered } from './registry/behaviours';
@@ -91,6 +94,15 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
     const clock = new Clock();
     const activity = monkeyActivity(events, () => clock.now());
+    const cigarette = monkeyCigarette(
+        events,
+        () => clock.now(),
+        random,
+        () => ({
+            lit: scene.world.cigaretteState === 'lit',
+            lying: scene.world.cigarette(),
+        }),
+    );
     const engine = new Engine({
         events,
         clock,
@@ -102,12 +114,19 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             monkeyWorld(() => ({
                 pageWidth: scene.bounds.width,
                 monkeyX: scene.monkey.position.x,
+                monkeyTop: scene.monkey.top,
+                onFloor: scene.monkey.onFloor,
+                grounded: scene.monkey.grounded,
+                free: scene.world.monkeyFree,
+                facing: monkey.motor.facing,
             })),
             monkeyPieces(() => ({
                 loose: scene.world.loose(),
                 carrying: monkey.motor.carrying,
             })),
             activity.source,
+            cigarette.source,
+            chance(random),
         ],
         // A behaviour that fails ends there: the game goes on.
         onError: (error, source): void => {
@@ -122,6 +141,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     const scorches = new Scorches(stage, MAX_SCORCHES);
     const shake = new Shake(root, random);
     const bombs = new Bombs(stage, reducedMotion);
+    const lostCigarette = new LostCigarette(stage, reducedMotion);
     const tornado = new Tornado(stage, clock, () => scene.bounds.floor);
     const blasts = new Blasts({
         parent: stage,
@@ -155,6 +175,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             scene.world.step(elapsed);
             writePlacements(scene.measured.elements, scene.world.placements());
             bombs.step(scene.world.bombs());
+            lostCigarette.step(scene.world.cigarette());
             tornado.step(scene.world.tornado());
             monkey.step(elapsed);
             shake.step(elapsed);
@@ -251,6 +272,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
     };
     const unsubscribe = [
         activity.stop,
+        cigarette.stop,
         quiet.stop,
         // Whatever happens may start a behaviour, which needs the clock to run.
         events.onAny(() => {
@@ -282,6 +304,9 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         events.on('rebuild.requested', () => {
             scorches.clear();
         }),
+        events.on('cig.discarded', ({ at }) => {
+            blasts.puff(at);
+        }),
         events.on('bomb.exploded', ({ id, at, radius }) => {
             bombs.remove(id);
             blasts.add(at, radius);
@@ -298,6 +323,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         }
         scorches.clear();
         bombs.clear();
+        lostCigarette.clear();
         blasts.clear();
         tornado.clear();
         shake.stop();

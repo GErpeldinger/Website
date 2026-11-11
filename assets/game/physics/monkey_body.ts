@@ -21,6 +21,8 @@ const MIN_AIR_STEPS = 6;
 // Sent flying faster than a hop, he tumbles until he has stood for this many steps.
 const TUMBLE_SPEED = 10;
 const SETTLE_STEPS = 10;
+// His soles are on the floor, for a jump he means, within this of it.
+const ON_FLOOR = 8;
 
 export interface Landing {
     // How fast he came down, in pixels per step.
@@ -48,6 +50,8 @@ export class MonkeyBody {
     #fall = 0;
     #standing = 0;
     #tumbling = false;
+    // Thrown by his own jump: fast, but he is not tumbling and its landing is no fall.
+    #leaping = false;
     #supported = false;
     // Passing through the loose pieces, or told to stop and waiting to be clear of them.
     #through: 'off' | 'on' | 'ending' = 'off';
@@ -82,6 +86,23 @@ export class MonkeyBody {
             this.#floor,
             this.#supported,
         );
+    }
+
+    // The y of the top of his head.
+    get top(): number {
+        return this.body.position.y - MONKEY_HEIGHT / 2;
+    }
+
+    // His soles are at the floor (not on a piece above it), moving or not.
+    get onFloor(): boolean {
+        return (
+            this.body.position.y + MONKEY_HEIGHT / 2 >= this.#floor - ON_FLOOR
+        );
+    }
+
+    // In the air by his own jump, until he is on his feet again.
+    get leaping(): boolean {
+        return this.#leaping;
     }
 
     // Where he is walking to, until he arrives or is told to stop.
@@ -167,6 +188,19 @@ export class MonkeyBody {
         Body.setAngularVelocity(this.body, 0);
     }
 
+    // Jumps: leaves his feet at this speed, in pixels per step, no longer walking anywhere.
+    launch(vx: number, vy: number): void {
+        this.#goal = undefined;
+        this.#leaping = true;
+        Body.setVelocity(this.body, { x: vx, y: vy });
+    }
+
+    // Something other than his legs threw him (a blast, the visitor's hand): that is no leap of
+    // his, so he tumbles if it is fast and his landing is a fall.
+    struck(): void {
+        this.#leaping = false;
+    }
+
     // Stops walking where he is.
     halt(): void {
         this.#goal = undefined;
@@ -198,12 +232,15 @@ export class MonkeyBody {
         const grounded = this.grounded;
         if (held) {
             this.#tumbling = false;
+            this.#leaping = false;
         } else if (grounded) {
+            this.#leaping = false;
             this.#standing++;
             this.#tumbling &&= this.#standing < SETTLE_STEPS;
         } else {
             this.#standing = 0;
-            this.#tumbling ||= this.body.speed >= TUMBLE_SPEED;
+            this.#tumbling ||=
+                !this.#leaping && this.body.speed >= TUMBLE_SPEED;
         }
         if (held || grounded) {
             const landed =

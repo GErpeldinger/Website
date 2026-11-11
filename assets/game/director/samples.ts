@@ -19,6 +19,9 @@ export const eventSamples: { [Name in keyof GameEvents]: GameEvents[Name] } = {
     'monkey.hit': { speed: 9, against: 'piece' },
     'monkey.left': { side: 'top' },
     'monkey.blasted': { bomb: 1 },
+    'cig.lost': { cause: 'hit', at: { x: 500, y: 690 } },
+    'cig.discarded': { at: { x: 500, y: 690 } },
+    'cig.lit': undefined,
     'tool.selected': { tool: 'bomb' },
     'bomb.placed': { id: 1, at: { x: 500, y: 300 } },
     'bomb.cancelled': { id: 1 },
@@ -58,6 +61,11 @@ const monkeySamples: {
     place: { type: 'place', piece: 0, pace: 'walk' },
     drop: { type: 'drop' },
     enter: { type: 'enter', from: 'top' },
+    lose: { type: 'lose', cause: 'hit' },
+    jump: { type: 'jump', vx: 2, vy: -10 },
+    pickup: { type: 'pickup' },
+    discard: { type: 'discard' },
+    relight: { type: 'relight' },
 };
 
 // The requests of each actor whose Motor the panel can drive, by the name the actor goes by.

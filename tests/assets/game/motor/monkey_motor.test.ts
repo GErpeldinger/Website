@@ -212,6 +212,7 @@ describe('what he looks like', () => {
             facing: 'right',
             gait: undefined,
             held: false,
+            cigarette: 'lit',
         });
     });
 
@@ -1691,5 +1692,247 @@ describe('passing through the loose pieces', () => {
 
         expect(carry.outcomes).toEqual(['failed']);
         expect(solid(harness.monkey)).toBe(true);
+    });
+});
+
+describe('losing the cigarette', () => {
+    const lying = (harness: Harness): { x: number; y: number } | undefined =>
+        harness.world.cigarette();
+
+    it('drops it in front of him, answers at once, and the world says so', () => {
+        const harness = setup();
+        harness.frame(5);
+
+        const lose = harness.ask({ type: 'lose', cause: 'sneeze' });
+
+        expect(lose.outcomes).toEqual(['done']);
+        expect(lying(harness)?.x).toBeGreaterThan(harness.monkey.position.x);
+        expect(harness.log.filter(({ name }) => name === 'cig.lost')).toEqual([
+            {
+                name: 'cig.lost',
+                payload: { cause: 'sneeze', at: expect.anything() as unknown },
+            },
+        ]);
+    });
+
+    it('drops it behind him when he faces left', () => {
+        const harness = setup();
+        harness.ask({ type: 'face', direction: 'left' });
+
+        harness.ask({ type: 'lose', cause: 'hit' });
+
+        expect(lying(harness)?.x).toBeLessThan(harness.monkey.position.x);
+    });
+
+    it('fails when he has none lit', () => {
+        const harness = setup();
+        harness.ask({ type: 'lose', cause: 'hit' });
+
+        const again = harness.ask({ type: 'lose', cause: 'hit' });
+
+        expect(again.outcomes).toEqual(['failed']);
+        expect(
+            harness.log.filter(({ name }) => name === 'cig.lost'),
+        ).toHaveLength(1);
+    });
+
+    it('is also a reflex’s to ask: it answers on the overlay and leaves the body’s request alone', () => {
+        const harness = setup();
+        harness.ask({ type: 'walk', x: 800 });
+
+        const lose = harness.ask({ type: 'lose', cause: 'hit' }, 'overlay');
+
+        expect(lose.outcomes).toEqual(['done']);
+        expect(lying(harness)).toBeDefined();
+        expect(harness.motor.busy).toBe(true);
+        expect(harness.monkey.destination).toBe(800);
+    });
+
+    it('fails on the overlay when he has none lit', () => {
+        const harness = setup();
+        harness.ask({ type: 'lose', cause: 'hit' }, 'overlay');
+
+        const again = harness.ask({ type: 'lose', cause: 'hit' }, 'overlay');
+
+        expect(again.outcomes).toEqual(['failed']);
+    });
+
+    it('answers before the fall is heard, so a request made on hearing it is not cut', () => {
+        const harness = setup();
+        const order: string[] = [];
+        harness.events.on('cig.lost', () => {
+            order.push('heard');
+            harness.ask({ type: 'walk', x: 800 });
+        });
+
+        harness.motor.perform(
+            { type: 'lose', cause: 'hit' },
+            () => {
+                order.push('answered');
+            },
+            'body',
+        );
+
+        expect(order).toEqual(['answered', 'heard']);
+        expect(harness.motor.busy).toBe(true);
+    });
+
+    it('shows the cigarette gone from his mouth while it lies, and back once picked up', () => {
+        const harness = setup();
+        harness.frame();
+        expect(harness.last().cigarette).toBe('lit');
+
+        harness.ask({ type: 'lose', cause: 'hit' });
+        harness.frame();
+        expect(harness.last().cigarette).toBe('lost');
+
+        harness.ask({ type: 'pickup' });
+        harness.frame();
+        expect(harness.last().cigarette).toBe('unlit');
+
+        harness.ask({ type: 'relight' });
+        harness.frame();
+        expect(harness.last().cigarette).toBe('lit');
+    });
+});
+
+describe('finding the cigarette again', () => {
+    it('picks it up from the floor: it is in his mouth, not lit', () => {
+        const harness = setup();
+        harness.ask({ type: 'lose', cause: 'hit' });
+
+        const pickup = harness.ask({ type: 'pickup' });
+
+        expect(pickup.outcomes).toEqual(['done']);
+        expect(
+            harness.log.filter(({ name }) => name === 'cig.discarded'),
+        ).toEqual([]);
+        expect(harness.world.cigaretteState).toBe('unlit');
+        expect(harness.world.cigarette()).toBeUndefined();
+    });
+
+    it('fails to pick up or give up on one that is not on the floor', () => {
+        const harness = setup();
+
+        expect(harness.ask({ type: 'pickup' }).outcomes).toEqual(['failed']);
+        expect(harness.ask({ type: 'discard' }).outcomes).toEqual(['failed']);
+    });
+
+    it('gives up on it, which the world hears with the place it lay', () => {
+        const harness = setup();
+        harness.ask({ type: 'lose', cause: 'hit' });
+
+        const discard = harness.ask({ type: 'discard' });
+
+        expect(discard.outcomes).toEqual(['done']);
+        expect(harness.world.cigaretteState).toBe('unlit');
+        expect(
+            harness.log.filter(({ name }) => name === 'cig.discarded'),
+        ).toHaveLength(1);
+    });
+
+    it('lights it again, once', () => {
+        const harness = setup();
+        harness.ask({ type: 'lose', cause: 'hit' });
+        harness.ask({ type: 'pickup' });
+
+        expect(harness.ask({ type: 'relight' }).outcomes).toEqual(['done']);
+        expect(harness.world.cigaretteState).toBe('lit');
+        expect(harness.ask({ type: 'relight' }).outcomes).toEqual(['failed']);
+    });
+
+    it('is shown lighting up, and a line does not make him gesture over it', () => {
+        const harness = setup();
+        harness.ask({ type: 'pose', pose: 'light', ms: 1900 });
+
+        harness.ask({ type: 'pose', pose: 'talk', ms: 800 }, 'overlay');
+
+        expect(harness.last().pose).toBe('light');
+        harness.wait(1900);
+        expect(harness.last().pose).toBe('stand');
+    });
+});
+
+describe('jumping', () => {
+    it('leaves the ground at the speed asked and ends once he is back on it', () => {
+        const harness = setup();
+        harness.frame(30);
+
+        const jump = harness.ask({ type: 'jump', vx: 3, vy: -10 });
+        expect(harness.motor.busy).toBe(true);
+        harness.frame(3);
+        expect(harness.monkey.position.y).toBeLessThan(660);
+        expect(harness.monkey.position.x).toBeGreaterThan(305);
+        expect(jump.outcomes).toEqual([]);
+
+        harness.until(() => jump.outcomes.length > 0);
+
+        expect(jump.outcomes).toEqual(['done']);
+        expect(harness.monkey.grounded).toBe(true);
+        expect(harness.motor.busy).toBe(false);
+    });
+
+    it('is neither a tumble nor a fall, however high', () => {
+        const harness = setup();
+        harness.frame(30);
+
+        const jump = harness.ask({ type: 'jump', vx: 0, vy: -14 });
+        harness.frame(2);
+        expect(harness.last().pose).toBe('stand');
+        harness.until(() => jump.outcomes.length > 0);
+
+        expect(harness.last().pose).toBe('stand');
+        expect(harness.log.filter(({ name }) => name === 'monkey.hit')).toEqual(
+            [],
+        );
+    });
+
+    it('fails when he is not on his feet', () => {
+        const harness = setup();
+        harness.frame(30);
+        Body.setPosition(harness.monkey.body, { x: 300, y: 300 });
+        Body.setVelocity(harness.monkey.body, { x: 0, y: 3 });
+
+        const jump = harness.ask({ type: 'jump', vx: 0, vy: -10 });
+
+        expect(jump.outcomes).toEqual(['failed']);
+    });
+
+    it('stops walking where he was going', () => {
+        const harness = setup();
+        const walk = harness.ask({ type: 'walk', x: 800 });
+        harness.frame(2);
+
+        harness.ask({ type: 'jump', vx: 0, vy: -10 });
+
+        expect(harness.monkey.destination).toBeUndefined();
+        expect(walk.outcomes).toEqual(['failed']);
+    });
+
+    it('halts him when cut short', () => {
+        const harness = setup();
+        harness.frame(30);
+        const jump = harness.ask({ type: 'jump', vx: 4, vy: -10 });
+        harness.frame(2);
+
+        jump.task.cancel();
+        harness.frame(1);
+
+        expect(jump.outcomes).toEqual([]);
+        expect(harness.monkey.body.velocity.x).toBe(0);
+    });
+});
+
+describe('the way he faces', () => {
+    it('is told to the behaviours, whatever sent him that way', () => {
+        const harness = setup();
+        expect(harness.motor.facing).toBe('right');
+
+        harness.ask({ type: 'face', direction: 'left' });
+        expect(harness.motor.facing).toBe('left');
+
+        harness.ask({ type: 'walk', x: 800 });
+        harness.frame(2);
+        expect(harness.motor.facing).toBe('right');
     });
 });

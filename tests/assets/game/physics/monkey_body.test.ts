@@ -89,6 +89,91 @@ describe('what the body says of itself', () => {
     });
 });
 
+describe('where his head and feet are', () => {
+    it('has his top 35 px above his centre', () => {
+        expect(standing().top).toBeCloseTo(630);
+    });
+
+    it('is on the floor when his soles are within 8 px of it, whatever his speed', () => {
+        const monkey = standing();
+        lift(monkey, -9);
+
+        Body.setPosition(monkey.body, { x: 300, y: 657 });
+        expect(monkey.onFloor).toBe(true);
+        Body.setPosition(monkey.body, { x: 300, y: 656.9 });
+        expect(monkey.onFloor).toBe(false);
+    });
+});
+
+describe('leaping', () => {
+    it('throws him at the speed asked, forgetting where he was walking to', () => {
+        const monkey = standing();
+        monkey.goTo(600, 3);
+
+        monkey.launch(4, -10);
+
+        expect(monkey.body.velocity).toEqual({ x: 4, y: -10 });
+        expect(monkey.destination).toBeUndefined();
+        expect(monkey.leaping).toBe(true);
+    });
+
+    it('is not a tumble, however fast he goes up', () => {
+        const monkey = standing();
+        monkey.launch(0, -14);
+        lift(monkey, -14);
+
+        monkey.afterStep(false);
+
+        expect(monkey.tumbling).toBe(false);
+    });
+
+    it('lasts until he is on his feet again', () => {
+        const monkey = standing();
+        monkey.launch(0, -10);
+        lift(monkey, -3);
+        monkey.afterStep(false);
+        expect(monkey.leaping).toBe(true);
+
+        land(monkey);
+        monkey.afterStep(false);
+
+        expect(monkey.leaping).toBe(false);
+    });
+
+    it('ends in the hand', () => {
+        const monkey = standing();
+        monkey.launch(0, -10);
+
+        monkey.afterStep(true);
+
+        expect(monkey.leaping).toBe(false);
+    });
+
+    it('ends when something else throws him', () => {
+        const monkey = standing();
+        monkey.launch(0, -10);
+
+        monkey.struck();
+
+        expect(monkey.leaping).toBe(false);
+        lift(monkey, -12);
+        monkey.afterStep(false);
+        expect(monkey.tumbling).toBe(true);
+    });
+
+    it('does not keep him from tumbling when he is thrown after landing', () => {
+        const monkey = standing();
+        monkey.launch(0, -10);
+        land(monkey);
+        monkey.afterStep(false);
+
+        lift(monkey, -12);
+        monkey.afterStep(false);
+
+        expect(monkey.tumbling).toBe(true);
+    });
+});
+
 describe('walking', () => {
     it('sets his speed towards the goal, keeping what he falls at', () => {
         const right = standing();

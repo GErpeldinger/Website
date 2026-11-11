@@ -623,12 +623,17 @@ describe('the motor console', () => {
             [...request.options].map((option) => option.value).sort(),
         ).toEqual([
             'carry',
+            'discard',
             'drop',
             'enter',
             'face',
+            'jump',
+            'lose',
             'mood',
+            'pickup',
             'place',
             'pose',
+            'relight',
             'stand',
             'stop',
             'walk',
@@ -1009,7 +1014,7 @@ describe('the scenarios tab', () => {
             item.querySelector('small')?.textContent,
         ]);
 
-        expect(items).toHaveLength(11);
+        expect(items).toHaveLength(14);
         expect(items[0]).toEqual(['Bomb on him', undefined]);
         expect(items[7]).toEqual([
             'Wreck the page',
@@ -1023,7 +1028,7 @@ describe('the scenarios tab', () => {
             document.querySelectorAll(
                 '[data-tab="scenarios"] button[type="button"]',
             ),
-        ).toHaveLength(11);
+        ).toHaveLength(14);
     });
 
     it('plays the scenario on the game', () => {
@@ -1119,7 +1124,7 @@ describe('the poses tab', () => {
                 ],
             ),
         ).toEqual([
-            ['Poses', 3],
+            ['Poses', 4],
             ['Moods', 5],
             ['Walks', 4],
         ]);

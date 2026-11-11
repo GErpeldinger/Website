@@ -5,6 +5,8 @@ import {
     hasWork,
     isHurrying,
     isLazy,
+    isRebuilding,
+    REBUILD,
 } from '../../../../../../assets/game/activities/monkey/rebuild/state';
 
 const now = { actor: 'monkey', now: 0 };
@@ -28,4 +30,14 @@ it('has work when a piece lies about or is in his hands, and not otherwise', () 
     expect(hasWork({ ...now, loosePieces: [] })).toBe(false);
     expect(hasWork({ ...now, loosePieces: [{ id: 0, x: 1 }] })).toBe(true);
     expect(hasWork({ ...now, carrying: 0 })).toBe(true);
+});
+
+it('is rebuilding while any of the three rebuilds runs', () => {
+    expect(REBUILD).toBe('monkey/rebuild');
+    expect(isRebuilding({ ...now, running: [REBUILD] })).toBe(true);
+    expect(isRebuilding({ ...now, running: ['monkey/flee', LAZY] })).toBe(true);
+    expect(isRebuilding({ ...now, running: [HURRY] })).toBe(true);
+    expect(isRebuilding({ ...now, running: ['monkey/flee'] })).toBe(false);
+    expect(isRebuilding({ ...now, running: [] })).toBe(false);
+    expect(isRebuilding(now)).toBe(false);
 });

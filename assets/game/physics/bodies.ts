@@ -30,6 +30,7 @@ const LOOSE = 8;
 const MONKEY = 16;
 const BOMB = 32;
 const TAKEN = 64;
+const CIGARETTE = 128;
 
 export const pinnedFilter = (): ICollisionFilter => ({
     category: PINNED,
@@ -57,6 +58,12 @@ export const monkeyFilter = (walled = false): ICollisionFilter => ({
 export const monkeyPassingFilter = (walled = false): ICollisionFilter => ({
     category: MONKEY,
     mask: GROUND | PINNED | BOMB | (walled ? SIDE : 0),
+    group: 0,
+});
+// The cigarette he drops lands on the floor and stays in the page, which he can leave.
+export const cigaretteFilter = (): ICollisionFilter => ({
+    category: CIGARETTE,
+    mask: GROUND | SIDE,
     group: 0,
 });
 const bombFilter = (): ICollisionFilter => ({
@@ -111,6 +118,16 @@ export const bombBody = (at: Point, floor: number): Body =>
         friction: 0.5,
         density: 0.004,
         collisionFilter: bombFilter(),
+    });
+
+// The cigarette that falls from his mouth, from the prototype.
+export const cigaretteBody = (at: Point): Body =>
+    Bodies.rectangle(at.x, at.y, 12, 3, {
+        density: 0.0006,
+        friction: 0.9,
+        frictionAir: 0.02,
+        restitution: 0.25,
+        collisionFilter: cigaretteFilter(),
     });
 
 // The floor, the two sides and the ceiling at the top of the page. A piece thrown up stops

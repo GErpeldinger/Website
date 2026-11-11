@@ -39,6 +39,29 @@
         scale: 1.6;
     }
 
+    /* The cigarette he dropped: the stick is turned by the game (a transform attribute), the wisp
+       of smoke rises from its ember and fades. No wisp under reduced motion. */
+    .lost-cigarette {
+        position: absolute;
+        z-index: 1;
+        top: 0;
+        left: 0;
+        width: var(--cigarette-width);
+        height: var(--cigarette-height);
+        overflow: visible;
+        pointer-events: none;
+    }
+
+    .lost-cigarette .wisp {
+        fill: var(--muted);
+        opacity: 0;
+        animation: cigarette-wisp 2s ease-out infinite;
+    }
+
+    .lost-cigarette[data-still] .wisp {
+        display: none;
+    }
+
     [data-blast] {
         position: absolute;
         z-index: 3;
@@ -138,6 +161,18 @@
     @keyframes bomb-flicker {
         50% {
             fill: var(--spark-warm);
+        }
+    }
+
+    @keyframes cigarette-wisp {
+        from {
+            opacity: 0.7;
+            transform: translate(0, 0);
+        }
+
+        to {
+            opacity: 0;
+            transform: translate(1px, -14px);
         }
     }
 

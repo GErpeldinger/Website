@@ -1,15 +1,18 @@
 import type { ClockView } from '../clock/clock';
-import type { ExitSide, Point } from '../events/game_events';
+import type { CigaretteLoss, ExitSide, Point } from '../events/game_events';
 import type { Appearance } from '../look/look';
 import { MONKEY_HEIGHT, MONKEY_WIDTH } from '../physics/bodies';
+import type { CigaretteState } from '../physics/cigarette';
 import type { MonkeyBody } from '../physics/monkey_body';
 import type { PhysicsWorld } from '../physics/world';
-import type {
-    ChosenPose,
-    Facing,
-    Mood,
-    MonkeyRequest,
-    Pace,
+import {
+    WALL_MARGIN,
+    type ChosenPose,
+    type CigaretteLook,
+    type Facing,
+    type Mood,
+    type MonkeyRequest,
+    type Pace,
 } from '../ports/monkey';
 import type { Layer, Motor, MotorTask, Outcome } from '../ports/motor';
 
@@ -27,10 +30,14 @@ export interface MonkeyMotorOptions {
 
 // Pixels per 60 Hz step, from the prototype.
 const SPEEDS: Record<Pace, number> = { walk: 3, run: 6.5 };
-// He cannot reach a spot nearer a wall than his half width.
-const WALL_MARGIN = MONKEY_WIDTH / 2;
+// He cannot reach a spot nearer a wall than his half width (the port says so, for the search).
 // How far inside the page he is put back: under the top, or from the edge, for a side.
 const ENTRY_GAP = 10;
+const CIGARETTE_LOOKS: Record<CigaretteState, CigaretteLook> = {
+    lit: 'lit',
+    lying: 'lost',
+    unlit: 'unlit',
+};
 // A target that moves this far makes him turn to the new spot.
 const RETARGET = 8;
 
@@ -103,6 +110,11 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
         return this.#carried?.id;
     }
 
+    // The way he looks, which a behaviour may turn the other way.
+    get facing(): Facing {
+        return this.#facing;
+    }
+
     // A request that needs a frame each time is pending: the loop must go on.
     get busy(): boolean {
         return this.#task?.poll !== undefined;
@@ -145,6 +157,11 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
         request: MonkeyRequest,
         done: (outcome: Outcome) => void,
     ): MotorTask {
+        // Losing the cigarette is instant, with nothing to end, so a reflex may ask for it.
+        if (request.type === 'lose') {
+            this.#lose(request.cause, done);
+            return { cancel: (): void => undefined };
+        }
         if (
             (request.type !== 'pose' && request.type !== 'mood') ||
             request.ms === undefined
@@ -246,6 +263,29 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 this.#enter(request.from);
                 task.finish('done');
                 break;
+            case 'lose':
+                this.#lose(request.cause, (outcome) => {
+                    task.finish(outcome);
+                });
+                break;
+            case 'pickup':
+            case 'discard':
+                task.finish(
+                    this.#options
+                        .world()
+                        .pickUpCigarette(request.type === 'discard')
+                        ? 'done'
+                        : 'failed',
+                );
+                break;
+            case 'relight':
+                task.finish(
+                    this.#options.world().lightCigarette() ? 'done' : 'failed',
+                );
+                break;
+            case 'jump':
+                this.#poll(task, this.#jump(request.vx, request.vy), halt);
+                break;
             case 'pose':
                 this.#set(
                     task,
@@ -300,6 +340,15 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 // The director sends free JSON.
                 task.finish('failed');
         }
+    }
+
+    // The cigarette falls in front of him, as he faces. The request is answered first: the fall is
+    // heard by the search, which asks for the body, and a task cannot finish after it is replaced.
+    #lose(cause: CigaretteLoss, answer: (outcome: Outcome) => void): void {
+        const world = this.#options.world();
+        answer(world.cigaretteState === 'lit' ? 'done' : 'failed');
+        // The world refuses it when he has none lit.
+        world.loseCigarette(this.#facing === 'right' ? 1 : -1, cause);
     }
 
     // Back in the page: under the top at his x for the top, on the floor inside the edge otherwise.
@@ -409,6 +458,23 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 return 'done';
             }
             yield;
+        }
+    }
+
+    // Leaves his feet at this speed and ends once he is back on them. He can only jump from
+    // them.
+    *#jump(vx: number, vy: number): Steps {
+        const body = this.#options.body();
+        if (!body.grounded) {
+            return 'failed';
+        }
+        body.launch(vx, vy);
+        // The world's step comes before the next poll: he has left the ground by then.
+        for (;;) {
+            yield;
+            if (this.#options.body().grounded) {
+                return 'done';
+            }
         }
     }
 
@@ -567,8 +633,9 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
             (overlay) => overlay.mood !== undefined,
         )?.mood;
         this.#options.look.show({
+            // Both his hands are busy lighting the cigarette: a line does not make him gesture.
             pose:
-                overlayPose ??
+                (this.#pose === 'light' ? this.#pose : overlayPose) ??
                 (body.tumbling
                     ? 'tumble'
                     : this.#carried
@@ -581,6 +648,7 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                     ? this.#pace
                     : undefined,
             held,
+            cigarette: CIGARETTE_LOOKS[this.#options.world().cigaretteState],
         });
     }
 }

@@ -25,6 +25,9 @@ export type HitAgainst = 'piece' | 'bomb' | 'floor' | 'wall' | 'monkey';
 // Where the monkey left the page: over its top, or past one of its sides.
 export type ExitSide = 'top' | 'left' | 'right';
 
+// Why his cigarette left his mouth: something hit him, or he sneezed.
+export type CigaretteLoss = 'hit' | 'sneeze';
+
 export type BehaviourKind = 'reflex' | 'activity' | 'ambient' | 'line';
 
 // How a behaviour ended: it finished, a stronger one took its place, it threw, or the Brain stopped.
@@ -64,6 +67,12 @@ export interface GameEvents {
     // A bomb's blast reached him, a bit further than it reaches a piece; `bomb` is its id. Said
     // right after `bomb.exploded`.
     'monkey.blasted': { bomb: number };
+    // His cigarette fell from his mouth, and lies at `at` until he picks it up.
+    'cig.lost': { cause: CigaretteLoss; at: Point };
+    // He gave up on the cigarette that lay at `at`: it is gone, and he will light another.
+    'cig.discarded': { at: Point };
+    // The cigarette is lit and in his mouth again.
+    'cig.lit': undefined;
     // The visitor chose a tool in the dock (Grab included, and again on the one already chosen).
     'tool.selected': { tool: Tool };
     'bomb.placed': { id: number; at: Point };

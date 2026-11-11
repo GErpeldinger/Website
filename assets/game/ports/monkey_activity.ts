@@ -9,6 +9,9 @@ declare module '../brain/behaviour' {
         readonly running: readonly string[];
         // Game time of the last piece put back home; absent before the first.
         readonly restoredAt: number;
+        // For each of his behaviours that was interrupted and resumed, how long it waited, in ms
+        // of game time: the time it was not running.
+        readonly away: Readonly<Record<string, number>>;
     }
 }
 
@@ -25,15 +28,24 @@ export const monkeyActivity = (
 ): MonkeyActivity => {
     const running = new Set<string>();
     let restoredAt: number | undefined;
+    const interruptedAt = new Map<string, number>();
+    const away: Record<string, number> = {};
     const off = [
-        events.on('behaviour.started', ({ actor, id }) => {
+        events.on('behaviour.started', ({ actor, id, resumed }) => {
             if (actor === 'monkey') {
                 running.add(id);
+                const since = interruptedAt.get(id);
+                if (resumed && since !== undefined) {
+                    away[id] = (away[id] ?? 0) + now() - since;
+                }
             }
         }),
-        events.on('behaviour.ended', ({ actor, id }) => {
+        events.on('behaviour.ended', ({ actor, id, by }) => {
             if (actor === 'monkey') {
                 running.delete(id);
+                if (by === 'interrupted') {
+                    interruptedAt.set(id, now());
+                }
             }
         }),
         events.on('item.restored', () => {
@@ -43,6 +55,7 @@ export const monkeyActivity = (
     return {
         source: () => ({
             running: [...running],
+            away: { ...away },
             ...(restoredAt === undefined ? {} : { restoredAt }),
         }),
         stop: (): void => {

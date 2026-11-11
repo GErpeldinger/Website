@@ -6,6 +6,8 @@ import {
     MONKEY_WIDTH,
     SIDE,
     bombBody,
+    cigaretteBody,
+    cigaretteFilter,
     looseFilter,
     monkeyBody,
     monkeyFilter,
@@ -198,6 +200,33 @@ describe('bombBody', () => {
         expect(bombBody({ x: 400, y: 900 }, 700).position.y).toBe(680);
         expect(bombBody({ x: 400, y: 680 }, 700).position.y).toBe(680);
         expect(bombBody({ x: 400, y: 679 }, 700).position.y).toBe(679);
+    });
+});
+
+describe('cigaretteBody', () => {
+    const at = { x: 400, y: 600 };
+
+    it('is the prototype’s 12 by 3 stick at the given point, light, grippy and a little bouncy', () => {
+        const body = cigaretteBody(at);
+
+        expect(body.isStatic).toBe(false);
+        expect(body.position).toEqual(at);
+        expect(body.bounds.max.x - body.bounds.min.x).toBeCloseTo(12);
+        expect(body.bounds.max.y - body.bounds.min.y).toBeCloseTo(3);
+        expect(body.density).toBe(0.0006);
+        expect(body.friction).toBe(0.9);
+        expect(body.frictionAir).toBe(0.02);
+        expect(body.restitution).toBe(0.25);
+    });
+
+    it('collides with the ground and the walls, the ceiling included, and nothing else', () => {
+        expect(cigaretteBody(at).collisionFilter).toEqual({
+            category: 128,
+            mask: GROUND | SIDE,
+            group: 0,
+        });
+        expect(cigaretteFilter()).toEqual(cigaretteBody(at).collisionFilter);
+        expect(cigaretteFilter()).not.toBe(cigaretteFilter());
     });
 });
 

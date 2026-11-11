@@ -11,6 +11,7 @@ import {
 import type { ClockView } from '../clock/clock';
 import type { EventBus } from '../events/event_bus';
 import type {
+    CigaretteLoss,
     ExitSide,
     FreedBy,
     GameEvents,
@@ -30,6 +31,11 @@ import {
     type Bounds,
     type PieceSpec,
 } from './bodies';
+import {
+    Cigarette,
+    type CigaretteState,
+    type CigaretteView,
+} from './cigarette';
 import type { Traits } from './kinds';
 import { MonkeyBody } from './monkey_body';
 import { capSpeed, kick } from './motion';
@@ -61,6 +67,8 @@ const MAX_MONKEY_THROW = 26;
 // Weak enough that everything floats for seconds before it reaches the ceiling.
 const ZERO_GRAVITY = -0.04;
 const CALM_STEPS = 30;
+// The prototype scales the blast's falloff by 0.4 for the cigarette; `kick`'s base push stays.
+const CIGARETTE_KICK = 0.4;
 
 export type { Bounds, PieceSpec };
 
@@ -165,6 +173,7 @@ export class PhysicsWorld {
     readonly #pieceOf = new WeakMap<Body, Piece>();
     readonly #bombs = new Map<Body, Bomb>();
     readonly #still = new Stillness(CALM_STEPS);
+    readonly #cigarette = new Cigarette();
     // Struck hard enough to come loose: freed at the start of the next step, never mid-collision.
     readonly #loosened = new Set<Piece>();
     // Something held the monkey up during the step, seen by the contacts the engine reports.
@@ -222,6 +231,16 @@ export class PhysicsWorld {
         return this.#monkey;
     }
 
+    // He is in the page and the visitor does not have him.
+    get monkeyFree(): boolean {
+        return !this.monkeyHeld && this.#outside() === undefined;
+    }
+
+    // In his mouth, lit; on the floor somewhere; or in his mouth again, waiting for the lighter.
+    get cigaretteState(): CigaretteState {
+        return this.#cigarette.state;
+    }
+
     // Nothing moves and nothing is pending: the loop can stop until the next input.
     get resting(): boolean {
         return (
@@ -262,6 +281,11 @@ export class PhysicsWorld {
             angle: body.angle,
             fuse: Math.min(1, (now - placedAt) / FUSE),
         }));
+    }
+
+    // The cigarette he dropped, where it lies, while it does.
+    cigarette(): CigaretteView | undefined {
+        return this.#cigarette.view();
     }
 
     // The running tornado, if any.
@@ -336,6 +360,50 @@ export class PhysicsWorld {
         this.#monkey = monkey;
         Composite.add(this.#engine.world, monkey.body);
         return monkey;
+    }
+
+    // His cigarette falls from his mouth, in front of him as he faces `facing`. False if he has
+    // none lit, or no body.
+    loseCigarette(facing: 1 | -1, cause: CigaretteLoss): boolean {
+        const monkey = this.#monkey;
+        const body =
+            monkey &&
+            this.#cigarette.lose(monkey.body, facing, this.#options.random);
+        if (!body) {
+            return false;
+        }
+        Composite.add(this.#engine.world, body);
+        this.#still.disturb();
+        this.#options.events.emit('cig.lost', {
+            cause,
+            at: { x: body.position.x, y: body.position.y },
+        });
+        return true;
+    }
+
+    // He picks the dropped cigarette up (it is in his mouth, unlit), or gives up on it, which
+    // says where it lay. False if none lies.
+    pickUpCigarette(discard: boolean): boolean {
+        const body = this.#cigarette.take();
+        if (!body) {
+            return false;
+        }
+        Composite.remove(this.#engine.world, body);
+        if (discard) {
+            this.#options.events.emit('cig.discarded', {
+                at: { x: body.position.x, y: body.position.y },
+            });
+        }
+        return true;
+    }
+
+    // He lights the cigarette in his mouth. False if it is not waiting for it.
+    lightCigarette(): boolean {
+        if (!this.#cigarette.light()) {
+            return false;
+        }
+        this.#options.events.emit('cig.lit', undefined);
+        return true;
     }
 
     // Where a piece is, or undefined for an id that is none.
@@ -589,6 +657,10 @@ export class PhysicsWorld {
         const against = this.#against(other);
         const solid =
             against === 'floor' || this.#pieceOf.get(other)?.pinned === true;
+        // A jump he meant comes down on the floor or on text: that is no fall to be hurt by.
+        if (solid && this.#monkey.leaping) {
+            return;
+        }
         if (hurtsMonkey(speed, solid)) {
             this.#monkeyHits.push({ speed, against });
         }
@@ -705,8 +777,10 @@ export class PhysicsWorld {
 
     #calm(): boolean {
         const monkey = this.#monkey;
+        const lying = this.#cigarette.body;
         return (
             (!monkey || isCalm(monkey.speed, monkey.angularSpeed)) &&
+            (!lying || isCalm(lying.speed, lying.angularSpeed)) &&
             [...this.#pieces.values()].every(
                 ({ pinned, body }) =>
                     pinned || isCalm(body.speed, body.angularSpeed),
@@ -776,7 +850,10 @@ export class PhysicsWorld {
                 vortex.pull(piece.body);
             }
         }
-        for (const body of this.#bombs.keys()) {
+        for (const body of [
+            ...this.#bombs.keys(),
+            ...(this.#cigarette.body ? [this.#cigarette.body] : []),
+        ]) {
             if (vortex.reaches(body)) {
                 vortex.pull(body);
             }
@@ -822,12 +899,26 @@ export class PhysicsWorld {
             }
         }
 
-        const monkey = this.#monkey?.body;
-        // The blast reaches him a little further than a piece, and never pushes him gently.
-        const reached = monkey && this.#reach(monkey, at, radius * 1.15);
-        if (monkey && reached) {
+        // A blast kicks the cigarette on the floor, on a weaker falloff than a piece's.
+        const lying = this.#cigarette.body;
+        const nudge = lying && this.#reach(lying, at, radius);
+        if (lying && nudge) {
             kick(
-                monkey,
+                lying,
+                nudge.nx,
+                nudge.ny,
+                CIGARETTE_KICK * nudge.strength,
+                random,
+            );
+        }
+
+        const monkey = this.#monkey;
+        // The blast reaches him a little further than a piece, and never pushes him gently.
+        const reached = monkey && this.#reach(monkey.body, at, radius * 1.15);
+        if (monkey && reached) {
+            monkey.struck();
+            kick(
+                monkey.body,
                 reached.nx,
                 reached.ny,
                 Math.max(0.45, 1 - reached.distance / radius),

@@ -1,13 +1,19 @@
-import type { ExitSide } from '../events/game_events';
+import type { CigaretteLoss, ExitSide } from '../events/game_events';
 
 // How the monkey looks, written by the Motor onto the art (`look`) as data attributes. `carry`
 // and `tumble` follow the body; a behaviour chooses the others. Walking is not a pose: it is
 // the legs, whatever the upper body does.
-export type Pose = 'stand' | 'smoke' | 'talk' | 'carry' | 'tumble';
-export type ChosenPose = Extract<Pose, 'stand' | 'smoke' | 'talk'>;
+export type Pose = 'stand' | 'smoke' | 'talk' | 'light' | 'carry' | 'tumble';
+export type ChosenPose = Extract<Pose, 'stand' | 'smoke' | 'talk' | 'light'>;
 export type Mood = 'calm' | 'scared' | 'cross' | 'proud' | 'burnt';
 export type Facing = 'left' | 'right';
 export type Pace = 'walk' | 'run';
+// How the cigarette in his mouth looks: lit (nothing to say), none while it lies on the page, or
+// not lit yet.
+export type CigaretteLook = 'lit' | 'lost' | 'unlit';
+
+// He cannot stand nearer a wall than this (half his width): a target nearer is clamped to it.
+export const WALL_MARGIN = 20;
 
 // What the monkey's body can be asked to do (docs/architecture.md, The monkey). A request with
 // `ms` lasts that long and then gives the pose or mood back. On the overlay layer, `pose` and
@@ -32,6 +38,19 @@ export type MonkeyRequest =
     | { type: 'drop' }
     // Puts him back in the page after he left it by `from`: just under the top for the top, on the
     // floor just inside the edge for a side. Answers `done` at once; he falls or floats from there.
-    | { type: 'enter'; from: ExitSide };
+    | { type: 'enter'; from: ExitSide }
+    // The cigarette falls from his mouth; `failed` if he has none lit. It also overlays: it is
+    // instant, with nothing to end, so a reflex may ask it.
+    | { type: 'lose'; cause: CigaretteLoss }
+    // Jumps, at this speed in pixels per step, and ends once he is back on his feet; `failed` if
+    // he is not on them to begin with.
+    | { type: 'jump'; vx: number; vy: number }
+    // Takes the cigarette he dropped, which was where he stands: it is in his mouth, not lit.
+    // `failed` if none lies.
+    | { type: 'pickup' }
+    // Gives up on the one he dropped: it is gone, a fresh one is in his mouth, not lit.
+    | { type: 'discard' }
+    // Lights the cigarette in his mouth (with the pose `light`, which draws it).
+    | { type: 'relight' };
 
 export type MonkeyRequestType = MonkeyRequest['type'];

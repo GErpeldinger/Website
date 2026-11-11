@@ -4,6 +4,8 @@ import type { Point } from '../events/game_events';
 
 const EMBERS = 14;
 const SMOKE = 6;
+// The puff of a cigarette given up on.
+const PUFF = 8;
 // The longest particle lives this long, in ms of game time: the group goes with it.
 const LASTS = 900;
 // The glow of reduced motion does not animate: it simply stays this long.
@@ -37,31 +39,59 @@ export class Blasts {
     }
 
     add(at: Point, radius: number): void {
-        const { parent, clock, reducedMotion } = this.#options;
+        const { clock, reducedMotion } = this.#options;
+        const parts: HTMLElement[] = [];
+        if (reducedMotion) {
+            parts.push(this.#round('fade', radius));
+        } else {
+            if (clock.now() - this.#flashedAt >= FLASH_GAP) {
+                this.#flashedAt = clock.now();
+                parts.push(this.#part('i', 'flash'));
+            }
+            parts.push(this.#ring(radius));
+            for (let i = 0; i < EMBERS; i++) {
+                parts.push(this.#particle('ember'));
+            }
+            for (let i = 0; i < SMOKE; i++) {
+                parts.push(this.#particle('smoke'));
+            }
+        }
+        this.#show(at, parts, reducedMotion ? GLOW : LASTS);
+    }
+
+    // A small puff of grey smoke where something went out. None under reduced motion.
+    puff(at: Point): void {
+        if (this.#options.reducedMotion) {
+            return;
+        }
+        const parts: HTMLElement[] = [];
+        for (let i = 0; i < PUFF; i++) {
+            parts.push(this.#particle('smoke'));
+        }
+        this.#show(at, parts, LASTS);
+    }
+
+    clear(): void {
+        for (const { element, cancel } of this.#blasts) {
+            cancel();
+            element.remove();
+        }
+        this.#blasts = [];
+    }
+
+    // A group of effects at a point, gone after `lasts` ms of game time; at most six live at once.
+    #show(at: Point, parts: HTMLElement[], lasts: number): void {
+        const { parent, clock } = this.#options;
         const element = document.createElement('div');
         element.dataset.blast = '';
         element.setAttribute('aria-hidden', 'true');
         element.style.left = `${String(at.x)}px`;
         element.style.top = `${String(at.y)}px`;
-        if (reducedMotion) {
-            element.append(this.#round('fade', radius));
-        } else {
-            if (clock.now() - this.#flashedAt >= FLASH_GAP) {
-                this.#flashedAt = clock.now();
-                element.append(this.#part('i', 'flash'));
-            }
-            element.append(this.#ring(radius));
-            for (let i = 0; i < EMBERS; i++) {
-                element.append(this.#particle('ember'));
-            }
-            for (let i = 0; i < SMOKE; i++) {
-                element.append(this.#particle('smoke'));
-            }
-        }
+        element.append(...parts);
         parent.append(element);
         const entry = {
             element,
-            cancel: clock.after(reducedMotion ? GLOW : LASTS, () => {
+            cancel: clock.after(lasts, () => {
                 element.remove();
                 this.#blasts = this.#blasts.filter((other) => other !== entry);
             }),
@@ -74,14 +104,6 @@ export class Blasts {
             old.cancel();
             old.element.remove();
         }
-    }
-
-    clear(): void {
-        for (const { element, cancel } of this.#blasts) {
-            cancel();
-            element.remove();
-        }
-        this.#blasts = [];
     }
 
     #part(tag: string, name: string): HTMLElement {

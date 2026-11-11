@@ -1,6 +1,6 @@
 import '../../styles/blocks/monkey.css';
 import type { Point } from '../events/game_events';
-import type { Facing, Mood, Pace, Pose } from '../ports/monkey';
+import type { CigaretteLook, Facing, Mood, Pace, Pose } from '../ports/monkey';
 import art from './monkey.svg?raw';
 
 // What the art shows, one data attribute each (docs/monkey-art.md): the CSS does the rest.
@@ -12,6 +12,7 @@ export interface Appearance {
     gait: Pace | undefined;
     // The visitor has him in hand.
     held: boolean;
+    cigarette: CigaretteLook;
 }
 
 // The art is drawn in a 56 x 72 frame shown at that size in CSS pixels, so a position in the
@@ -45,16 +46,22 @@ export class Look {
             facing: 'right',
             gait: undefined,
             held: false,
+            cigarette: 'lit',
         });
         host.append(element);
     }
 
-    show({ pose, mood, facing, gait, held }: Appearance): void {
+    show({ pose, mood, facing, gait, held, cigarette }: Appearance): void {
         const { dataset } = this.element;
         dataset.pose = pose;
         dataset.mood = mood;
         dataset.facing = facing;
         dataset.state = held ? 'held' : 'free';
+        if (cigarette === 'lit') {
+            delete dataset.cigarette;
+        } else {
+            dataset.cigarette = cigarette;
+        }
         if (gait) {
             dataset.walking = gait;
         } else {

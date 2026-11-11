@@ -61,6 +61,8 @@
     --monkey-height: 72px;
     --bubble-width: 240px;
     --bomb-size: 48px;
+    --cigarette-width: 16px;
+    --cigarette-height: 24px;
     --tornado-width: 500px;
 
     /* The monkey burnt by a bomb: the greys his fur, face and legs turn to. */

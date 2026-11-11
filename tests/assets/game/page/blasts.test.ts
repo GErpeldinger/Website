@@ -263,3 +263,48 @@ describe('a blast under reduced motion', () => {
         expect(blasts()).toEqual([]);
     });
 });
+
+describe('a puff of smoke', () => {
+    it('is a small group of eight grey particles where something went out, and nothing else', () => {
+        const { blasts: effects } = setup();
+
+        effects.puff({ x: 410, y: 690 });
+
+        const [puff] = blasts();
+        expect(blasts()).toHaveLength(1);
+        expect(puff?.getAttribute('aria-hidden')).toBe('true');
+        expect(puff?.style.left).toBe('410px');
+        expect(puff?.style.top).toBe('690px');
+        expect(parts(puff, 'smoke')).toHaveLength(8);
+        expect(puff?.children).toHaveLength(8);
+    });
+
+    it('is gone after the longest particle, on the game clock', () => {
+        const { blasts: effects, clock } = setup();
+        effects.puff({ x: 410, y: 690 });
+
+        pass(clock, 899);
+        expect(blasts()).toHaveLength(1);
+        pass(clock, 1);
+
+        expect(blasts()).toHaveLength(0);
+    });
+
+    it('is skipped under reduced motion', () => {
+        const { blasts: effects } = setup({ reducedMotion: true });
+
+        effects.puff({ x: 410, y: 690 });
+
+        expect(blasts()).toHaveLength(0);
+    });
+
+    it('counts among the six groups that live at once', () => {
+        const { blasts: effects } = setup();
+
+        for (let i = 0; i < 7; i++) {
+            effects.puff({ x: i, y: 0 });
+        }
+
+        expect(blasts()).toHaveLength(6);
+    });
+});

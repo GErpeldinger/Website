@@ -16,6 +16,10 @@ import hurry from '../../../assets/game/activities/monkey/hurry';
 import lazyStop from '../../../assets/game/activities/monkey/lazy_stop';
 import lazyRebuild from '../../../assets/game/activities/monkey/lazy_rebuild';
 import rebuild from '../../../assets/game/activities/monkey/rebuild';
+import cigFace from '../../../assets/game/activities/monkey/cig_face';
+import flinch from '../../../assets/game/activities/monkey/flinch';
+import loseCig from '../../../assets/game/activities/monkey/lose_cig';
+import search from '../../../assets/game/activities/monkey/search';
 import smoke from '../../../assets/game/activities/monkey/smoke';
 import { byId, rect, select } from './dom';
 import { FakeBrowser } from './frame/fake_environment';
@@ -57,6 +61,9 @@ const names = [
     'gravity.changed',
     'rebuild.requested',
     'visitor.idle',
+    'cig.lost',
+    'cig.discarded',
+    'cig.lit',
 ] as const satisfies readonly (keyof GameEvents)[];
 
 interface Options {
@@ -1667,5 +1674,148 @@ describe('the rebuild', () => {
 
         expect(names('visitor.idle')).toEqual([undefined]);
         expect(browser.time - keyAt).toBeGreaterThanOrEqual(15_000);
+    });
+});
+
+describe('the cigarette', () => {
+    const lines: LineBook = {
+        locale: 'en',
+        pools: {
+            lostCig: ['My smoke!'],
+            search: ['Where did it go?'],
+            found: ['Found it.'],
+            lit: ['Nothing like it.'],
+            jump: ['Hup!'],
+            giveUp: ['Forget it.'],
+            hurt: ['Ouch!'],
+            back: ['Back.'],
+            build: ['Building.'],
+            done: ['Done.'],
+        },
+    };
+    const arc = (over: Options = {}): Harness =>
+        setup({
+            behaviours: [
+                { ...loseCig, id: 'monkey/lose_cig' },
+                { ...cigFace, id: 'monkey/cig_face' },
+                { ...search, id: 'monkey/search' },
+                { ...flinch, id: 'monkey/flinch' },
+            ] as Behaviour[],
+            lines,
+            random: (): number => 0,
+            ...over,
+        });
+    const knock = ({ game }: Harness): void => {
+        game.events.emit('monkey.hit', { speed: 9, against: 'piece' });
+    };
+    const monkeyArt = (): HTMLElement => select('svg.monkey');
+    const dropped = (): SVGElement[] => [
+        ...document.querySelectorAll<SVGElement>('svg.lost-cigarette'),
+    ];
+
+    it('falls on a hit: gone from his mouth, drawn on the floor, and he cries out', () => {
+        const harness = arc();
+
+        knock(harness);
+        harness.run(5);
+
+        expect(harness.names('cig.lost')).toHaveLength(1);
+        expect(monkeyArt().dataset.cigarette).toBe('lost');
+        expect(dropped()).toHaveLength(1);
+        expect(select('[role="status"]').textContent).toBe('My smoke!');
+    });
+
+    it('is lost once: a second hit while it lies is a flinch, not another fall', () => {
+        const harness = arc();
+        const started: string[] = [];
+        harness.game.events.on('behaviour.started', ({ id }) => {
+            started.push(id);
+        });
+        knock(harness);
+        started.length = 0;
+
+        knock(harness);
+
+        expect(started).toContain('monkey/flinch');
+        expect(started).not.toContain('monkey/lose_cig');
+    });
+
+    it('is searched for, found, and lit again, with nothing left on the floor', () => {
+        const harness = arc();
+
+        knock(harness);
+        finish(harness);
+
+        expect(harness.names('cig.lost')).toHaveLength(1);
+        expect(harness.names('cig.lit')).toEqual([undefined]);
+        expect(dropped()).toHaveLength(0);
+        expect(monkeyArt().hasAttribute('data-cigarette')).toBe(false);
+        expect(monkeyArt().dataset.pose).toBe('stand');
+    });
+
+    it('is the world’s own cigarette again when the page is measured again, with none left over', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(5);
+        expect(dropped()).toHaveLength(1);
+
+        harness.size.width = 700;
+        window.dispatchEvent(new Event('resize'));
+        finish(harness);
+
+        expect(dropped()).toHaveLength(0);
+        expect(monkeyArt().hasAttribute('data-cigarette')).toBe(false);
+    });
+
+    it('goes up in a puff of smoke when he gives up on it', () => {
+        const harness = arc();
+
+        harness.game.events.emit('cig.discarded', { at: { x: 300, y: 700 } });
+
+        expect(document.querySelectorAll('[data-blast]')).toHaveLength(1);
+    });
+
+    it('goes up in no puff under reduced motion', () => {
+        const harness = arc({ reducedMotion: true });
+
+        harness.game.events.emit('cig.discarded', { at: { x: 300, y: 700 } });
+
+        expect(document.querySelectorAll('[data-blast]')).toHaveLength(0);
+    });
+
+    it('is drawn without its smoke under reduced motion', () => {
+        const harness = arc({ reducedMotion: true });
+
+        knock(harness);
+        harness.run(5);
+
+        expect(dropped()[0]?.hasAttribute('data-still')).toBe(true);
+    });
+
+    it('is no longer on the page once the game stops', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(5);
+
+        harness.game.stop();
+
+        expect(dropped()).toHaveLength(0);
+    });
+
+    it('does not fall to a hit while the Rebuild has him tidying', () => {
+        const harness = arc({
+            behaviours: [
+                { ...loseCig, id: 'monkey/lose_cig' },
+                { ...rebuild, id: 'monkey/rebuild' },
+            ] as Behaviour[],
+        });
+        harness.game.setZeroGravity(true);
+        harness.game.setZeroGravity(false);
+        harness.game.rebuild();
+        harness.run(5);
+
+        knock(harness);
+
+        expect(harness.names('cig.lost')).toEqual([]);
     });
 });

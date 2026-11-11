@@ -87,3 +87,24 @@ hurry:
 lazyDone:
     - 'Voilà. Personne ne m’a aidé, hein.'
     - 'Fini. Je vais m’asseoir.'
+lostCig:
+    - 'Ma clope !'
+    - 'Hé ! Ma cigarette !'
+    - 'Non, pas ma clope…'
+sneeze: 'Atchoum ! … Ma clope !'
+search:
+    - 'Où elle est passée ?'
+    - 'Quelqu’un a vu ma clope ?'
+    - 'Elle était là, je te jure.'
+found:
+    - 'Ah, la voilà.'
+    - 'Trouvée.'
+lit:
+    - 'Rien de tel.'
+    - 'Ah… ça va mieux.'
+    - 'Bon. Où on en était ?'
+jump:
+    - 'Hop !'
+    - 'Donne !'
+    - 'Presque…'
+giveUp: 'Laisse tomber, elle est éteinte. J’en ai d’autres.'

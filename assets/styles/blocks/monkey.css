@@ -99,7 +99,8 @@
     .monkey .crack,
     .monkey .smoulder,
     .monkey .smudge,
-    .monkey .stub {
+    .monkey .stub,
+    .monkey .lighter {
         display: none;
     }
 
@@ -173,6 +174,31 @@
     .monkey[data-pose='carry'] .arm-l,
     .monkey[data-pose='carry'] .arm-r {
         display: none;
+    }
+
+    /* Lighting up: the right fist brings the lighter under the cigarette's tip. The lighter undoes
+       the arm's turns (-19.5 and 179.5 degrees), so it stays upright and is drawn in the page's
+       own coordinates. The flame is there from the start, still, under reduced motion. */
+    .monkey .lighter {
+        transform-origin: 0 0;
+        transform: translate(44px, 51px) rotate(-179.5deg) translate(0, -9px)
+            rotate(19.5deg) translate(-44px, -42px);
+    }
+
+    .monkey .lighter .flame {
+        transform-origin: 44px 34.4px;
+    }
+
+    .monkey[data-pose='light'] .lighter {
+        display: block;
+    }
+
+    .monkey[data-pose='light'] .arm-r .upper {
+        transform: rotate(-19.5deg);
+    }
+
+    .monkey[data-pose='light'] .arm-r .fore {
+        transform: rotate(179.5deg);
     }
 
     /* The ambient and the walking animations. Under reduced motion he only changes position
@@ -285,6 +311,22 @@
             animation: monkey-gesture 2.4s ease-in-out infinite;
         }
 
+        /* Lighting up takes 1.9 s: he leans in, the flame catches at 650 ms and flickers, the
+           ember flares, and he draws. */
+        .monkey[data-pose='light'] .head {
+            animation: monkey-light-head 1900ms ease-in-out;
+        }
+
+        .monkey[data-pose='light'] .cig .ember {
+            animation: monkey-light-ember 1900ms ease-in-out;
+        }
+
+        .monkey[data-pose='light'] .lighter .flame {
+            animation:
+                monkey-ignite 650ms linear,
+                monkey-flicker 120ms steps(2) infinite;
+        }
+
         /* Walking, whatever the upper body does: his legs step and the smoke trails behind. */
         .monkey[data-walking] .leg-a {
             animation: monkey-step-a 260ms linear infinite;
@@ -394,6 +436,21 @@
         .monkey[data-walking='run'][data-pose='stand'] .arm-l .fore {
             transform: rotate(-75deg);
         }
+    }
+
+    /* The cigarette is on the floor: none in his mouth, his hand or his breath. */
+    .monkey[data-cigarette='lost'] .cig,
+    .monkey[data-cigarette='lost'] .cig-hand,
+    .monkey[data-cigarette='lost'] .cig-smoke,
+    .monkey[data-cigarette='lost'] .exhale {
+        display: none;
+    }
+
+    /* Picked up and not lit yet: the ember and the smoke wait for the lighter, whose pose flares
+       the ember itself. */
+    .monkey[data-cigarette='unlit']:not([data-pose='light']) .ember,
+    .monkey[data-cigarette='unlit'] .cig-smoke {
+        display: none;
     }
 
     /* Burnt by a bomb, whatever he is doing: soot on the fur, face and legs, frizzed hair, a
@@ -572,6 +629,64 @@
 
         88% {
             opacity: 1;
+        }
+    }
+
+    @keyframes monkey-light-head {
+        0%,
+        10%,
+        86%,
+        100% {
+            transform: none;
+        }
+
+        24%,
+        58% {
+            transform: rotate(2.5deg) translateY(0.4px);
+        }
+
+        72% {
+            transform: rotate(-3deg) translateY(-0.3px);
+        }
+    }
+
+    @keyframes monkey-light-ember {
+        0%,
+        20%,
+        60%,
+        100% {
+            transform: scale(1);
+            opacity: 0.8;
+        }
+
+        30%,
+        40% {
+            transform: scale(1.9);
+            opacity: 1;
+        }
+
+        44% {
+            transform: scale(1.2);
+            opacity: 0.8;
+        }
+
+        50% {
+            transform: scale(1.8);
+            opacity: 1;
+        }
+    }
+
+    /* Nothing of the flame shows before the lighter has been struck. */
+    @keyframes monkey-ignite {
+        from,
+        to {
+            opacity: 0;
+        }
+    }
+
+    @keyframes monkey-flicker {
+        50% {
+            transform: scale(0.88, 1.08);
         }
     }
 

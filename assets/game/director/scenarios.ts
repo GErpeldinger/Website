@@ -6,7 +6,7 @@ import { EDGE } from './poses';
 // Brain, look).
 export type ScenarioGame = Pick<
     Game,
-    'events' | 'bomb' | 'tornado' | 'setZeroGravity' | 'rebuild'
+    'events' | 'engine' | 'bomb' | 'tornado' | 'setZeroGravity' | 'rebuild'
 >;
 
 export interface Scenario {
@@ -92,6 +92,26 @@ const fling =
         return undefined;
     };
 
+// Starts one of his behaviours by the usual rules of priority, as the Behaviours tab does, and
+// says why when it does not start.
+const makeHim =
+    (id: string, refusal: string) =>
+    (game: ScenarioGame): string | undefined =>
+        game.engine.brain('monkey')?.start(id) === true ? undefined : refusal;
+
+const startKnock = makeHim(
+    'monkey/lose_cig',
+    'He has no Brain, or the reflex is already running.',
+);
+
+// His picture says when the cigarette is not lit in his mouth (`data-cigarette`): nothing to knock
+// off then, and the reflex would report success all the same.
+const knockOff = (game: ScenarioGame): string | undefined =>
+    document.querySelector<SVGElement>('svg[data-pose]')?.dataset.cigarette ===
+    undefined
+        ? startKnock(game)
+        : 'He has no lit cigarette to lose.';
+
 const UP: Point = { x: 0, y: -70 };
 const SIDEWAYS = 140;
 
@@ -172,6 +192,34 @@ export const scenarios: readonly Scenario[] = [
         run: ({ events }): undefined => {
             events.emit('visitor.idle', undefined, 'director');
             return undefined;
+        },
+    },
+    {
+        label: 'Knock his cigarette off',
+        note: 'Starts the reflex that makes it fall, ignoring the dice and the conditions.',
+        run: knockOff,
+    },
+    {
+        label: 'Sneeze now',
+        note: 'Starts the sneeze: it only fills idle time, so he must be doing nothing.',
+        run: makeHim(
+            'monkey/sneeze',
+            'He is busy: a sneeze only comes in idle time.',
+        ),
+    },
+    {
+        label: 'Cigarette up high',
+        note: 'Knocks it off, then a tornado over him sweeps it up for 5 s, so he jumps for it while it flies. The pieces fly too.',
+        run: (game): string | undefined => {
+            const at = monkeyAt();
+            if (!at) {
+                return NOT_FOUND;
+            }
+            const refusal = knockOff(game);
+            if (refusal === undefined) {
+                game.tornado(at);
+            }
+            return refusal;
         },
     },
     {

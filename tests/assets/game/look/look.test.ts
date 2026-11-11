@@ -23,6 +23,7 @@ const calm: Appearance = {
     facing: 'right',
     gait: undefined,
     held: false,
+    cigarette: 'lit',
 };
 
 const pupils = (look: Look): SVGElement[] => [
@@ -59,6 +60,7 @@ describe('the art', () => {
             '.exhale circle',
             '.arm-l .upper .fore',
             '.arm-r .upper .fore .cig-hand',
+            '.arm-r .upper .fore .lighter .flame',
         ];
         // What burns: the fur, ears, face, beard, hair, a lens, the hoodie and the cigarette.
         const burnable = [
@@ -86,6 +88,18 @@ describe('the art', () => {
         expect(look.element.querySelectorAll('.smoulder .puff')).toHaveLength(
             3,
         );
+    });
+
+    it('has a lighter in the right forearm, with its flame at the cigarette’s tip, and calls it so', () => {
+        const { look } = mount();
+
+        const flames = look.element.querySelectorAll('.lighter .flame');
+        expect(flames).toHaveLength(2);
+        expect(look.element.innerHTML).not.toMatch(/zippo/i);
+        // The glow and the flame use gradients of the art’s own.
+        for (const id of ['monkey-flame-glow', 'monkey-flame-body']) {
+            expect(look.element.querySelector(`#${id}`), id).not.toBeNull();
+        }
     });
 
     it('has a mouth for each mood, and the one for talking', () => {
@@ -145,6 +159,7 @@ describe('what it shows', () => {
             facing: 'left',
             gait: undefined,
             held: false,
+            cigarette: 'lit',
         });
 
         expect(look.element.dataset.pose).toBe('carry');
@@ -173,6 +188,27 @@ describe('what it shows', () => {
 
         look.show(calm);
         expect(look.element.dataset.state).toBe('free');
+    });
+});
+
+describe('his cigarette', () => {
+    it('is in his mouth, which the art shows when nothing says otherwise', () => {
+        const { look } = mount();
+
+        expect(look.element.hasAttribute('data-cigarette')).toBe(false);
+    });
+
+    it('is marked lost while it lies somewhere, for the stylesheet to hide the one in his mouth', () => {
+        const { look } = mount();
+
+        look.show({ ...calm, cigarette: 'lost' });
+        expect(look.element.dataset.cigarette).toBe('lost');
+
+        look.show({ ...calm, cigarette: 'unlit' });
+        expect(look.element.dataset.cigarette).toBe('unlit');
+
+        look.show(calm);
+        expect(look.element.hasAttribute('data-cigarette')).toBe(false);
     });
 });
 

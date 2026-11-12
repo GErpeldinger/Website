@@ -114,8 +114,15 @@
         list-style: none;
     }
 
-    .director li[data-origin='director'],
-    .director [data-error] {
+    .director li[data-origin='director'] {
         color: var(--hat);
+    }
+
+    /* The panel scrolls: a refusal reported to a button far down stays in view. */
+    .director [data-error] {
+        position: sticky;
+        inset-block-start: 0;
+        color: var(--hat);
+        background: var(--panel);
     }
 }

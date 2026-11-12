@@ -257,9 +257,17 @@ export class Brain<Request extends MotorRequest = MotorRequest> {
                 this.#begin(behaviour, trigger);
                 return true;
             case 'ambient':
-                // It fills idle time only: whatever holds the body is more important.
-                if (body) {
+                // It fills idle time only: whatever holds the body is more important, an ambient
+                // behaviour of its own weight or more included.
+                if (
+                    body &&
+                    (body.behaviour.kind !== 'ambient' ||
+                        behaviour.priority <= body.behaviour.priority)
+                ) {
                     return false;
+                }
+                if (body) {
+                    this.#giveWay(body, false);
                 }
                 this.#begin(behaviour, trigger);
                 return true;

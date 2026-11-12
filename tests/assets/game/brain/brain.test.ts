@@ -1145,6 +1145,38 @@ describe('start, for the director panel', () => {
         expect(s.log).toEqual(['+walker']);
     });
 
+    it('starts an ambient behaviour that is stronger than the ambient one that holds the body', () => {
+        const s = setup([
+            behaviour('smoke', { kind: 'ambient', priority: 0 }),
+            behaviour('sneeze', { kind: 'ambient', priority: 5 }),
+            behaviour('twin', { kind: 'ambient', priority: 5 }),
+        ]);
+        s.brain.start('smoke');
+
+        expect(s.brain.start('sneeze')).toBe(true);
+
+        expect(s.log).toEqual(['+smoke', '-smoke:interrupted', '+sneeze']);
+        expect(s.brain.start('smoke')).toBe(false);
+        expect(s.brain.start('twin')).toBe(false);
+        expect(s.log).toEqual(['+smoke', '-smoke:interrupted', '+sneeze']);
+    });
+
+    it('does not resume the weaker ambient behaviour it took the turn from', () => {
+        const s = setup([
+            behaviour('smoke', { kind: 'ambient', priority: 0, resumes: true }),
+            behaviour('sneeze', { kind: 'ambient', priority: 5 }),
+        ]);
+        s.brain.start('smoke');
+        s.brain.start('sneeze');
+
+        s.motor.finish();
+
+        expect(s.log.filter((entry) => entry.includes('smoke'))).toEqual([
+            '+smoke',
+            '-smoke:interrupted',
+        ]);
+    });
+
     it('starts an ambient behaviour when the body is free', () => {
         const s = setup([behaviour('smoke', { kind: 'ambient' })]);
 

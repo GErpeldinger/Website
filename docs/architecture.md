@@ -95,7 +95,7 @@ The engine every character's behaviour runs on is built. The monkey is on the pa
   - a line runs beside everything and can only say (and wait);
   - an activity takes the body if it is free or held by an ambient behaviour, interrupts a weaker activity, and otherwise waits its turn (by priority, then order; `canStart` is asked again when its turn comes);
   - an interrupted activity that `resumes` goes on when the stronger one ends, from the request it was in (asked again), before waiting ones of lower priority; the others are dropped;
-  - an ambient behaviour fills idle time (5 s after the body frees, or on its own event when idle) and always gives way, never resumed.
+  - an ambient behaviour fills idle time (5 s after the body frees, or on its own event when idle) and always gives way, never resumed; started by hand (the director), it may also take the turn from a weaker ambient behaviour (a sneeze while he smokes), never from an equal one.
 
   - **The rebuild** is four activities and a reflex, sharing `activities/monkey/rebuild/tidy.ts` (carry the broken pieces home nearest first, reading them again before each, and skip one he cannot carry or place): `rebuild` (priority 50, on `rebuild.requested`, at a run, resumes after a flee), `hurry` (the same when a lazy rebuild is on), `lazy_rebuild` (40, on `visitor.idle`, 15 s after the visitor's last press or key: walking pace, a rest and a grumble after every second piece), `lazy_stop` (60, a grab during a lazy rebuild) and `wrecked` (a reflex: a piece freed within 10 s of one put home). They read `loosePieces` (`ports/monkey_pieces.ts`) and `running` and `restoredAt` (`ports/monkey_activity.ts`) from the context; `Game.rebuild()` emits the request, and the last piece home wipes the scorch marks.
 

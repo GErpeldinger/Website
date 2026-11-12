@@ -32,7 +32,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 - Move to TypeScript 7 once typescript-eslint supports it (it needs the JavaScript API that 7 no longer ships): `tsc` is pinned to 6.0 until then.
 - The first version ([interactions.md](interactions.md), Scope), in this order: the CSS foundation, the physics, the behaviour engine and the monkey's Motor, Look and Voice and his first behaviours (idle smoking, the line reactions, the flinch, fleeing a bomb) the rebuild (hurried, lazy, wrecked) and the dock are done; the `boardGrab` line waits for the board.
 - Counters and the network must ignore events whose origin is `director` (the bus passes it to listeners), when the live board lands.
-- Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): the rest of the cigarette arc (the visitor grabbing the dropped cigarette, the chase and the snatch), hanging and climbing.
+- Then port the prototype's other behaviours to the activity system described in [architecture.md](architecture.md): super-monkey (the cigarette arc's end), hanging and climbing.
 - Device tiers: feature checks, the frame-rate probe, and the static fallback, its message rendered by Twig and hidden by the bundle once the checks pass.
 - The live board: site-wide action counters in SQLite on a volume, pushed to the page through FrankenPHP's Mercure hub, which the trimmed template doesn't configure yet (the `mercure` directive in the Caddyfile, its JWT keys in deploy.env, a volume in compose.prod.yaml). Nothing personal is stored.
 - Lifecycle: the bed after long inactivity (the loop already stops on a hidden tab and once the scene is still).
@@ -42,7 +42,7 @@ Committed work only. Add what comes up, delete what is done. Undecided ideas liv
 
 - Check the monkey in a real browser (the agent that built him could not open the page): his look at 72 px next to the content, a throw, a walk from the director panel, his bubble at the viewport's edges, a touch long press on him.
 - The rebuild is missing what needs other work: the ghost outline of each piece's home, his coming back when he is away (the tornado, hanging), and the proud mood at the end (a timed mood on the body would hold it and drop a second press).
-- A cigarette a visitor can grab: a hand for the dropped cigarette (the pick hook answers it an id, as it does the monkey), `item`-like events, the chase and the snatch of the prototype, and the patience it feeds.
+- Check the stolen cigarette in a real browser (the agent that built it could not open the page): the "Steal his cigarette" scenario should show him chase, jump and snatch it; the jump's reach to a cigarette held 120 px above his head is measured only on the formula. The patience meter a held cigarette feeds is still to do.
 - Check the monkey's jump and the lighting pose in a real browser: the jump's feel, the pose against the art at 72 px, and the flame's 650 ms.
 - Jump and climb behaviours: measure whether a running hop that lands on a pinned piece exceeds the 9 px per step that frees it (and the 10 that counts as a hit).
 - The tornado does not take the monkey yet, and he does not flee it: add both with the tornado's behaviour.

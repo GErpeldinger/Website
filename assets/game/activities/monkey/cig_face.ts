@@ -5,9 +5,11 @@ import type { MonkeyRequest } from '../../ports/monkey';
 const SCARED_MS = 1600;
 const PROUD_MS = 1800;
 
-// A reflex: the word and the face that go with losing the cigarette and with lighting it again,
-// over whatever he is doing (he searches, or flees, with that face). The words are forced: the
-// moment is the point.
+// A reflex: the word and the face that go with losing the cigarette and lighting it again, over
+// whatever he is doing (he searches, or flees, with that face). The words are forced: the moment
+// is the point. The visitor taking it and his snatching it back are reflexes of their own
+// (`cig_stolen`, `cig_snatched`): a trigger is dropped while its behaviour runs, and the fall's
+// face lasts 1.6 s.
 export default defineBehaviour<MonkeyRequest>({
     actor: 'monkey',
     kind: 'reflex',

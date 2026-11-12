@@ -71,6 +71,10 @@ export interface GameEvents {
     'cig.lost': { cause: CigaretteLoss; at: Point };
     // He gave up on the cigarette that lay at `at`: it is gone, and he will light another.
     'cig.discarded': { at: Point };
+    // The visitor took the dropped cigarette in hand, at `at`.
+    'cig.grabbed': { at: Point };
+    // He took it back from the visitor's hand, and it is in his mouth again, unlit.
+    'cig.snatched': undefined;
     // The cigarette is lit and in his mouth again.
     'cig.lit': undefined;
     // The visitor chose a tool in the dock (Grab included, and again on the one already chosen).

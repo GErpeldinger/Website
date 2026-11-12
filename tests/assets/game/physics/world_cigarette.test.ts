@@ -5,6 +5,7 @@ import { EventBus } from '../../../../assets/game/events/event_bus';
 import type { GameEvents } from '../../../../assets/game/events/game_events';
 import { traitsOf } from '../../../../assets/game/physics/kinds';
 import {
+    CIGARETTE,
     PhysicsWorld,
     STEP,
     type PieceSpec,
@@ -15,6 +16,8 @@ const names = [
     'cig.lost',
     'cig.discarded',
     'cig.lit',
+    'cig.grabbed',
+    'cig.snatched',
     'monkey.hit',
     'monkey.landed',
 ] as const satisfies readonly (keyof GameEvents)[];
@@ -374,5 +377,167 @@ describe('his own jump', () => {
         advance(240);
 
         expect(events('monkey.hit')).not.toEqual([]);
+    });
+});
+
+describe('the visitor taking it', () => {
+    const lying = (): ReturnType<typeof setup> => {
+        const h = setup();
+        h.world.loseCigarette(1, 'hit');
+        h.advance(120);
+        return h;
+    };
+
+    it('is near to a press within 22 px of it, and only while it lies', () => {
+        const { world } = lying();
+        const view = world.cigarette();
+        const at = (dx: number): { x: number; y: number } => ({
+            x: (view?.x ?? 0) + dx,
+            y: view?.y ?? 0,
+        });
+
+        expect(world.cigaretteNear(at(22))).toBe(true);
+        expect(world.cigaretteNear(at(-22))).toBe(true);
+        expect(world.cigaretteNear(at(23))).toBe(false);
+        expect(setup().world.cigaretteNear({ x: 300, y: 650 })).toBe(false);
+    });
+
+    it('takes hold of it, says where, and holds the world awake', () => {
+        const { world, events } = lying();
+        const view = world.cigarette();
+        const at = { x: view?.x ?? 0, y: view?.y ?? 0 };
+        expect(world.resting).toBe(true);
+
+        expect(world.grab(CIGARETTE, at)).toBe(true);
+
+        expect(world.cigaretteHeld).toBe(true);
+        expect(world.holding).toBe(true);
+        expect(world.monkeyHeld).toBe(false);
+        expect(world.resting).toBe(false);
+        expect(events('cig.grabbed')).toEqual([{ at }]);
+    });
+
+    it('cannot be taken when none lies, or with another thing in hand', () => {
+        const none = setup().world;
+        expect(none.grab(CIGARETTE, { x: 300, y: 650 })).toBe(false);
+        expect(none.cigaretteHeld).toBe(false);
+
+        const { world, events } = lying();
+        const at = { x: world.cigarette()?.x ?? 0, y: 690 };
+        expect(world.grab(-1, { x: 300, y: 650 })).toBe(true);
+        expect(world.grab(CIGARETTE, at)).toBe(false);
+        expect(events('cig.grabbed')).toEqual([]);
+        world.release({ x: 0, y: 0 });
+        expect(world.grab(CIGARETTE, at)).toBe(true);
+        expect(world.grab(CIGARETTE, at)).toBe(false);
+        expect(events('cig.grabbed')).toHaveLength(1);
+    });
+
+    it('is not taken by a grab that comes after it rolled away from the press', () => {
+        const { world, events } = lying();
+        const view = world.cigarette();
+        const at = { x: (view?.x ?? 0) + 30, y: view?.y ?? 0 };
+
+        expect(world.grab(CIGARETTE, at)).toBe(false);
+
+        expect(world.cigaretteHeld).toBe(false);
+        expect(events('cig.grabbed')).toEqual([]);
+    });
+
+    it('is held by its middle, whatever the point pressed', () => {
+        const { world, advance } = lying();
+        const view = world.cigarette();
+        world.grab(CIGARETTE, { x: (view?.x ?? 0) + 15, y: view?.y ?? 0 });
+
+        world.drag({ x: 600, y: 400 });
+        advance(200);
+
+        expect(world.cigarette()?.x).toBeCloseTo(600, -1);
+        expect(world.cigarette()?.y).toBeCloseTo(400, -1);
+    });
+
+    it('follows the pointer through the spring', () => {
+        const { world, advance } = lying();
+        const view = world.cigarette();
+        world.grab(CIGARETTE, { x: view?.x ?? 0, y: view?.y ?? 0 });
+
+        world.drag({ x: 700, y: 400 });
+        advance(120);
+
+        expect(world.cigarette()?.x).toBeGreaterThan(650);
+        expect(world.cigarette()?.y).toBeLessThan(450);
+    });
+
+    it('is thrown at the pointer velocity, capped at 30 px per step', () => {
+        const fast = lying();
+        const view = fast.world.cigarette();
+        const at = { x: view?.x ?? 0, y: view?.y ?? 0 };
+        fast.world.grab(CIGARETTE, at);
+        fast.advance(40);
+        fast.world.release({ x: 0, y: -90 });
+        // Thrown, it keeps the page awake without a step to tell.
+        expect(fast.world.resting).toBe(false);
+        fast.advance(1);
+        const rise = at.y - (fast.world.cigarette()?.y ?? 0);
+        expect(rise).toBeGreaterThan(25);
+        expect(rise).toBeLessThan(31);
+
+        const slow = lying();
+        slow.world.grab(CIGARETTE, at);
+        slow.world.release({ x: 0, y: -10 });
+        slow.advance(1);
+        const small = at.y - (slow.world.cigarette()?.y ?? 0);
+        expect(small).toBeGreaterThan(5);
+        expect(small).toBeLessThan(11);
+    });
+
+    it('is snatched from the hand: the hand lets go, the body goes, he says so', () => {
+        const { world, events, advance } = lying();
+        const view = world.cigarette();
+        world.grab(CIGARETTE, { x: view?.x ?? 0, y: view?.y ?? 0 });
+        const remove = vi.spyOn(Composite, 'remove');
+
+        expect(world.pickUpCigarette(false)).toBe(true);
+
+        // The hand's spring, and the body.
+        expect(remove).toHaveBeenCalledTimes(2);
+        remove.mockRestore();
+        expect(world.cigaretteHeld).toBe(false);
+        expect(world.holding).toBe(false);
+        expect(world.cigaretteState).toBe('unlit');
+        expect(world.cigarette()).toBeUndefined();
+        expect(events('cig.snatched')).toEqual([undefined]);
+        expect(events('cig.discarded')).toEqual([]);
+        advance(40);
+        expect(world.resting).toBe(true);
+    });
+
+    it('is given up on while held: the hand lets go and it is discarded, not snatched', () => {
+        const { world, events } = lying();
+        const view = world.cigarette();
+        world.grab(CIGARETTE, { x: view?.x ?? 0, y: view?.y ?? 0 });
+
+        expect(world.pickUpCigarette(true)).toBe(true);
+
+        expect(world.holding).toBe(false);
+        expect(events('cig.discarded')).toHaveLength(1);
+        expect(events('cig.snatched')).toEqual([]);
+    });
+
+    it('is not snatched when picked up from the floor', () => {
+        const { world, events } = lying();
+
+        world.pickUpCigarette(false);
+
+        expect(events('cig.snatched')).toEqual([]);
+    });
+
+    it('leaves another thing in hand held when he picks his cigarette up', () => {
+        const { world } = lying();
+        world.grab(-1, { x: 300, y: 650 });
+
+        world.pickUpCigarette(false);
+
+        expect(world.monkeyHeld).toBe(true);
     });
 });

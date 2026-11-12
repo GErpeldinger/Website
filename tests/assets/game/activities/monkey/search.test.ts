@@ -394,7 +394,7 @@ describe('a cigarette over his head', () => {
         expect(s.motor.requests.at(-1)).toEqual({
             type: 'jump',
             vx: 4,
-            vy: -Math.sqrt(0.56 * 130),
+            vy: -Math.sqrt(0.72 * 130),
         });
     });
 
@@ -429,7 +429,7 @@ describe('a cigarette over his head', () => {
         expect(s.motor.requests.at(-1)).toEqual({
             type: 'jump',
             vx: -4,
-            vy: -Math.sqrt(0.56 * 130),
+            vy: -Math.sqrt(0.72 * 130),
         });
     });
 
@@ -763,5 +763,335 @@ describe('never being left without it', () => {
         s.motor.finish();
 
         expect(s.log.at(-1)).toBe('-monkey/search:done');
+    });
+});
+
+describe('the visitor holding the cigarette', () => {
+    // Held from the start: no notice, no look, no wrong way, straight to the chase.
+    const held = (
+        over: LiveContext = {},
+    ): { s: Stage; context: LiveContext } => {
+        const context = world({ cigaretteHeld: true, ...over });
+        const { s } = searching(context);
+        fall(s);
+        s.motor.finish();
+        return { s, context };
+    };
+
+    it('goes straight to chasing, skipping the notice, the look and the wrong way', () => {
+        const { s } = held();
+
+        expect(s.motor.requests).toEqual([
+            { type: 'stand' },
+            { type: 'walk', x: 340, pace: 'chase' },
+        ]);
+        expect(s.log).not.toContain('search');
+    });
+
+    it('skips the rest of the notice when it is taken during it', () => {
+        const context = world();
+        const { s } = searching(context);
+        fall(s);
+        s.motor.finish();
+        context.cigaretteHeld = true;
+
+        s.advance(700);
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 340,
+            pace: 'chase',
+        });
+        expect(s.log).not.toContain('search');
+    });
+
+    it('skips the rest of the look when it is taken during it', () => {
+        const context = world();
+        const { s } = searching(context);
+        fall(s);
+        s.motor.finish();
+        s.advance(700);
+        s.motor.finish();
+        context.cigaretteHeld = true;
+
+        s.advance(380);
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 340,
+            pace: 'chase',
+        });
+    });
+
+    it('skips the wrong way when it is taken after the look', () => {
+        const context = world();
+        const { s } = searching(context);
+        fall(s);
+        looked(s, 700);
+        context.cigaretteHeld = true;
+
+        // The look's last turn is already over: the wrong way was requested.
+        s.motor.finish();
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 340,
+            pace: 'chase',
+        });
+    });
+
+    it('chases at 4.2, 40 px at a time so that it reads the cigarette again', () => {
+        const left = held({ cigarette: { x: 100, y: 690 } });
+        expect(left.s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 260,
+            pace: 'chase',
+        });
+
+        const near = held({ cigarette: { x: 325, y: 690 } });
+        expect(near.s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 325,
+            pace: 'chase',
+        });
+    });
+
+    it('waits when the held cigarette is 10 px away, and walks after it from 10.1', () => {
+        const near = held({ monkeyX: 590, cigarette: { x: 600, y: 690 } });
+        near.s.advance(500);
+        expect(near.s.motor.requests).toEqual([{ type: 'stand' }]);
+
+        const far = held({ monkeyX: 589.9, cigarette: { x: 600, y: 690 } });
+        expect(far.s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 600,
+            pace: 'chase',
+        });
+    });
+
+    it('walks at the usual pace once it lies again', () => {
+        const { s, context } = held();
+        context.cigaretteHeld = false;
+
+        s.motor.finish();
+
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'walk', x: 600 });
+    });
+
+    it('jumps for it with the usual jump and a reach of 30, so that he snatches it in the air', () => {
+        const { s } = held({ monkeyX: 600, cigarette: { x: 640, y: 510 } });
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'jump',
+            vx: 4,
+            vy: -Math.sqrt(0.72 * 150),
+            reach: 30,
+        });
+    });
+
+    it('waits under it when it is held below his head and he is under it', () => {
+        const { s } = held({ monkeyX: 600, cigarette: { x: 600, y: 690 } });
+
+        s.advance(500);
+
+        expect(s.motor.requests).toEqual([{ type: 'stand' }]);
+    });
+
+    it('does not pick it up from the floor while it is held, however near', () => {
+        const { s } = held({ monkeyX: 595, cigarette: { x: 600, y: 690 } });
+
+        expect(s.motor.requests.map(({ type }) => type)).not.toContain(
+            'pickup',
+        );
+    });
+});
+
+describe('snatching it', () => {
+    const near = (cigarette: { x: number; y: number }): Stage => {
+        const context = world({ cigaretteHeld: true, cigarette });
+        const { s } = searching(context);
+        fall(s);
+        s.motor.finish();
+        return s;
+    };
+
+    it('takes it when it comes within 30 px of his head', () => {
+        // His head is at (300, 630): 10 across and 20 up is 22 px away.
+        const s = near({ x: 310, y: 610 });
+
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'pickup' });
+    });
+
+    it('is 30 px or more away: not yet', () => {
+        const s = near({ x: 330, y: 630 });
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'walk',
+            x: 330,
+            pace: 'chase',
+        });
+    });
+
+    it('is 29.9 px away: taken', () => {
+        const s = near({ x: 329.9, y: 630 });
+
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'pickup' });
+    });
+
+    it('measures from his head, not his centre', () => {
+        // 30 px under his head, 10 px from his centre: not snatched.
+        const s = near({ x: 300, y: 665 });
+
+        expect(s.motor.requests.at(-1)?.type).not.toBe('pickup');
+    });
+
+    it('takes it from his own height too, above or below', () => {
+        expect(near({ x: 300, y: 601 }).motor.requests.at(-1)).toEqual({
+            type: 'pickup',
+        });
+        expect(near({ x: 300, y: 659 }).motor.requests.at(-1)).toEqual({
+            type: 'pickup',
+        });
+        expect(near({ x: 300, y: 599 }).motor.requests.at(-1)?.type).not.toBe(
+            'pickup',
+        );
+    });
+
+    it('then lights the cigarette, without the line of finding it', () => {
+        const s = near({ x: 310, y: 610 });
+
+        s.motor.finish();
+
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'pose',
+            pose: 'light',
+            ms: 1900,
+        });
+        s.motor.finish();
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'relight' });
+        expect(s.log).not.toContain('found');
+        expect(s.log).not.toContain('giveUp');
+    });
+
+    it('ends once the cigarette is back in his mouth', () => {
+        const context = world({
+            cigaretteHeld: true,
+            cigarette: { x: 310, y: 610 },
+        });
+        const { s } = searching(context);
+        fall(s);
+        s.motor.finish();
+        s.motor.finish();
+        s.motor.finish();
+        delete context.cigarette;
+        context.cigaretteHeld = false;
+        s.motor.finish();
+        s.advance(100);
+
+        expect(s.log.at(-1)).toBe('-monkey/search:done');
+    });
+});
+
+describe('giving up on a held cigarette', () => {
+    // Held out of his reach, at his feet's height: he waits under it.
+    const holding = (): { s: Stage; context: LiveContext } => {
+        const context = world({
+            monkeyX: 600,
+            cigaretteHeld: true,
+            cigarette: { x: 600, y: 690 },
+        });
+        const { s } = searching(context);
+        fall(s);
+        // 3 s go by before he first reads the world: that is when it is held, for him.
+        s.advance(3000);
+        s.motor.finish();
+        return { s, context };
+    };
+
+    it('does so 12 s after he first sees it held', () => {
+        const { s } = holding();
+        s.advance(11_900);
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'stand' });
+
+        s.advance(100);
+
+        expect(s.motor.requests.at(-1)).toEqual({ type: 'discard' });
+    });
+
+    // The world read again every 100 ms, a request pending finishing each time.
+    const spin = (s: Stage, ms: number): void => {
+        for (let t = 0; t < ms; t += 100) {
+            if (s.motor.pending.length > 0) {
+                s.motor.finish();
+            }
+            s.advance(100);
+        }
+    };
+    const asked = (s: Stage): string[] =>
+        s.motor.requests.map(({ type }) => type);
+
+    it('does not count the 12 s of searching before the grab', () => {
+        const context = world({ monkeyX: 980, cigarette: { x: 1000, y: 5 } });
+        const { s } = searching(context);
+        fall(s);
+        looked(s);
+        s.motor.finish();
+        spin(s, 9000);
+        context.cigaretteHeld = true;
+
+        spin(s, 11_800);
+        expect(asked(s)).not.toContain('discard');
+        spin(s, 300);
+
+        expect(asked(s)).toContain('discard');
+    });
+
+    it('counts the 12 s from the first step that saw it held, when it was taken on his way', () => {
+        const context = world({ monkeyX: 980, cigarette: { x: 1000, y: 5 } });
+        const { s } = searching(context);
+        fall(s);
+        looked(s);
+        s.advance(5000);
+        context.cigaretteHeld = true;
+        s.motor.finish();
+
+        spin(s, 11_800);
+        expect(asked(s)).not.toContain('discard');
+        spin(s, 300);
+
+        expect(asked(s)).toContain('discard');
+    });
+
+    it('puffs, says so and lights a new one, as when it lay out of reach', () => {
+        const { s, context } = holding();
+        s.advance(12_000);
+        delete context.cigarette;
+        context.cigaretteHeld = false;
+        s.motor.finish();
+
+        expect(s.log.at(-1)).toBe('giveUp');
+        expect(s.motor.requests.at(-1)).toEqual({
+            type: 'pose',
+            pose: 'light',
+            ms: 1900,
+        });
+    });
+
+    it('starts the 12 s of searching again when it lies again', () => {
+        const { s, context } = holding();
+        s.advance(5000);
+        context.cigaretteHeld = false;
+        context.monkeyX = 980;
+        context.cigarette = { x: 1000, y: 5 };
+        s.advance(100);
+        s.advance(11_800);
+        s.motor.finish();
+        const asked = (): string[] => s.motor.requests.map(({ type }) => type);
+        expect(asked()).not.toContain('discard');
+
+        s.advance(200);
+        s.motor.finish();
+
+        expect(asked()).toContain('discard');
     });
 });

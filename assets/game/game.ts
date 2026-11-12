@@ -29,7 +29,7 @@ import { Shake } from './page/shake';
 import { Tornado } from './page/tornado';
 import type { Bounds } from './physics/bodies';
 import type { MonkeyBody } from './physics/monkey_body';
-import { MONKEY, PhysicsWorld } from './physics/world';
+import { CIGARETTE, MONKEY, PhysicsWorld } from './physics/world';
 import { chance } from './ports/chance';
 import { monkeyActivity } from './ports/monkey_activity';
 import { monkeyCigarette } from './ports/monkey_cigarette';
@@ -101,6 +101,7 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         () => ({
             lit: scene.world.cigaretteState === 'lit',
             lying: scene.world.cigarette(),
+            held: scene.world.cigaretteHeld,
         }),
     );
     const engine = new Engine({
@@ -236,7 +237,11 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         clock,
         signal: abort.signal,
         hooks: {
-            pick: (target): number | undefined => {
+            pick: (target, at): number | undefined => {
+                // The dropped cigarette comes first: it is small, and lies over the page.
+                if (at && scene.world.cigaretteNear(at)) {
+                    return CIGARETTE;
+                }
                 if (monkey.look.contains(target)) {
                     return MONKEY;
                 }
@@ -259,6 +264,14 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
             wake,
         },
     });
+
+    // He snatched the cigarette from the hand, or gave up on it there: the world let go, and the
+    // hand has nothing to drag or throw any more.
+    const handFree = (): void => {
+        if (input.held && !scene.world.holding) {
+            input.cancel();
+        }
+    };
 
     // The page shows what the physics says: a state on the element for the CSS to style.
     const show = (
@@ -306,7 +319,9 @@ export const startGame = (root: HTMLElement, options: GameOptions): Game => {
         }),
         events.on('cig.discarded', ({ at }) => {
             blasts.puff(at);
+            handFree();
         }),
+        events.on('cig.snatched', handFree),
         events.on('bomb.exploded', ({ id, at, radius }) => {
             bombs.remove(id);
             blasts.add(at, radius);

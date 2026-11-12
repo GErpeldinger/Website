@@ -1,7 +1,7 @@
 /* The monkey (docs/monkey-art.md), ported from design/monkey/index.html. Only the look module
    imports this file: the game builds the SVG, so a page without the game never loads it. The state
    is five data attributes on the root, written by the Look: data-pose, data-mood, data-facing,
-   data-walking (absent when he stands, `walk` or `run` when his legs step) and data-state.
+   data-walking (absent when he stands, `walk`, `run` or `chase` when his legs step) and data-state.
    Every length in the art is a drawing coordinate in its 56 x 72 frame, not a layout length. */
 @layer blocks {
     .monkey {

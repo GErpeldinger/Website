@@ -64,6 +64,9 @@ const FUSE = 1500;
 const TORNADO_DURATION = 5200;
 const MAX_THROW = 32;
 const MAX_MONKEY_THROW = 26;
+const MAX_CIGARETTE_THROW = 30;
+// A press this close to the dropped cigarette takes it, whatever lies under the pointer.
+const CIGARETTE_GRAB = 22;
 // Weak enough that everything floats for seconds before it reaches the ceiling.
 const ZERO_GRAVITY = -0.04;
 const CALM_STEPS = 30;
@@ -74,6 +77,8 @@ export type { Bounds, PieceSpec };
 
 // What the hand names the monkey by: the pieces are numbered from 0.
 export const MONKEY = -1;
+// ... and the dropped cigarette.
+export const CIGARETTE = -2;
 
 // Where a loose piece is now, as an offset and a turn from its home.
 export interface Placement {
@@ -130,9 +135,10 @@ export interface PieceInfo {
     held: boolean;
 }
 
-// What holds the hand's spring: a piece, or the monkey.
+// What holds the hand's spring: a piece, the dropped cigarette, or (with neither) the monkey.
 interface Held {
     piece: Piece | undefined;
+    cigarette: boolean;
     constraint: Constraint;
 }
 
@@ -223,7 +229,16 @@ export class PhysicsWorld {
 
     // The visitor has the monkey in hand.
     get monkeyHeld(): boolean {
-        return this.#held !== undefined && !this.#held.piece;
+        return (
+            this.#held !== undefined &&
+            !this.#held.piece &&
+            !this.#held.cigarette
+        );
+    }
+
+    // The visitor has the dropped cigarette in hand.
+    get cigaretteHeld(): boolean {
+        return this.#held?.cigarette === true;
     }
 
     // The monkey's body, once he is added.
@@ -294,18 +309,34 @@ export class PhysicsWorld {
         return running && { x: running.x, phase: running.phase };
     }
 
-    // Takes hold of a piece at a point of the page, or of the monkey (`MONKEY`). Returns false if
-    // it can't be held.
+    // The dropped cigarette lies within reach of a press at `at`.
+    cigaretteNear(at: Point): boolean {
+        const view = this.#cigarette.view();
+        return (
+            view !== undefined &&
+            Math.hypot(view.x - at.x, view.y - at.y) <= CIGARETTE_GRAB
+        );
+    }
+
+    // Takes hold of a piece at a point of the page, of the monkey (`MONKEY`) or of the dropped
+    // cigarette (`CIGARETTE`). Returns false if it can't be held.
     grab(id: number, at: Point): boolean {
         if (id === MONKEY) {
             return this.#grabMonkey(at);
+        }
+        if (id === CIGARETTE) {
+            return this.#grabCigarette(at);
         }
         const piece = this.#pieces.get(id);
         if (!piece?.traits.grabbable || piece.taken || this.#held) {
             return false;
         }
         this.#free(piece, 'grab');
-        this.#held = { piece, constraint: this.#spring(piece.body, at) };
+        this.#held = {
+            piece,
+            cigarette: false,
+            constraint: this.#spring(piece.body, at),
+        };
         this.#options.events.emit('item.grabbed', {
             id,
             kind: piece.kind,
@@ -334,6 +365,10 @@ export class PhysicsWorld {
         }
         this.#held = undefined;
         Composite.remove(this.#engine.world, held.constraint);
+        if (held.cigarette) {
+            this.#throwCigarette(velocity);
+            return;
+        }
         if (!held.piece) {
             this.#throwMonkey(velocity);
             return;
@@ -382,13 +417,21 @@ export class PhysicsWorld {
     }
 
     // He picks the dropped cigarette up (it is in his mouth, unlit), or gives up on it, which
-    // says where it lay. False if none lies.
+    // says where it lay. The hand that holds it lets go. False if none lies.
     pickUpCigarette(discard: boolean): boolean {
         const body = this.#cigarette.take();
         if (!body) {
             return false;
         }
+        const held = this.#held?.cigarette ? this.#held : undefined;
+        if (held) {
+            Composite.remove(this.#engine.world, held.constraint);
+            this.#held = undefined;
+        }
         Composite.remove(this.#engine.world, body);
+        if (held && !discard) {
+            this.#options.events.emit('cig.snatched', undefined);
+        }
         if (discard) {
             this.#options.events.emit('cig.discarded', {
                 at: { x: body.position.x, y: body.position.y },
@@ -811,12 +854,38 @@ export class PhysicsWorld {
         }
         this.#held = {
             piece: undefined,
+            cigarette: false,
             constraint: this.#spring(monkey.body, at),
         };
         this.#options.events.emit('monkey.grabbed', {
             at: { x: at.x, y: at.y },
         });
         return true;
+    }
+
+    #grabCigarette(at: Point): boolean {
+        const body = this.#cigarette.body;
+        // On touch the grab comes a long press after the press: it may have rolled away.
+        if (!body || this.#held || !this.cigaretteNear(at)) {
+            return false;
+        }
+        // Held by its middle, not by the point pressed: it hangs level from the hand.
+        this.#held = {
+            piece: undefined,
+            cigarette: true,
+            constraint: this.#spring(body, body.position),
+        };
+        this.#options.events.emit('cig.grabbed', { at: { x: at.x, y: at.y } });
+        return true;
+    }
+
+    // Let go of the cigarette: it flies at the pointer's speed, up to a cap.
+    #throwCigarette(velocity: Point): void {
+        const body = this.#cigarette.body;
+        if (body) {
+            Body.setVelocity(body, capSpeed(velocity, MAX_CIGARETTE_THROW));
+            this.#still.disturb();
+        }
     }
 
     // Let go of the monkey: he flies at the pointer's speed, up to a cap, and the Motor hears

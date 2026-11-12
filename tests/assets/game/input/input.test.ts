@@ -32,7 +32,12 @@ interface FireInit {
 }
 
 interface Hooks {
-    pick: Mock<(target: Element | null) => number | undefined>;
+    pick: Mock<
+        (
+            target: Element | null,
+            at?: { x: number; y: number },
+        ) => number | undefined
+    >;
     grab: Mock<(id: number, at: { x: number; y: number }) => boolean>;
     drag: Mock<(to: { x: number; y: number }) => void>;
     release: Mock<(velocity: { x: number; y: number }) => void>;
@@ -63,9 +68,12 @@ const setup = (): Harness => {
     const abort = new AbortController();
     aborts.push(abort);
     const hooks = {
-        pick: vi.fn<(target: Element | null) => number | undefined>((target) =>
-            target === piece ? 7 : undefined,
-        ),
+        pick: vi.fn<
+            (
+                target: Element | null,
+                at?: { x: number; y: number },
+            ) => number | undefined
+        >((target) => (target === piece ? 7 : undefined)),
         grab: vi.fn<(id: number, at: { x: number; y: number }) => boolean>(
             () => true,
         ),
@@ -112,8 +120,17 @@ describe('a mouse press', () => {
         const down = fire(piece, 'pointerdown', { x: 20, y: 30 });
 
         expect(down.defaultPrevented).toBe(true);
-        expect(hooks.pick).toHaveBeenCalledWith(piece);
+        expect(hooks.pick).toHaveBeenCalledWith(piece, { x: 20, y: 30 });
         expect(hooks.grab).not.toHaveBeenCalled();
+    });
+
+    it('names the press on the page, the scroll added, so that a hook can take by place', () => {
+        const { piece, hooks, fire, view } = setup();
+        view.scroll = { x: 10, y: 300 };
+
+        fire(piece, 'pointerdown', { x: 20, y: 30 });
+
+        expect(hooks.pick).toHaveBeenCalledWith(piece, { x: 30, y: 330 });
     });
 
     it('lets a press on something else go through', () => {
@@ -151,6 +168,19 @@ describe('a mouse press', () => {
         });
         expect(hooks.drag).toHaveBeenCalledExactlyOnceWith({ x: 104, y: 101 });
         expect(hooks.wake).toHaveBeenCalled();
+    });
+
+    it('holds something only once the grab took hold, and not after the game cancelled it', () => {
+        const { piece, fire, input } = setup();
+        expect(input.held).toBe(false);
+
+        fire(piece, 'pointerdown', { x: 100, y: 100 });
+        expect(input.held).toBe(false);
+        fire(window, 'pointermove', { x: 110, y: 100 });
+        expect(input.held).toBe(true);
+
+        input.cancel();
+        expect(input.held).toBe(false);
     });
 
     it('measures the distance in both directions', () => {

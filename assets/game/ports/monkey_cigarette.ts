@@ -8,6 +8,8 @@ declare module '../brain/behaviour' {
         readonly hasCigarette: boolean;
         // Where the one he dropped lies; absent while he has it in his mouth.
         readonly cigarette: Point;
+        // The visitor has the dropped cigarette in hand.
+        readonly cigaretteHeld: boolean;
         // Time for the next sneeze (it never comes in the first interval).
         readonly sneezeDue: boolean;
     }
@@ -17,9 +19,18 @@ declare module '../brain/behaviour' {
 export const SNEEZE_LEAST = 45_000;
 export const SNEEZE_SPREAD = 30_000;
 
+// A cigarette at `cigarette` is within `reach` px of the top of the head at `head`: the snatch's
+// distance, for the search that asks for it and the jump that ends on it.
+export const withinReach = (
+    cigarette: Point,
+    head: Point,
+    reach: number,
+): boolean => Math.hypot(cigarette.x - head.x, cigarette.y - head.y) < reach;
+
 export interface MonkeyCigarette {
     lit: boolean;
     lying: Point | undefined;
+    held: boolean;
 }
 
 export interface CigaretteSource {
@@ -27,9 +38,9 @@ export interface CigaretteSource {
     stop: () => void;
 }
 
-// What his behaviours need to know of his cigarette: whether he has it lit, where it lies, and
-// whether a sneeze is due. A sneeze is due once its interval has run out; every loss, a sneeze's
-// included, starts a new one.
+// What his behaviours need to know of his cigarette: whether he has it lit, where it lies,
+// whether the visitor holds it, and whether a sneeze is due. A sneeze is due once its interval
+// has run out; every loss, a sneeze's included, starts a new one.
 export const monkeyCigarette = (
     events: EventBus<GameEvents>,
     now: () => number,
@@ -43,9 +54,10 @@ export const monkeyCigarette = (
     });
     return {
         source: (): ReturnType<ContextSource> => {
-            const { lit, lying } = read();
+            const { lit, lying, held } = read();
             return {
                 hasCigarette: lit,
+                cigaretteHeld: held,
                 ...(lying === undefined ? {} : { cigarette: lying }),
                 sneezeDue: now() >= sneezeAt,
             };

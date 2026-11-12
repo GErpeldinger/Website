@@ -381,6 +381,211 @@ describe('the cigarette scenarios', () => {
     });
 });
 
+describe('stealing his cigarette', () => {
+    // His picture centred at (300, 650); the cigarette is drawn at (330, 690) once it has fallen.
+    // The frames come every 20 ms of a clock the test sets, as on a 50 Hz screen.
+    const aborts: AbortController[] = [];
+    afterEach(() => {
+        for (const abort of aborts.splice(0)) {
+            abort.abort();
+        }
+    });
+    const play = (
+        game: ScenarioGame,
+        frame = 20,
+    ): {
+        seen: [string, number, number][];
+        cigarette: SVGElement;
+        step: (count: number) => void;
+        frames: () => number;
+    } => {
+        const callbacks: (() => void)[] = [];
+        vi.stubGlobal('requestAnimationFrame', (callback: () => void) =>
+            callbacks.push(callback),
+        );
+        let time = 1000;
+        vi.spyOn(performance, 'now').mockImplementation(() => time);
+        monkeyAtCentre(300, 650);
+        const cigarette = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'svg',
+        );
+        cigarette.classList.add('lost-cigarette');
+        cigarette.getBoundingClientRect = (): DOMRect => rect(310, 670, 40, 40);
+        const seen: [string, number, number][] = [];
+        const stop = new AbortController();
+        aborts.push(stop);
+        for (const type of ['pointerdown', 'pointermove', 'pointerup']) {
+            window.addEventListener(
+                type,
+                (event) => {
+                    seen.push([
+                        type,
+                        (event as PointerEvent).clientX,
+                        (event as PointerEvent).clientY,
+                    ]);
+                },
+                { signal: stop.signal },
+            );
+        }
+        expect(run('Steal his cigarette', game)).toBeUndefined();
+        return {
+            seen,
+            cigarette,
+            frames: () => callbacks.length,
+            step: (count): void => {
+                for (let i = 0; i < count; i++) {
+                    time += frame;
+                    callbacks.shift()?.();
+                }
+            },
+        };
+    };
+    const lands = (hand: ReturnType<typeof play>): void => {
+        document.body.append(hand.cigarette);
+    };
+
+    it('knocks it off first, and says why it cannot', () => {
+        const { game, start } = setup();
+        play(game);
+        expect(start).toHaveBeenCalledExactlyOnceWith('monkey/lose_cig');
+
+        document.body.innerHTML = '';
+        const none = setup();
+        expect(run('Steal his cigarette', none.game)).toBe(
+            'The monkey is not on the page.',
+        );
+        expect(none.start).not.toHaveBeenCalled();
+
+        monkeyAtCentre(300, 650);
+        document.querySelector('svg')?.setAttribute('data-cigarette', 'lost');
+        expect(run('Steal his cigarette', none.game)).toBe(
+            'He has no lit cigarette to lose.',
+        );
+        const refused = setup(false);
+        document.querySelector('svg')?.removeAttribute('data-cigarette');
+        expect(run('Steal his cigarette', refused.game)).toBe(
+            'He has no Brain, or the reflex is already running.',
+        );
+    });
+
+    it('presses nothing for 700 ms while it falls, then takes what lies on the page', () => {
+        const { game } = setup();
+        const hand = play(game);
+        lands(hand);
+
+        hand.step(34);
+        expect(hand.seen).toEqual([]);
+        hand.step(1);
+
+        expect(hand.seen).toEqual([['pointerdown', 330, 690]]);
+    });
+
+    it('does nothing when the cigarette is not on the page by then', () => {
+        const { game } = setup();
+        const hand = play(game);
+
+        hand.step(35);
+
+        expect(hand.seen).toEqual([]);
+        expect(hand.frames()).toBe(0);
+    });
+
+    it('raises it 1.2 px per ms to 120 px above his head, then moves it away 0.06 px per ms', () => {
+        const { game } = setup();
+        const hand = play(game);
+        lands(hand);
+        hand.step(35);
+
+        // His head is at 650 - 30, so it is held at 500. From 690 it rises 24 px a frame.
+        hand.step(7);
+        const rise = hand.seen.slice(1);
+        expect(rise.map(([type]) => type)).toEqual(
+            Array(7).fill('pointermove'),
+        );
+        expect(rise.map(([, , y]) => y)).toEqual([
+            666, 642, 618, 594, 570, 546, 522,
+        ]);
+        expect(new Set(rise.map(([, x]) => x))).toEqual(new Set([330]));
+
+        // The frame that arrives moves away too, and so does each one after it.
+        hand.step(3);
+        const [arrived, ...drifting] = hand.seen.slice(-3);
+        expect(arrived?.[2]).toBe(500);
+        expect(arrived?.[1]).toBeCloseTo(331.2);
+        expect(drifting.map(([, x]) => x)).toEqual([
+            expect.closeTo(332.4) as number,
+            expect.closeTo(333.6) as number,
+        ]);
+    });
+
+    it('moves as fast in time on a faster screen: 10 ms frames, half the rise per frame', () => {
+        const { game } = setup();
+        const hand = play(game, 10);
+        lands(hand);
+        hand.step(70);
+
+        hand.step(1);
+
+        expect(hand.seen.at(-1)).toEqual(['pointermove', 330, 678]);
+    });
+
+    it('moves away to the left from a monkey on its right', () => {
+        const { game } = setup();
+        const hand = play(game);
+        hand.cigarette.getBoundingClientRect = (): DOMRect =>
+            rect(210, 670, 40, 40);
+        lands(hand);
+        hand.step(35);
+
+        hand.step(12);
+
+        expect(hand.seen.at(-1)?.[1]).toBeCloseTo(230 - 1.2 * 5);
+        expect(hand.seen.at(-1)?.[2]).toBe(500);
+    });
+
+    it('moves away to the right from a monkey right above it', () => {
+        const { game } = setup();
+        const hand = play(game);
+        hand.cigarette.getBoundingClientRect = (): DOMRect =>
+            rect(280, 670, 40, 40);
+        lands(hand);
+        hand.step(35);
+
+        hand.step(12);
+
+        expect(hand.seen.at(-1)?.[1]).toBeCloseTo(300 + 1.2 * 5);
+    });
+
+    it('lets go once it is no longer on the page', () => {
+        const { game } = setup();
+        const hand = play(game);
+        lands(hand);
+        hand.step(45);
+
+        hand.cigarette.remove();
+        hand.step(1);
+
+        expect(hand.seen.at(-1)?.[0]).toBe('pointerup');
+        expect(hand.frames()).toBe(0);
+    });
+
+    it('lets go after 15 s of holding it', () => {
+        const { game } = setup();
+        const hand = play(game);
+        lands(hand);
+        hand.step(35);
+
+        // 15 s from the press, which was at 700 ms.
+        hand.step(749);
+        expect(hand.seen.at(-1)?.[0]).toBe('pointermove');
+        hand.step(1);
+
+        expect(hand.seen.at(-1)?.[0]).toBe('pointerup');
+        expect(hand.frames()).toBe(0);
+    });
+});
+
 describe('the list', () => {
     it('labels every scenario, and says which are not what they seem', () => {
         expect(
@@ -399,6 +604,7 @@ describe('the list', () => {
             ['Knock his cigarette off', true],
             ['Sneeze now', true],
             ['Cigarette up high', true],
+            ['Steal his cigarette', true],
             ['Piece hits him', true],
         ]);
         expect(scenarios.flatMap(({ note }) => (note ? [note] : []))).toEqual([
@@ -407,8 +613,9 @@ describe('the list', () => {
             'Zero gravity off, on, then off: every piece is freed and falls.',
             'Fires visitor.idle instead of waiting 15 s.',
             'Starts the reflex that makes it fall, ignoring the dice and the conditions.',
-            'Starts the sneeze: it only fills idle time, so he must be doing nothing.',
+            'Starts the sneeze: it only fills idle time (smoking is), so he must not be doing anything else.',
             'Knocks it off, then a tornado over him sweeps it up for 5 s, so he jumps for it while it flies. The pieces fly too.',
+            'Knocks it off, then grabs it with the hand and holds it 120 px above his head, moving slowly away: he chases it, jumps and snatches it.',
             'Stand-in: fires monkey.hit, there is no way to throw a piece at him.',
         ]);
     });

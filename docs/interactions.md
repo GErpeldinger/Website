@@ -10,10 +10,10 @@ This page is the target. The first version is the prototype's game in the real c
 
 - **Look:** the prototype's dark page, two columns, the ground strip and the dock. The scene keeps an empty background layer for the hologram.
 - **Visitor:** grab and throw any content piece (a long press on touch), bomb, tornado, zero gravity, Rebuild.
-- **Monkey:** walks, smokes in idle time, comments on grabs, drops and hits (French and English lines), flinches when hit, flees a bomb and is burnt when it catches him, loses his cigarette (a hit, a hard fall, a sneeze), searches for it and relights it, and puts every piece back on Rebuild.
+- **Monkey:** walks, smokes in idle time, comments on grabs, drops and hits (French and English lines), flinches when hit, flees a bomb and is burnt when it catches him, loses his cigarette (a hit, a hard fall, a sneeze), searches for it and relights it, chases it and snatches it back when the visitor holds it, and puts every piece back on Rebuild.
 - **Development:** the director panel, in development builds only.
 
-Next, each as new behaviour files on the same engine: the rest of the cigarette arc (the visitor holding it) and hanging and climbing, then the hologram and the drone, Naïa, the sky, the car, the time of day, patience and the first-visit tutorial.
+Next, each as new behaviour files on the same engine: super-monkey, hanging and climbing, then the hologram and the drone, Naïa, the sky, the car, the time of day, patience and the first-visit tutorial.
 
 ## Cast
 
@@ -108,7 +108,9 @@ Ambient behaviours, all giving way to anything the visitor does:
 
 **Built (part 1).** He loses it to a loose piece faster than 7 px per step (one time in two), to a fall onto the floor faster than 10 (six times in ten), or to a sneeze while he is idle (every 45 to 75 s, never in the first interval), and never while he rebuilds, is out of the page or is held. A blast does not make him lose it: it leaves him a burnt stub. The cigarette falls on the page, a small stick with an ember and a wisp of smoke that a bomb nudges and a tornado sweeps up. He cries out, scared for 1.6 s, stands still for 0.7 s (0.9 after a sneeze), looks about for 1.5 s turning every 0.4 s, looks the wrong way first, then walks to it and, if it is over his head, jumps for it. Reached, he says so, lights it with his gold lighter for 1.9 s, and is proud for 1.8 s. A flee or a trip out of the page only delays the search, which goes on afterwards; after 12 s without reaching it (too high, say) he gives up in a puff of smoke and lights another. Measuring the page again gives him his cigarette back.
 
-**Part 2, to come.** If the visitor holds it, he chases the cursor and snatches it back when he gets close. Kept from him too long, he turns super-monkey: angry, no cigarette, and flies at the cursor to take it back.
+**Built (part 2).** A press within 22 px of the dropped cigarette takes it in hand, whatever the tool: it follows the cursor and is thrown on release. He is cross for 2.5 s ("Hé ! Rends-moi ça !" / "Hey! Give that back!", "C’est MA clope !" / "That’s MY smoke!", "Tu fumes, toi ?" / "Since when do you smoke?"), skips what remains of the notice and the look, and goes for it faster (4.2 px per step against 3), jumping when it is over his head. Once it comes within 30 px of his head he takes it, says "Ha ! Récupérée." / "Ha! Got it back." or "Trop lent." / "Too slow.", is proud and lights it. If the visitor keeps it 12 s, he gives up as before (a puff of smoke, a new cigarette). Let go and lying again, the search goes on with 12 s of its own.
+
+**To come.** Kept from him too long, he turns super-monkey: angry, no cigarette, and flies at the cursor to take it back.
 
 ### Patience
 
@@ -146,7 +148,7 @@ The panel that fires any event or behaviour on demand, built for development, sh
 - Patience as the backbone of the escalation, as above?
 - Pure sandbox, or something to discover (hidden reactions counted somewhere)? Proposed: sandbox.
 - After the rage beam: does he rebuild, or does the drone fetch him and the visitor rebuild?
-- The cigarette: part 1 gives up after 12 s and lights a new one, as the prototype did for a cigarette nobody holds. Does super-monkey replace that for a cigarette the visitor keeps?
+- The cigarette: he gives up after 12 s and lights a new one, as the prototype did, whether the cigarette lies out of reach or the visitor holds it. Does super-monkey replace that for a cigarette the visitor keeps?
 - Does Naïa ever "speak" (a "Mrrp" bubble), or stay silent like the drone?
 
 ## Decisions

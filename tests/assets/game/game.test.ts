@@ -16,6 +16,8 @@ import hurry from '../../../assets/game/activities/monkey/hurry';
 import lazyStop from '../../../assets/game/activities/monkey/lazy_stop';
 import lazyRebuild from '../../../assets/game/activities/monkey/lazy_rebuild';
 import rebuild from '../../../assets/game/activities/monkey/rebuild';
+import cigSnatched from '../../../assets/game/activities/monkey/cig_snatched';
+import cigStolen from '../../../assets/game/activities/monkey/cig_stolen';
 import cigFace from '../../../assets/game/activities/monkey/cig_face';
 import flinch from '../../../assets/game/activities/monkey/flinch';
 import loseCig from '../../../assets/game/activities/monkey/lose_cig';
@@ -64,6 +66,8 @@ const names = [
     'cig.lost',
     'cig.discarded',
     'cig.lit',
+    'cig.grabbed',
+    'cig.snatched',
 ] as const satisfies readonly (keyof GameEvents)[];
 
 interface Options {
@@ -1687,6 +1691,8 @@ describe('the cigarette', () => {
             lit: ['Nothing like it.'],
             jump: ['Hup!'],
             giveUp: ['Forget it.'],
+            stolen: ['Give that back!'],
+            snatched: ['Got it back.'],
             hurt: ['Ouch!'],
             back: ['Back.'],
             build: ['Building.'],
@@ -1698,6 +1704,8 @@ describe('the cigarette', () => {
             behaviours: [
                 { ...loseCig, id: 'monkey/lose_cig' },
                 { ...cigFace, id: 'monkey/cig_face' },
+                { ...cigStolen, id: 'monkey/cig_stolen' },
+                { ...cigSnatched, id: 'monkey/cig_snatched' },
                 { ...search, id: 'monkey/search' },
                 { ...flinch, id: 'monkey/flinch' },
             ] as Behaviour[],
@@ -1765,6 +1773,137 @@ describe('the cigarette', () => {
 
         expect(dropped()).toHaveLength(0);
         expect(monkeyArt().hasAttribute('data-cigarette')).toBe(false);
+    });
+
+    // Where the drawn cigarette lies: its art is placed 8 px left of and 20 px above its centre.
+    const lying = (): { x: number; y: number } => {
+        const [, x, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(
+            dropped()[0]?.style.transform ?? '',
+        ) ?? [undefined, '0', '0'];
+        return { x: Number(x) + 8, y: Number(y) + 20 };
+    };
+
+    it('is taken by a press within 22 px of it, over the piece under the pointer', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(60);
+        const { x, y } = lying();
+
+        // 20 px off, and in the middle of the page where the block sits.
+        harness.pointer(harness.get('block'), 'pointerdown', x + 20, y, 0);
+        harness.pointer(window, 'pointermove', x + 40, y - 40, 8);
+        harness.pointer(window, 'pointermove', x + 60, y - 80, 16);
+
+        expect(harness.names('cig.grabbed')).toEqual([
+            { at: { x: x + 20, y } },
+        ]);
+        expect(harness.names('item.grabbed')).toEqual([]);
+    });
+
+    it('is not taken by a press 23 px from it', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(60);
+        const { x, y } = lying();
+
+        harness.pointer(harness.get('block'), 'pointerdown', x + 23, y, 0);
+        harness.pointer(window, 'pointermove', x + 40, y - 40, 8);
+        harness.pointer(window, 'pointermove', x + 60, y - 80, 16);
+
+        expect(harness.names('cig.grabbed')).toEqual([]);
+    });
+
+    it('is thrown when let go', () => {
+        // Alone, or he would snatch it.
+        const harness = arc({
+            behaviours: [{ ...loseCig, id: 'monkey/lose_cig' }] as Behaviour[],
+        });
+        knock(harness);
+        harness.run(60);
+        const { x, y } = lying();
+        harness.pointer(harness.get('block'), 'pointerdown', x, y, 0);
+        harness.pointer(window, 'pointermove', x + 20, y - 20, 8);
+        harness.pointer(window, 'pointermove', x + 40, y - 120, 16);
+        harness.run(10);
+        const held = lying();
+
+        harness.pointer(window, 'pointerup', x + 40, y - 120, 16);
+        harness.run(30);
+
+        expect(held.y).toBeLessThan(y);
+        expect(dropped()).toHaveLength(1);
+    });
+
+    it('is snatched from the hand within reach of his head, and the hand is free again', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(60);
+        const { x, y } = lying();
+        harness.pointer(harness.get('block'), 'pointerdown', x, y, 0);
+        harness.pointer(window, 'pointermove', x + 20, y - 20, 8);
+        // He stands at x = 64 with his head at about y = 730: the cigarette is brought there.
+        harness.pointer(window, 'pointermove', 64, 735, 16);
+
+        finish(harness);
+
+        expect(harness.names('cig.snatched')).toEqual([undefined]);
+        expect(dropped()).toHaveLength(0);
+        // The press ended with the snatch: the loop is not kept awake by a hand that holds nothing.
+        expect(harness.browser.pending).toBe(false);
+    });
+
+    it('is given up on after 12 s in a hand held out of his reach, which is free again', () => {
+        const harness = arc();
+        knock(harness);
+        harness.run(60);
+        const { x, y } = lying();
+        harness.pointer(harness.get('block'), 'pointerdown', x, y, 0);
+        harness.pointer(window, 'pointermove', x + 20, y - 20, 8);
+        harness.pointer(window, 'pointermove', 900, 20, 16);
+
+        harness.run(600);
+        expect(harness.names('cig.discarded')).toEqual([]);
+        harness.run(300);
+
+        expect(harness.names('cig.discarded')).toHaveLength(1);
+        expect(harness.names('cig.snatched')).toEqual([]);
+        finish(harness);
+        expect(harness.browser.pending).toBe(false);
+    });
+
+    it('leaves a press that has not taken hold alone when he gives up on a cigarette', () => {
+        const harness = arc();
+        harness.get('block').dispatchEvent(
+            new PointerEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 500,
+                clientY: 300,
+                pointerId: 1,
+                pointerType: 'touch',
+                button: 0,
+            }),
+        );
+
+        harness.game.events.emit('cig.discarded', { at: { x: 300, y: 700 } });
+        harness.run(60);
+
+        expect(harness.names('item.grabbed')).toHaveLength(1);
+    });
+
+    it('leaves a piece in hand alone when he gives up on a cigarette', () => {
+        const harness = arc();
+        harness.pointer(harness.get('block'), 'pointerdown', 500, 300, 0);
+        harness.pointer(window, 'pointermove', 520, 300, 8);
+        harness.pointer(window, 'pointermove', 540, 300, 16);
+
+        harness.game.events.emit('cig.snatched', undefined);
+        harness.pointer(window, 'pointerup', 540, 300, 24);
+
+        expect([
+            ...harness.names('item.dropped'),
+            ...harness.names('item.thrown'),
+        ]).toHaveLength(1);
     });
 
     it('goes up in a puff of smoke when he gives up on it', () => {

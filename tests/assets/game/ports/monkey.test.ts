@@ -22,7 +22,7 @@ describe('the monkey requests', () => {
             'calm' | 'scared' | 'cross' | 'proud' | 'burnt'
         >();
         expectTypeOf<Facing>().toEqualTypeOf<'left' | 'right'>();
-        expectTypeOf<Pace>().toEqualTypeOf<'walk' | 'run'>();
+        expectTypeOf<Pace>().toEqualTypeOf<'walk' | 'run' | 'chase'>();
     });
 
     it('leave the poses that follow the body to the body', () => {
@@ -69,6 +69,7 @@ describe('the monkey requests', () => {
             type: 'jump';
             vx: number;
             vy: number;
+            reach?: number;
         }>();
     });
 });

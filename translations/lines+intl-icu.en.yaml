@@ -108,3 +108,10 @@ jump:
     - 'Gimme!'
     - 'Almost…'
 giveUp: 'Forget it, it’s gone out. I’ve got more.'
+stolen:
+    - 'Hey! Give that back!'
+    - 'That’s MY smoke!'
+    - 'Since when do you smoke?'
+snatched:
+    - 'Ha! Got it back.'
+    - 'Too slow.'

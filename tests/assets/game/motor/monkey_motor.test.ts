@@ -12,6 +12,7 @@ import {
 import { traitsOf } from '../../../../assets/game/physics/kinds';
 import type { MonkeyBody } from '../../../../assets/game/physics/monkey_body';
 import {
+    CIGARETTE,
     MONKEY,
     PhysicsWorld,
     STEP,
@@ -531,7 +532,7 @@ describe('walking', () => {
         expect(last().gait).toBe('walk');
     });
 
-    it('walks at 3 px per step, and runs at 6.5', () => {
+    it('walks at 3 px per step, runs at 6.5 and chases at 4.2', () => {
         const pace = (request: MonkeyRequest): number[] => {
             const { monkey, ask } = setup();
             const goTo = vi.spyOn(monkey, 'goTo');
@@ -542,6 +543,9 @@ describe('walking', () => {
         expect(pace({ type: 'walk', x: 800 })).toEqual([800, 3]);
         expect(pace({ type: 'walk', x: 800, pace: 'walk' })).toEqual([800, 3]);
         expect(pace({ type: 'walk', x: 800, pace: 'run' })).toEqual([800, 6.5]);
+        expect(pace({ type: 'walk', x: 800, pace: 'chase' })).toEqual([
+            800, 4.2,
+        ]);
     });
 
     it('stays between the walls: he cannot go nearer than his half width', () => {
@@ -1870,6 +1874,66 @@ describe('jumping', () => {
         expect(jump.outcomes).toEqual(['done']);
         expect(harness.monkey.grounded).toBe(true);
         expect(harness.motor.busy).toBe(false);
+    });
+
+    describe('with a reach', () => {
+        // The cigarette is held 70 px over his head, still.
+        const holdingOverhead = (): Harness => {
+            const harness = setup();
+            harness.frame(30);
+            harness.world.loseCigarette(1, 'hit');
+            harness.frame(60);
+            const view = harness.world.cigarette();
+            harness.world.grab(CIGARETTE, { x: view?.x ?? 0, y: view?.y ?? 0 });
+            harness.world.drag({
+                x: harness.monkey.position.x + 40,
+                y: harness.monkey.top - 70,
+            });
+            harness.frame(90);
+            return harness;
+        };
+
+        it('ends in the air once the held cigarette is within it of his head', () => {
+            const harness = holdingOverhead();
+
+            const jump = harness.ask({
+                type: 'jump',
+                vx: 2,
+                vy: -9,
+                reach: 30,
+            });
+            harness.until(() => jump.outcomes.length > 0);
+
+            expect(jump.outcomes).toEqual(['done']);
+            expect(harness.monkey.grounded).toBe(false);
+        });
+
+        it('ends on landing when none is given, or when the cigarette is not held', () => {
+            const plain = holdingOverhead();
+            const jump = plain.ask({ type: 'jump', vx: 2, vy: -9 });
+            plain.until(() => jump.outcomes.length > 0);
+            expect(plain.monkey.grounded).toBe(true);
+
+            const loose = holdingOverhead();
+            loose.world.release({ x: 0, y: 0 });
+            const reach = loose.ask({ type: 'jump', vx: 0, vy: -9, reach: 30 });
+            loose.until(() => reach.outcomes.length > 0);
+            expect(loose.monkey.grounded).toBe(true);
+        });
+
+        it('keeps jumping while it is further than the reach', () => {
+            const harness = holdingOverhead();
+
+            const jump = harness.ask({
+                type: 'jump',
+                vx: 0,
+                vy: -6,
+                reach: 10,
+            });
+            harness.until(() => jump.outcomes.length > 0);
+
+            expect(harness.monkey.grounded).toBe(true);
+        });
     });
 
     it('is neither a tumble nor a fall, however high', () => {

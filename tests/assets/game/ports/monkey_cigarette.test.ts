@@ -5,6 +5,7 @@ import {
     SNEEZE_LEAST,
     SNEEZE_SPREAD,
     monkeyCigarette,
+    withinReach,
     type CigaretteSource,
     type MonkeyCigarette,
 } from '../../../../assets/game/ports/monkey_cigarette';
@@ -19,7 +20,11 @@ interface Setup {
 const setup = (draw = 0.5): Setup => {
     const events = new EventBus<GameEvents>();
     const time = { now: 1000 };
-    const world: MonkeyCigarette = { lit: true, lying: undefined };
+    const world: MonkeyCigarette = {
+        lit: true,
+        lying: undefined,
+        held: false,
+    };
     const cigarette = monkeyCigarette(
         events,
         () => time.now,
@@ -43,10 +48,20 @@ describe('his cigarette, as a context source', () => {
         });
     });
 
+    it('says whether the visitor holds the dropped one', () => {
+        const { world, cigarette } = setup();
+        expect(cigarette.source().cigaretteHeld).toBe(false);
+
+        world.held = true;
+
+        expect(cigarette.source().cigaretteHeld).toBe(true);
+    });
+
     it('has no cigarette field when he has it in his mouth', () => {
         const { cigarette } = setup();
 
         expect(Object.keys(cigarette.source()).sort()).toEqual([
+            'cigaretteHeld',
             'hasCigarette',
             'sneezeDue',
         ]);
@@ -98,5 +113,23 @@ describe('the sneeze', () => {
         events.emit('cig.lost', { cause: 'hit', at: { x: 0, y: 0 } });
 
         expect(cigarette.source().sneezeDue).toBe(true);
+    });
+});
+
+describe('the reach of his head', () => {
+    const head = { x: 300, y: 600 };
+
+    it('is the straight distance, less than the reach', () => {
+        expect(withinReach({ x: 329, y: 600 }, head, 30)).toBe(true);
+        expect(withinReach({ x: 330, y: 600 }, head, 30)).toBe(false);
+        expect(withinReach({ x: 300, y: 571 }, head, 30)).toBe(true);
+        expect(withinReach({ x: 300, y: 570 }, head, 30)).toBe(false);
+        expect(withinReach({ x: 300, y: 629 }, head, 30)).toBe(true);
+        expect(withinReach({ x: 270, y: 600 }, head, 30)).toBe(false);
+    });
+
+    it('is across and up together: 18 and 24 are 30 away', () => {
+        expect(withinReach({ x: 318, y: 576 }, head, 30)).toBe(false);
+        expect(withinReach({ x: 317, y: 576 }, head, 30)).toBe(true);
     });
 });

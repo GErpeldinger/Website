@@ -21,6 +21,8 @@ export const eventSamples: { [Name in keyof GameEvents]: GameEvents[Name] } = {
     'monkey.blasted': { bomb: 1 },
     'cig.lost': { cause: 'hit', at: { x: 500, y: 690 } },
     'cig.discarded': { at: { x: 500, y: 690 } },
+    'cig.grabbed': { at: { x: 500, y: 690 } },
+    'cig.snatched': undefined,
     'cig.lit': undefined,
     'tool.selected': { tool: 'bomb' },
     'bomb.placed': { id: 1, at: { x: 500, y: 300 } },

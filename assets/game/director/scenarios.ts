@@ -51,46 +51,119 @@ const nextFrame = (callback: () => void): void => {
     requestAnimationFrame(callback);
 };
 
+// A mouse event of the hand at a point of the screen.
+const fire = (target: EventTarget, type: string, { x, y }: Point): void => {
+    target.dispatchEvent(
+        new PointerEvent(type, {
+            bubbles: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            clientX: x,
+            clientY: y,
+        }),
+    );
+};
+
+const centre = (element: Element): Point => {
+    const box = element.getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+};
+
 // Throws him with the hand, as the visitor's pointer would: a press on him, `moves` moves of
 // (dx, dy), one per animation frame, then a release. The hand takes him whatever tool is chosen.
 const fling =
     (direction: () => Point, moves: number) => (): string | undefined => {
         const element = document.querySelector('svg[data-pose]');
-        const box = element?.getBoundingClientRect();
-        if (!element || !box) {
+        if (!element) {
             return NOT_FOUND;
         }
         const { x: dx, y: dy } = direction();
-        let x = box.left + box.width / 2;
-        let y = box.top + box.height / 2;
-        const fire = (target: EventTarget, type: string): void => {
-            target.dispatchEvent(
-                new PointerEvent(type, {
-                    bubbles: true,
-                    pointerId: 1,
-                    pointerType: 'mouse',
-                    button: 0,
-                    clientX: x,
-                    clientY: y,
-                }),
-            );
-        };
-        fire(element, 'pointerdown');
+        const at = centre(element);
+        fire(element, 'pointerdown', at);
         let done = 0;
         const step = (): void => {
             if (done === moves) {
-                fire(window, 'pointerup');
+                fire(window, 'pointerup', at);
                 return;
             }
             done++;
-            x += dx;
-            y += dy;
-            fire(window, 'pointermove');
+            at.x += dx;
+            at.y += dy;
+            fire(window, 'pointermove', at);
             nextFrame(step);
         };
         nextFrame(step);
         return undefined;
     };
+
+// The time the dropped cigarette is given to fall and settle, and the most the hand holds it.
+const SETTLE_MS = 700;
+const HOLD_MS = 15_000;
+// How high above his head (30 px over his centre) the hand holds it, and how fast it rises and
+// moves away, in px per ms: 20 and 1 px per frame at 60 Hz, whatever the screen's rate.
+const HOLD_ABOVE = 120;
+const HEAD = 30;
+const RISE = 1.2;
+const DRIFT = 0.06;
+
+// The browser's clock, for a hand that does not follow the game's (see `nextFrame`).
+const now = (): number => {
+    // eslint-disable-next-line no-restricted-globals -- see `nextFrame`
+    return performance.now();
+};
+
+// The visitor takes the cigarette he dropped, with the hand: knocked off, left to land, then
+// pressed on, raised above his head and held there, moving slowly away, until it is no longer on
+// the page (he snatched it, or gave up on it) or the hand tires.
+const stealCigarette = (game: ScenarioGame): string | undefined => {
+    if (!monkeyAt()) {
+        return NOT_FOUND;
+    }
+    const refusal = knockOff(game);
+    if (refusal !== undefined) {
+        return refusal;
+    }
+    const grab = (): void => {
+        const cigarette = document.querySelector('svg.lost-cigarette');
+        const monkey = document.querySelector('svg[data-pose]');
+        if (!cigarette || !monkey) {
+            return;
+        }
+        const at = centre(cigarette);
+        const him = centre(monkey);
+        const aim = { x: at.x, y: him.y - HEAD - HOLD_ABOVE };
+        const away = at.x < him.x ? -DRIFT : DRIFT;
+        fire(cigarette, 'pointerdown', at);
+        const start = now();
+        let last = start;
+        const step = (): void => {
+            const time = now();
+            if (!cigarette.isConnected || time - start >= HOLD_MS) {
+                fire(window, 'pointerup', at);
+                return;
+            }
+            const rise = aim.y - at.y;
+            const lift = Math.min(RISE * (time - last), Math.abs(rise));
+            at.y += Math.sign(rise) * lift;
+            at.x += at.y === aim.y ? away * (time - last) : 0;
+            last = time;
+            fire(window, 'pointermove', at);
+            nextFrame(step);
+        };
+        nextFrame(step);
+    };
+    const since = now();
+    const wait = (): void => {
+        if (now() - since >= SETTLE_MS) {
+            grab();
+            return;
+        }
+        nextFrame(wait);
+    };
+    nextFrame(wait);
+    return undefined;
+};
 
 // Starts one of his behaviours by the usual rules of priority, as the Behaviours tab does, and
 // says why when it does not start.
@@ -201,7 +274,7 @@ export const scenarios: readonly Scenario[] = [
     },
     {
         label: 'Sneeze now',
-        note: 'Starts the sneeze: it only fills idle time, so he must be doing nothing.',
+        note: 'Starts the sneeze: it only fills idle time (smoking is), so he must not be doing anything else.',
         run: makeHim(
             'monkey/sneeze',
             'He is busy: a sneeze only comes in idle time.',
@@ -221,6 +294,11 @@ export const scenarios: readonly Scenario[] = [
             }
             return refusal;
         },
+    },
+    {
+        label: 'Steal his cigarette',
+        note: 'Knocks it off, then grabs it with the hand and holds it 120 px above his head, moving slowly away: he chases it, jumps and snatches it.',
+        run: stealCigarette,
     },
     {
         label: 'Piece hits him',

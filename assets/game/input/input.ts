@@ -5,8 +5,9 @@ import { PointerTracker } from './pointer_tracker';
 
 // What the visitor's hand can do to the game.
 export interface InputHooks {
-    // The piece an element belongs to, if the visitor may take it.
-    pick(target: Element | null): number | undefined;
+    // The piece an element belongs to, if the visitor may take it; `at` is where the press is on
+    // the page, for what is taken by its place and not by its element (absent for a native drag).
+    pick(target: Element | null, at?: Point): number | undefined;
     grab(id: number, at: Point): boolean;
     drag(to: Point): void;
     release(velocity: Point): void;
@@ -155,6 +156,11 @@ export class Input {
         return this.#gesture !== undefined;
     }
 
+    // The visitor has something in hand (not a press that has yet to take hold).
+    get held(): boolean {
+        return this.#gesture?.held === true;
+    }
+
     // The screen's coordinates plus the scroll: CSS pixels either way, so a Retina display
     // changes nothing.
     #toPage(client: Point): Point {
@@ -167,12 +173,12 @@ export class Input {
         if (this.#gesture || event.button !== 0 || event.ctrlKey) {
             return;
         }
-        const id = this.#hooks.pick(event.target as Element | null);
+        const client = { x: event.clientX, y: event.clientY };
+        const startPage = this.#toPage(client);
+        const id = this.#hooks.pick(event.target as Element | null, startPage);
         if (id === undefined) {
             return;
         }
-        const client = { x: event.clientX, y: event.clientY };
-        const startPage = this.#toPage(client);
         const touch = event.pointerType === 'touch';
         this.#tracker.reset();
         this.#tracker.add(startPage, event.timeStamp);

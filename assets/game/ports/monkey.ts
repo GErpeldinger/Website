@@ -7,7 +7,7 @@ export type Pose = 'stand' | 'smoke' | 'talk' | 'light' | 'carry' | 'tumble';
 export type ChosenPose = Extract<Pose, 'stand' | 'smoke' | 'talk' | 'light'>;
 export type Mood = 'calm' | 'scared' | 'cross' | 'proud' | 'burnt';
 export type Facing = 'left' | 'right';
-export type Pace = 'walk' | 'run';
+export type Pace = 'walk' | 'run' | 'chase';
 // How the cigarette in his mouth looks: lit (nothing to say), none while it lies on the page, or
 // not lit yet.
 export type CigaretteLook = 'lit' | 'lost' | 'unlit';
@@ -43,8 +43,9 @@ export type MonkeyRequest =
     // instant, with nothing to end, so a reflex may ask it.
     | { type: 'lose'; cause: CigaretteLoss }
     // Jumps, at this speed in pixels per step, and ends once he is back on his feet; `failed` if
-    // he is not on them to begin with.
-    | { type: 'jump'; vx: number; vy: number }
+    // he is not on them to begin with. With a `reach`, it ends in the air as soon as the cigarette
+    // the visitor holds is within that many pixels of the top of his head.
+    | { type: 'jump'; vx: number; vy: number; reach?: number }
     // Takes the cigarette he dropped, which was where he stands: it is in his mouth, not lit.
     // `failed` if none lies.
     | { type: 'pickup' }

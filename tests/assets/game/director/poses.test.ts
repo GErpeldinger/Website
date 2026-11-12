@@ -13,7 +13,14 @@ describe('the pose buttons', () => {
         ).toEqual([
             ['Stand', 'Smoke', 'Talk', 'Light'],
             ['Calm', 'Scared', 'Cross', 'Proud', 'Burnt'],
-            ['Walk left', 'Walk right', 'Run left', 'Run right'],
+            [
+                'Walk left',
+                'Walk right',
+                'Run left',
+                'Run right',
+                'Chase left',
+                'Chase right',
+            ],
         ]);
     });
 

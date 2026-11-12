@@ -14,6 +14,7 @@ import {
     type MonkeyRequest,
     type Pace,
 } from '../ports/monkey';
+import { withinReach } from '../ports/monkey_cigarette';
 import type { Layer, Motor, MotorTask, Outcome } from '../ports/motor';
 
 export interface MonkeyMotorOptions {
@@ -29,7 +30,12 @@ export interface MonkeyMotorOptions {
 }
 
 // Pixels per 60 Hz step, from the prototype.
-const SPEEDS: Record<Pace, number> = { walk: 3, run: 6.5 };
+const SPEEDS: Record<Pace, number> = {
+    walk: 3,
+    run: 6.5,
+    // After his cigarette in the visitor's hand: the prototype's 4.2.
+    chase: 4.2,
+};
 // He cannot reach a spot nearer a wall than his half width (the port says so, for the search).
 // How far inside the page he is put back: under the top, or from the edge, for a side.
 const ENTRY_GAP = 10;
@@ -284,7 +290,11 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
                 );
                 break;
             case 'jump':
-                this.#poll(task, this.#jump(request.vx, request.vy), halt);
+                this.#poll(
+                    task,
+                    this.#jump(request.vx, request.vy, request.reach),
+                    halt,
+                );
                 break;
             case 'pose':
                 this.#set(
@@ -463,7 +473,7 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
 
     // Leaves his feet at this speed and ends once he is back on them. He can only jump from
     // them.
-    *#jump(vx: number, vy: number): Steps {
+    *#jump(vx: number, vy: number, reach?: number): Steps {
         const body = this.#options.body();
         if (!body.grounded) {
             return 'failed';
@@ -472,10 +482,23 @@ export class MonkeyMotor implements Motor<MonkeyRequest> {
         // The world's step comes before the next poll: he has left the ground by then.
         for (;;) {
             yield;
-            if (this.#options.body().grounded) {
+            const now = this.#options.body();
+            if (now.grounded || this.#holdsWithin(now, reach)) {
                 return 'done';
             }
         }
+    }
+
+    // The cigarette in the visitor's hand is within `reach` of the top of his head.
+    #holdsWithin(body: MonkeyBody, reach: number | undefined): boolean {
+        const world = this.#options.world();
+        const view = world.cigarette();
+        return (
+            reach !== undefined &&
+            view !== undefined &&
+            world.cigaretteHeld &&
+            withinReach(view, { x: body.position.x, y: body.top }, reach)
+        );
     }
 
     // Calls `apply` with 0 to 1, eased, each frame for `time` ms, the last time with 1.

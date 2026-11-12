@@ -108,3 +108,10 @@ jump:
     - 'Donne !'
     - 'Presque…'
 giveUp: 'Laisse tomber, elle est éteinte. J’en ai d’autres.'
+stolen:
+    - 'Hé ! Rends-moi ça !'
+    - 'C’est MA clope !'
+    - 'Tu fumes, toi ?'
+snatched:
+    - 'Ha ! Récupérée.'
+    - 'Trop lent.'
